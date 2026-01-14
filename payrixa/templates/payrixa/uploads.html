@@ -1,0 +1,72 @@
+{% extends "payrixa/base.html" %}
+
+{% block title %}Uploads{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Uploads</h2>
+    <p>Manage your data uploads</p>
+</div>
+
+<div class="uploads-container">
+    <div class="upload-card">
+        <h3>Upload New File</h3>
+        <p>Upload your claims data in CSV format</p>
+        <form method="post" enctype="multipart/form-data" class="upload-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="csv_file">CSV File</label>
+                <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload File</button>
+        </form>
+    </div>
+
+    <div class="recent-uploads">
+        <h3>Recent Uploads</h3>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Status</th>
+                        <th>Uploaded</th>
+                        <th>Rows</th>
+                        <th>Date Range</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if uploads %}
+                        {% for upload in uploads %}
+                        <tr>
+                            <td>{{ upload.filename }}</td>
+                            <td>
+                                <span class="status-badge status-{{ upload.status }}">
+                                    {{ upload.get_status_display }}
+                                </span>
+                                {% if upload.error_message %}
+                                    <div class="error-tooltip">{{ upload.error_message }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{{ upload.uploaded_at|date:"Y-m-d H:i" }}</td>
+                            <td>{{ upload.row_count|default:"-" }}</td>
+                            <td>
+                                {% if upload.date_min and upload.date_max %}
+                                    {{ upload.date_min|date:"Y-m-d" }} to {{ upload.date_max|date:"Y-m-d" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="empty-state">No uploads yet</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

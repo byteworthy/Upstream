@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, Settings, Upload, ClaimRecord, ReportRun, DriftEvent, UserProfile
+from .models import Customer, Settings, Upload, ClaimRecord, ReportRun, DriftEvent, UserProfile, PayerMapping, CPTGroupMapping
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -45,3 +45,15 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'customer')
     search_fields = ('user__username', 'customer__name')
     list_filter = ('customer',)
+
+@admin.register(PayerMapping)
+class PayerMappingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer', 'raw_name', 'normalized_name')
+    search_fields = ('customer__name', 'raw_name', 'normalized_name')
+    list_filter = ('customer',)
+
+@admin.register(CPTGroupMapping)
+class CPTGroupMappingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer', 'cpt_code', 'cpt_group')
+    search_fields = ('customer__name', 'cpt_code', 'cpt_group')
+    list_filter = ('customer', 'cpt_group')

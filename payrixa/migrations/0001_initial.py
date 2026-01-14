@@ -71,7 +71,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="report_runs",
-                        to="driftwatch.customer",
+                        to="payrixa.customer",
                     ),
                 ),
             ],
@@ -131,7 +131,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="drift_events",
-                        to="driftwatch.customer",
+                        to="payrixa.customer",
                     ),
                 ),
                 (
@@ -139,7 +139,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="drift_events",
-                        to="driftwatch.reportrun",
+                        to="payrixa.reportrun",
                     ),
                 ),
             ],
@@ -164,7 +164,7 @@ class Migration(migrations.Migration):
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="settings",
-                        to="driftwatch.customer",
+                        to="payrixa.customer",
                     ),
                 ),
             ],
@@ -204,7 +204,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="uploads",
-                        to="driftwatch.customer",
+                        to="payrixa.customer",
                     ),
                 ),
             ],
@@ -248,7 +248,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="claim_records",
-                        to="driftwatch.customer",
+                        to="payrixa.customer",
                     ),
                 ),
                 (
@@ -256,7 +256,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="claim_records",
-                        to="driftwatch.upload",
+                        to="payrixa.upload",
                     ),
                 ),
             ],

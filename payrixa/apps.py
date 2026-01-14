@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class DriftwatchConfig(AppConfig):
+class PayrixaConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "driftwatch"
+    name = "payrixa"

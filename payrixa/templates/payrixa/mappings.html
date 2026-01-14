@@ -1,0 +1,147 @@
+{% extends "payrixa/base.html" %}
+
+{% block title %}Mappings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Mappings</h2>
+    <p>Manage payer and CPT code mappings for data normalization</p>
+</div>
+
+<div class="mappings-container">
+    <!-- Payer Mappings Section -->
+    <div class="mapping-section">
+        <h3>Payer Mappings</h3>
+
+        <!-- Add Payer Mapping Form -->
+        <form method="post" class="mapping-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_payer">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="raw_name">Raw Payer Name</label>
+                    <input type="text" id="raw_name" name="raw_name" required placeholder="e.g., UNITEDHEALTHCARE">
+                </div>
+
+                <div class="form-group">
+                    <label for="normalized_name">Normalized Name</label>
+                    <input type="text" id="normalized_name" name="normalized_name" required placeholder="e.g., UnitedHealthcare">
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Add Mapping</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Payer Mappings Table -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Raw Name</th>
+                        <th>Normalized Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if payer_mappings %}
+                        {% for mapping in payer_mappings %}
+                        <tr>
+                            <td>{{ mapping.raw_name }}</td>
+                            <td>{{ mapping.normalized_name }}</td>
+                            <td>
+                                <form method="post" style="display: inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_payer">
+                                    <input type="hidden" name="mapping_id" value="{{ mapping.id }}">
+                                    <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Delete this mapping?')">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="empty-state">No payer mappings defined</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- CPT Group Mappings Section -->
+    <div class="mapping-section">
+        <h3>CPT Group Mappings</h3>
+
+        <!-- Add CPT Mapping Form -->
+        <form method="post" class="mapping-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_cpt">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="cpt_code">CPT Code</label>
+                    <input type="text" id="cpt_code" name="cpt_code" required placeholder="e.g., 99213">
+                </div>
+
+                <div class="form-group">
+                    <label for="cpt_group">CPT Group</label>
+                    <input type="text" id="cpt_group" name="cpt_group" required placeholder="e.g., OFFICE_VISIT">
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Add Mapping</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- CPT Mappings Table -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>CPT Code</th>
+                        <th>CPT Group</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if cpt_mappings %}
+                        {% for mapping in cpt_mappings %}
+                        <tr>
+                            <td>{{ mapping.cpt_code }}</td>
+                            <td>{{ mapping.cpt_group }}</td>
+                            <td>
+                                <form method="post" style="display: inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_cpt">
+                                    <input type="hidden" name="mapping_id" value="{{ mapping.id }}">
+                                    <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Delete this mapping?')">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="empty-state">No CPT group mappings defined</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="help-section">
+        <h4>How Mappings Work</h4>
+        <ul>
+            <li><strong>Payer Mappings:</strong> Map raw payer names from CSV files to standardized names (case-insensitive matching)</li>
+            <li><strong>CPT Group Mappings:</strong> Group CPT codes into categories for analysis</li>
+            <li>Mappings are applied during CSV upload and affect how data is stored and displayed</li>
+            <li>Each customer has their own independent set of mappings</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

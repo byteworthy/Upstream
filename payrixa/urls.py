@@ -11,10 +11,11 @@ urlpatterns = [
     # Portal pages (all protected by login_required)
     path("uploads/", login_required(views.UploadsView.as_view()), name="uploads"),
     path("settings/", login_required(views.SettingsView.as_view()), name="settings"),
+    path("mappings/", login_required(views.MappingsView.as_view()), name="mappings"),
     path("drift-feed/", login_required(views.DriftFeedView.as_view()), name="drift_feed"),
     path("reports/", login_required(views.ReportsView.as_view()), name="reports"),
 
     # Authentication
-    path("login/", auth_views.LoginView.as_view(template_name="driftwatch/login.html"), name="login"),
+    path("login/", auth_views.LoginView.as_view(template_name="payrixa/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 ]

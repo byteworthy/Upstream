@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DriftWatch Portal - {% block title %}{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'driftwatch/css/style.css' %}">
+    <title>Payrixa Portal - {% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'payrixa/css/style.css' %}">
 </head>
 <body>
     <header class="header">
         <div class="container">
-            <h1 class="logo">DriftWatch</h1>
+            <h1 class="logo">Payrixa</h1>
             <nav class="main-nav">
                 <a href="{% url 'uploads' %}" class="nav-link {% if request.resolver_match.url_name == 'uploads' %}active{% endif %}">Uploads</a>
+                <a href="{% url 'mappings' %}" class="nav-link {% if request.resolver_match.url_name == 'mappings' %}active{% endif %}">Mappings</a>
                 <a href="{% url 'drift_feed' %}" class="nav-link {% if request.resolver_match.url_name == 'drift_feed' %}active{% endif %}">Drift Feed</a>
                 <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">Reports</a>
                 <a href="{% url 'settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">Settings</a>
@@ -29,7 +30,7 @@
 
     <footer class="footer">
         <div class="container">
-            <p>&copy; {% now "Y" %} DriftWatch. All rights reserved.</p>
+            <p>&copy; {% now "Y" %} Payrixa. All rights reserved.</p>
         </div>
     </footer>
 </body>

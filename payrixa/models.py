@@ -111,3 +111,25 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"Profile for {self.user.username} -> {self.customer.name}"
+
+class PayerMapping(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='payer_mappings')
+    raw_name = models.CharField(max_length=255)
+    normalized_name = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ('customer', 'raw_name')
+
+    def __str__(self):
+        return f"{self.raw_name} -> {self.normalized_name}"
+
+class CPTGroupMapping(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='cpt_group_mappings')
+    cpt_code = models.CharField(max_length=10)
+    cpt_group = models.CharField(max_length=50)
+
+    class Meta:
+        unique_together = ('customer', 'cpt_code')
+
+    def __str__(self):
+        return f"{self.cpt_code} -> {self.cpt_group}"
