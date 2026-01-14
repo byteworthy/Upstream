@@ -1,0 +1,2 @@
+payer,cpt_group,drift_type,baseline_value,current_value,delta_value,severity,confidence,baseline_start,baseline_end,current_start,current_end
+Test Payer 1,SURGERY,DENIAL_RATE,0.1,0.3,0.2,0.8,0.95,2023-01-01,2023-01-31,2023-02-01,2023-02-28
