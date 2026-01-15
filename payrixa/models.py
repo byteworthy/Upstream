@@ -133,3 +133,10 @@ class CPTGroupMapping(models.Model):
 
     def __str__(self):
         return f"{self.cpt_code} -> {self.cpt_group}"
+
+
+# Import models from submodules to ensure Django migrations detect them
+from payrixa.core.models import *  # noqa: F401, F403, E402
+from payrixa.alerts.models import *  # noqa: F401, F403, E402
+from payrixa.integrations.models import *  # noqa: F401, F403, E402
+from payrixa.reporting.models import *  # noqa: F401, F403, E402

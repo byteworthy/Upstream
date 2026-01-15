@@ -220,5 +220,3 @@ def compute_weekly_payer_drift(customer, baseline_days=90, current_days=14, min_
         DriftEvent.objects.filter(report_run=report_run).delete()
 
         raise
-<task_progress>
-- [x] Inspect current model fields (no changes yet)
