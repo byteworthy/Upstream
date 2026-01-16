@@ -51,7 +51,9 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-payrixa_dev_password}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_ENABLED=${CELERY_ENABLED:-False}
     depends_on:
       db:
         condition: service_healthy
@@ -59,6 +61,58 @@ services:
         condition: service_healthy
     stdin_open: true
     tty: true
+
+  # Celery Worker (for async task processing)
+  celery_worker:
+    build:
+      context: .
+      target: development
+    command: celery -A payrixa worker --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-docker-dev-key}
+      - DB_NAME=${DB_NAME:-payrixa}
+      - DB_USER=${DB_USER:-payrixa}
+      - DB_PASSWORD=${DB_PASSWORD:-payrixa_dev_password}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_ENABLED=True
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Celery Beat (for periodic task scheduling)
+  celery_beat:
+    build:
+      context: .
+      target: development
+    command: celery -A payrixa beat --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-docker-dev-key}
+      - DB_NAME=${DB_NAME:-payrixa}
+      - DB_USER=${DB_USER:-payrixa}
+      - DB_PASSWORD=${DB_PASSWORD:-payrixa_dev_password}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_ENABLED=True
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:

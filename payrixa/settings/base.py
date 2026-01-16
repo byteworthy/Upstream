@@ -243,6 +243,33 @@ LOGGING = {
 (BASE_DIR / 'logs').mkdir(exist_ok=True)
 
 # =============================================================================
+# CELERY SETTINGS
+# =============================================================================
+
+# Celery Configuration
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
+
+# Celery Beat Schedule (for periodic tasks)
+CELERY_BEAT_SCHEDULE = {
+    # Example: Weekly drift detection (can be triggered manually or scheduled)
+    # 'weekly-drift-detection': {
+    #     'task': 'payrixa.tasks.run_drift_detection',
+    #     'schedule': crontab(day_of_week='monday', hour=2, minute=0),
+    # },
+}
+
+# Enable Celery (can be disabled in development)
+CELERY_ENABLED = config('CELERY_ENABLED', default=False, cast=bool)
+
+# =============================================================================
 # SECURITY SETTINGS (Common)
 # =============================================================================
 

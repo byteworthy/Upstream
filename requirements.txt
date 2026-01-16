@@ -16,8 +16,10 @@ djangorestframework-simplejwt~=5.3.0
 django-cors-headers~=4.3.0
 drf-spectacular~=0.27.0
 
-# Background Tasks
+# Background Tasks & Async Processing
 django-q2~=1.6.0
+celery~=5.3.4
+redis~=5.0.1
 
 # Database (production)
 psycopg2-binary~=2.9.9
