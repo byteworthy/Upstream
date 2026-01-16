@@ -22,6 +22,9 @@ django-q2~=1.6.0
 # Database (production)
 psycopg2-binary~=2.9.9
 
+# Production Server
+gunicorn~=21.2.0
+
 # Email & Reporting
 django-anymail~=11.0
 weasyprint~=62.0
