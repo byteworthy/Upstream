@@ -31,15 +31,23 @@ class ScheduledReport(BaseModel):
         verbose_name_plural = 'Scheduled Reports'
 
 class ReportArtifact(BaseModel):
-    """Artifacts generated from report runs (CSV exports, etc.)."""
+    """Stored PDF report artifacts generated from ReportRun and DriftEvents."""
     customer = models.ForeignKey('payrixa.Customer', on_delete=models.CASCADE, related_name='report_artifacts')
     report_run = models.ForeignKey(ReportRun, on_delete=models.CASCADE, related_name='artifacts')
-    format = models.CharField(max_length=10, choices=[('csv', 'CSV'), ('pdf', 'PDF'), ('xlsx', 'Excel'), ('json', 'JSON')])
-    status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed'), ('failed', 'Failed')], default='pending')
-    file_path = models.CharField(max_length=512, blank=True, null=True)
-    params = models.JSONField(default=dict, blank=True)
+    kind = models.CharField(max_length=50, default='weekly_drift_summary', help_text="Type of report artifact (e.g., weekly_drift_summary)")
+    file_path = models.CharField(max_length=512, blank=True, help_text="Path to the generated PDF file")
+    content_hash = models.CharField(max_length=64, default='', blank=True, help_text="SHA256 hash of file content for idempotency")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When the artifact was generated")
+
     class Meta:
         verbose_name = 'Report Artifact'
         verbose_name_plural = 'Report Artifacts'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['customer', 'report_run', 'kind'],
+                name='unique_artifact_per_customer_report_kind'
+            )
+        ]
+
     def __str__(self):
-        return f"Artifact {self.id} - {self.format} ({self.status})"
+        return f"Artifact {self.id} - {self.kind} for {self.customer.name}"

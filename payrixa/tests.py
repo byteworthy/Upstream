@@ -8,6 +8,7 @@ from payrixa.utils import get_current_customer
 from payrixa.services.payer_drift import compute_weekly_payer_drift
 import csv
 import io
+import os
 from datetime import datetime, timedelta
 from django.utils import timezone
 
@@ -494,3 +495,255 @@ class PayerDriftTests(TestCase):
         finally:
             # Restore original function
             payrixa.services.payer_drift.compute_weekly_payer_drift = original_compute
+
+class ReportArtifactTests(TestCase):
+    def setUp(self):
+        self.customer = Customer.objects.create(name='Test Customer')
+        self.as_of_date = timezone.now().date()
+
+    def create_claim_record(self, payer, cpt_group, submitted_date, decided_date, outcome):
+        """Helper to create a claim record."""
+        upload = Upload.objects.create(
+            customer=self.customer,
+            filename='test.csv',
+            status='success',
+            row_count=1
+        )
+        return ClaimRecord.objects.create(
+            customer=self.customer,
+            upload=upload,
+            payer=payer,
+            cpt='12345',
+            cpt_group=cpt_group,
+            submitted_date=submitted_date,
+            decided_date=decided_date,
+            outcome=outcome
+        )
+
+    def test_pdf_artifact_creation(self):
+        """Test that PDF artifact is created successfully."""
+        from payrixa.services.payer_drift import compute_weekly_payer_drift
+        from payrixa.reporting.services import generate_weekly_drift_pdf
+        from payrixa.reporting.models import ReportArtifact
+
+        # Create test data - baseline with low denial rate
+        baseline_start = self.as_of_date - timedelta(days=104)
+        baseline_end = self.as_of_date - timedelta(days=14)
+        for i in range(50):
+            submitted_date = baseline_start + timedelta(days=i % 30)
+            decided_date = submitted_date + timedelta(days=5)
+            outcome = 'DENIED' if i < 10 else 'PAID'
+            self.create_claim_record('TestPayer', 'EVAL', submitted_date, decided_date, outcome)
+
+        # Create current data - high denial rate
+        current_start = baseline_end
+        for i in range(50):
+            submitted_date = current_start + timedelta(days=i % 10)
+            decided_date = submitted_date + timedelta(days=5)
+            outcome = 'DENIED' if i < 30 else 'PAID'
+            self.create_claim_record('TestPayer', 'EVAL', submitted_date, decided_date, outcome)
+
+        # Generate drift report
+        report_run = compute_weekly_payer_drift(
+            customer=self.customer,
+            baseline_days=90,
+            current_days=14,
+            min_volume=30,
+            as_of_date=self.as_of_date
+        )
+
+        # Generate PDF artifact
+        artifact = generate_weekly_drift_pdf(report_run.id)
+
+        # Verify artifact was created
+        self.assertIsNotNone(artifact)
+        self.assertEqual(artifact.customer, self.customer)
+        self.assertEqual(artifact.report_run, report_run)
+        self.assertEqual(artifact.kind, 'weekly_drift_summary')
+        self.assertIsNotNone(artifact.file_path)
+        self.assertIsNotNone(artifact.content_hash)
+        self.assertEqual(len(artifact.content_hash), 64)  # SHA256 hash length
+
+    def test_pdf_file_exists_and_nonzero(self):
+        """Test that generated PDF file exists and has non-zero size."""
+        from payrixa.services.payer_drift import compute_weekly_payer_drift
+        from payrixa.reporting.services import generate_weekly_drift_pdf
+
+        # Create minimal test data
+        baseline_start = self.as_of_date - timedelta(days=104)
+        baseline_end = self.as_of_date - timedelta(days=14)
+        for i in range(40):
+            submitted_date = baseline_start + timedelta(days=i % 30)
+            decided_date = submitted_date + timedelta(days=5)
+            self.create_claim_record('Payer1', 'TEST', submitted_date, decided_date, 'PAID')
+
+        current_start = baseline_end
+        for i in range(40):
+            submitted_date = current_start + timedelta(days=i % 10)
+            decided_date = submitted_date + timedelta(days=10)
+            self.create_claim_record('Payer1', 'TEST', submitted_date, decided_date, 'DENIED')
+
+        # Generate report and artifact
+        report_run = compute_weekly_payer_drift(
+            customer=self.customer,
+            baseline_days=90,
+            current_days=14,
+            min_volume=30,
+            as_of_date=self.as_of_date
+        )
+        artifact = generate_weekly_drift_pdf(report_run.id)
+
+        # Verify file exists
+        self.assertTrue(os.path.exists(artifact.file_path))
+
+        # Verify file is non-zero size
+        file_size = os.path.getsize(artifact.file_path)
+        self.assertGreater(file_size, 0)
+        self.assertGreater(file_size, 1000)  # Should be at least 1KB for a real PDF
+
+    def test_pdf_idempotency(self):
+        """Test that generating the same report twice creates idempotent artifact."""
+        from payrixa.services.payer_drift import compute_weekly_payer_drift
+        from payrixa.reporting.services import generate_weekly_drift_pdf
+        from payrixa.reporting.models import ReportArtifact
+
+        # Create test data
+        baseline_start = self.as_of_date - timedelta(days=104)
+        baseline_end = self.as_of_date - timedelta(days=14)
+        for i in range(40):
+            submitted_date = baseline_start + timedelta(days=i % 30)
+            decided_date = submitted_date + timedelta(days=5)
+            self.create_claim_record('Payer2', 'SURG', submitted_date, decided_date, 'PAID')
+
+        current_start = baseline_end
+        for i in range(40):
+            submitted_date = current_start + timedelta(days=i % 10)
+            decided_date = submitted_date + timedelta(days=15)
+            self.create_claim_record('Payer2', 'SURG', submitted_date, decided_date, 'PAID')
+
+        # Generate report
+        report_run = compute_weekly_payer_drift(
+            customer=self.customer,
+            baseline_days=90,
+            current_days=14,
+            min_volume=30,
+            as_of_date=self.as_of_date
+        )
+
+        # Generate PDF first time
+        artifact1 = generate_weekly_drift_pdf(report_run.id)
+        artifact1_id = artifact1.id
+        artifact1_hash = artifact1.content_hash
+
+        # Count total artifacts
+        artifact_count = ReportArtifact.objects.filter(
+            customer=self.customer,
+            report_run=report_run,
+            kind='weekly_drift_summary'
+        ).count()
+        self.assertEqual(artifact_count, 1)
+
+        # Generate PDF second time (should update, not create new)
+        artifact2 = generate_weekly_drift_pdf(report_run.id)
+        artifact2_id = artifact2.id
+
+        # Verify it's the same artifact (idempotent)
+        self.assertEqual(artifact1_id, artifact2_id)
+
+        # Verify artifact count is still 1 (no duplicate created)
+        artifact_count_after = ReportArtifact.objects.filter(
+            customer=self.customer,
+            report_run=report_run,
+            kind='weekly_drift_summary'
+        ).count()
+        self.assertEqual(artifact_count_after, 1)
+
+    def test_pdf_content_hash_consistency(self):
+        """Test that content hash is consistent for identical data."""
+        from payrixa.services.payer_drift import compute_weekly_payer_drift
+        from payrixa.reporting.services import generate_weekly_drift_pdf
+
+        # Create test data
+        baseline_start = self.as_of_date - timedelta(days=104)
+        baseline_end = self.as_of_date - timedelta(days=14)
+        for i in range(40):
+            submitted_date = baseline_start + timedelta(days=i % 30)
+            decided_date = submitted_date + timedelta(days=5)
+            self.create_claim_record('Payer3', 'PATH', submitted_date, decided_date, 'PAID')
+
+        current_start = baseline_end
+        for i in range(40):
+            submitted_date = current_start + timedelta(days=i % 10)
+            decided_date = submitted_date + timedelta(days=8)
+            outcome = 'DENIED' if i < 5 else 'PAID'
+            self.create_claim_record('Payer3', 'PATH', submitted_date, decided_date, outcome)
+
+        # Generate report
+        report_run = compute_weekly_payer_drift(
+            customer=self.customer,
+            baseline_days=90,
+            current_days=14,
+            min_volume=30,
+            as_of_date=self.as_of_date
+        )
+
+        # Generate PDF first time
+        artifact1 = generate_weekly_drift_pdf(report_run.id)
+        hash1 = artifact1.content_hash
+
+        # Generate PDF second time
+        artifact2 = generate_weekly_drift_pdf(report_run.id)
+        hash2 = artifact2.content_hash
+
+        # Verify hashes are identical (same data generates same PDF)
+        self.assertEqual(hash1, hash2)
+
+    def test_unique_constraint_enforcement(self):
+        """Test that database constraint prevents duplicate artifacts."""
+        from payrixa.services.payer_drift import compute_weekly_payer_drift
+        from payrixa.reporting.models import ReportArtifact
+
+        # Create minimal test data
+        baseline_start = self.as_of_date - timedelta(days=104)
+        baseline_end = self.as_of_date - timedelta(days=14)
+        for i in range(40):
+            submitted_date = baseline_start + timedelta(days=i % 30)
+            decided_date = submitted_date + timedelta(days=5)
+            self.create_claim_record('Payer4', 'RAD', submitted_date, decided_date, 'PAID')
+
+        current_start = baseline_end
+        for i in range(40):
+            submitted_date = current_start + timedelta(days=i % 10)
+            decided_date = submitted_date + timedelta(days=10)
+            self.create_claim_record('Payer4', 'RAD', submitted_date, decided_date, 'PAID')
+
+        # Generate report
+        report_run = compute_weekly_payer_drift(
+            customer=self.customer,
+            baseline_days=90,
+            current_days=14,
+            min_volume=30,
+            as_of_date=self.as_of_date
+        )
+
+        # Try to manually create two artifacts with same customer, report_run, kind
+        # First one should succeed
+        artifact1 = ReportArtifact.objects.create(
+            customer=self.customer,
+            report_run=report_run,
+            kind='weekly_drift_summary',
+            file_path='/tmp/test1.pdf',
+            content_hash='hash1'
+        )
+        self.assertIsNotNone(artifact1.id)
+
+        # Second one should fail due to unique constraint
+        from django.db import IntegrityError
+        with self.assertRaises(IntegrityError):
+            ReportArtifact.objects.create(
+                customer=self.customer,
+                report_run=report_run,
+                kind='weekly_drift_summary',
+                file_path='/tmp/test2.pdf',
+                content_hash='hash2'
+            )
