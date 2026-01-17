@@ -2,6 +2,59 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-01-17
+
+### Added
+- **Platform Hardening Complete (Chunks 7-17)**
+  - Chunk 13: Slack integration with advanced routing rules (ba8a00c)
+  - Chunk 14: RBAC granularity and configuration UI (78faa62)
+  - Chunk 15: Excel export system with multi-sheet support (e3411c9)
+  - Chunk 16: Data retention policies and rate limiting (bcd55aa)
+  - Chunk 17: Ingestion spine and event log architecture (48a4d49)
+
+### Chunk 15: Excel Export System
+- Multi-sheet Excel exports (summary + details tabs)
+- Customer-scoped exports with tenant isolation
+- Audit logging for compliance
+- BytesIO streaming (no disk I/O)
+- Export service for drift events, alert events, weekly summaries
+- Added openpyxl~=3.1.2
+
+### Chunk 16: Operational Hardening
+- Data retention policies with configurable timeframes
+  - Uploads: 90 days
+  - Drift events: 180 days (orphaned only)
+  - Report runs: 365 days
+  - CSV artifacts: 30 days
+  - PDF artifacts: 90 days
+- Management command `cleanup_old_data` with dry-run mode
+- In-memory rate limiting middleware (100 req/60s default)
+- Per-IP request tracking with automatic cleanup
+- 429 responses with Retry-After headers
+
+### Chunk 17: Ingestion Spine (Critical Architecture)
+- **IngestionService**: Unified entry point for all data sources
+  - Supports batch upload, webhook, API, streaming modes
+  - Idempotency key support to prevent duplicates
+  - Durable IngestionRecord model with status tracking
+- **SystemEvent**: Append-only event log for audit and fanout
+  - Event types: ingestion_received, ingestion_processed, drift_detected, alert_created, etc.
+  - Links to related objects (ingestion, drift, alerts)
+  - Request ID tracking for distributed tracing
+- **publish_event()**: Single fanout point for all system events
+- **Webhook ingestion endpoint**: `/api/v1/ingest/webhook/`
+  - Token-based authentication (IngestionToken model)
+  - Token rotation and expiration support
+  - Rate limiting and RBAC enforced
+- **Clean architecture seams** for future modules (DenialScope, ContractIQ, etc.)
+
+### Technical
+- Added packages: openpyxl
+- New models: IngestionRecord, SystemEvent, IngestionToken
+- New middleware: SimpleRateLimitMiddleware
+- New management commands: cleanup_old_data
+- Migration: 0008_alter_domainauditevent_action_ingestionrecord_and_more
+
 ## [0.2.0] - 2026-01-14
 
 ### Added
