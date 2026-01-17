@@ -18,6 +18,8 @@ from ..models import (
     Customer, Settings, Upload, ClaimRecord,
     ReportRun, DriftEvent, PayerMapping, CPTGroupMapping
 )
+from payrixa.ingestion.models import IngestionToken
+from payrixa.ingestion import IngestionService
 from .serializers import (
     CustomerSerializer, SettingsSerializer, UploadSerializer, UploadSummarySerializer,
     ClaimRecordSerializer, ClaimRecordSummarySerializer,
@@ -386,6 +388,105 @@ class DashboardView(APIView):
         
         serializer = DashboardSerializer(data)
         return Response(serializer.data)
+
+
+class WebhookIngestionView(APIView):
+    """
+    Webhook ingestion endpoint.
+    
+    Accepts JSON payloads authenticated with ingestion tokens.
+    Creates durable ingestion records for async processing.
+    """
+    
+    permission_classes = []  # Uses token auth instead
+    
+    @extend_schema(
+        summary="Ingest data via webhook",
+        request={'application/json': dict},
+        responses={202: dict, 401: dict, 400: dict}
+    )
+    def post(self, request):
+        """Accept webhook payload and create ingestion record."""
+        # Extract token from header
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header.startswith('Bearer '):
+            return Response(
+                {'error': 'Missing or invalid authorization header'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        token_value = auth_header[7:]  # Remove 'Bearer '
+        
+        # Validate token
+        try:
+            token = IngestionToken.objects.get(token=token_value, is_active=True)
+            
+            # Check expiration
+            if token.expires_at and token.expires_at < timezone.now():
+                return Response(
+                    {'error': 'Token expired'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Update last used
+            token.last_used_at = timezone.now()
+            token.save(update_fields=['last_used_at'])
+            
+        except IngestionToken.DoesNotExist:
+            return Response(
+                {'error': 'Invalid token'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Extract payload
+        payload = request.data
+        if not payload:
+            return Response(
+                {'error': 'Empty payload'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Extract optional idempotency key
+        idempotency_key = request.META.get('HTTP_X_IDEMPOTENCY_KEY')
+        
+        # Create ingestion record
+        try:
+            service = IngestionService(
+                customer=token.customer,
+                source_type='webhook',
+                created_by=None
+            )
+            
+            record = service.create_record(
+                payload_metadata={
+                    'source': 'webhook',
+                    'token_name': token.name,
+                    'payload_keys': list(payload.keys()) if isinstance(payload, dict) else []
+                },
+                idempotency_key=idempotency_key,
+                record_count=len(payload) if isinstance(payload, list) else 1
+            )
+            
+            # TODO: Trigger async processing task
+            # from payrixa.tasks import process_ingestion
+            # process_ingestion.delay(record.id)
+            
+            return Response({
+                'status': 'accepted',
+                'ingestion_id': record.id,
+                'message': 'Payload received and queued for processing'
+            }, status=status.HTTP_202_ACCEPTED)
+            
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': 'Internal server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class HealthCheckView(APIView):

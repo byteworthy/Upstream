@@ -28,6 +28,7 @@ from .views import (
     CPTGroupMappingViewSet,
     DashboardView,
     HealthCheckView,
+    WebhookIngestionView,
 )
 
 # Create router and register viewsets
@@ -44,6 +45,9 @@ router.register(r'cpt-mappings', CPTGroupMappingViewSet, basename='cpt-mapping')
 urlpatterns = [
     # Health check (no auth)
     path('health/', HealthCheckView.as_view(), name='api-health'),
+    
+    # Webhook ingestion (token auth)
+    path('ingest/webhook/', WebhookIngestionView.as_view(), name='api-webhook-ingest'),
     
     # Dashboard
     path('dashboard/', DashboardView.as_view(), name='api-dashboard'),
