@@ -106,11 +106,63 @@ class DriftEvent(models.Model):
         return f"Drift Event {self.id} - {self.drift_type} - {self.payer}"
 
 class UserProfile(models.Model):
+    """User profile linking users to customers with roles."""
+    
+    ROLE_CHOICES = [
+        ('owner', 'Owner'),
+        ('admin', 'Admin'),
+        ('analyst', 'Analyst'),
+        ('viewer', 'Viewer'),
+    ]
+    
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='user_profiles')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
 
     def __str__(self):
-        return f"Profile for {self.user.username} -> {self.customer.name}"
+        return f"Profile for {self.user.username} ({self.role}) -> {self.customer.name}"
+    
+    @property
+    def is_owner(self):
+        return self.role == 'owner'
+    
+    @property
+    def is_admin(self):
+        return self.role in ('owner', 'admin')
+    
+    @property
+    def is_analyst(self):
+        return self.role in ('owner', 'admin', 'analyst')
+    
+    @property
+    def can_manage_users(self):
+        """Check if user can manage team members."""
+        return self.role in ('owner', 'admin')
+    
+    @property
+    def can_manage_alerts(self):
+        """Check if user can manage alert rules and routing."""
+        return self.role in ('owner', 'admin')
+    
+    @property
+    def can_manage_webhooks(self):
+        """Check if user can manage webhooks."""
+        return self.role in ('owner', 'admin')
+    
+    @property
+    def can_upload_claims(self):
+        """Check if user can upload claim files."""
+        return self.role in ('owner', 'admin', 'analyst')
+    
+    @property
+    def can_manage_mappings(self):
+        """Check if user can manage payer/CPT mappings."""
+        return self.role in ('owner', 'admin', 'analyst')
+    
+    @property
+    def can_view_reports(self):
+        """Check if user can view reports and drift feed."""
+        return True  # All roles can view
 
 class PayerMapping(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='payer_mappings')

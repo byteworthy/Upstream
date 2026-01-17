@@ -9,9 +9,11 @@ import io
 from datetime import datetime
 from .models import Settings, Upload, ClaimRecord, PayerMapping, CPTGroupMapping
 from .utils import get_current_customer
+from .permissions import PermissionRequiredMixin
 
-class UploadsView(LoginRequiredMixin, View):
+class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
     template_name = "payrixa/uploads.html"
+    permission_required = 'upload_claims'
     MAX_ROWS = 200000  # Maximum rows to prevent large uploads
     ALLOWED_COLUMNS = ['payer', 'cpt', 'submitted_date', 'decided_date', 'outcome', 'allowed_amount']
 
@@ -259,8 +261,9 @@ class ReportsView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class MappingsView(LoginRequiredMixin, View):
+class MappingsView(LoginRequiredMixin, PermissionRequiredMixin, View):
     template_name = "payrixa/mappings.html"
+    permission_required = 'manage_mappings'
 
     def get(self, request):
         try:

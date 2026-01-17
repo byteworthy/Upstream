@@ -35,6 +35,10 @@ class DomainAuditEvent(models.Model):
         ('webhook_endpoint_created', 'Webhook Endpoint Created'), ('webhook_endpoint_updated', 'Webhook Endpoint Updated'),
         ('webhook_endpoint_deleted', 'Webhook Endpoint Deleted'), ('drift_event_created', 'Drift Event Created'),
         ('report_run_started', 'Report Run Started'), ('report_run_completed', 'Report Run Completed'),
+        ('member_added', 'Member Added'), ('member_removed', 'Member Removed'),
+        ('role_changed', 'Role Changed'),
+        ('alert_routing_updated', 'Alert Routing Updated'),
+        ('slack_webhook_updated', 'Slack Webhook Updated'),
     ]
     customer = models.ForeignKey('payrixa.Customer', on_delete=models.CASCADE, related_name='domain_audit_events', null=True, blank=True)
     action = models.CharField(max_length=50, choices=ACTION_CHOICES)
