@@ -1,0 +1,72 @@
+{% extends "payrixa/base.html" %}
+{% load static %}
+
+{% block title %}DenialScope{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>DenialScope</h1>
+        <p class="subtitle">Denial pattern intelligence and trend detection</p>
+    </div>
+
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="30" stroke="#ccc" stroke-width="2" fill="none"/>
+                <path d="M32 16v32M16 32h32" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <h2>No denial data yet</h2>
+        <p>Denial reason intelligence will appear here once denial data has been ingested.</p>
+        <p class="text-muted">Sprint 1: Scaffolding only - analytics not yet implemented</p>
+    </div>
+</div>
+
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .dashboard-header {
+        margin-bottom: 3rem;
+    }
+    .dashboard-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2rem;
+        color: #333;
+    }
+    .dashboard-header .subtitle {
+        margin: 0;
+        color: #666;
+        font-size: 1.1rem;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: #f9f9f9;
+        border-radius: 8px;
+        border: 2px dashed #ddd;
+    }
+    .empty-state-icon {
+        margin-bottom: 1.5rem;
+    }
+    .empty-state h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.5rem;
+        color: #555;
+    }
+    .empty-state p {
+        margin: 0.5rem 0;
+        color: #777;
+        font-size: 1rem;
+    }
+    .empty-state .text-muted {
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+        color: #999;
+        font-style: italic;
+    }
+</style>
+{% endblock %}

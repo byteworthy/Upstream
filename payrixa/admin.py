@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Customer, Settings, Upload, ClaimRecord, ReportRun, DriftEvent, UserProfile, PayerMapping, CPTGroupMapping
+from payrixa.core.models import ProductConfig
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -57,3 +58,24 @@ class CPTGroupMappingAdmin(admin.ModelAdmin):
     list_display = ('id', 'customer', 'cpt_code', 'cpt_group')
     search_fields = ('customer__name', 'cpt_code', 'cpt_group')
     list_filter = ('customer', 'cpt_group')
+
+@admin.register(ProductConfig)
+class ProductConfigAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer', 'product_slug', 'enabled', 'created_at')
+    list_filter = ('enabled', 'product_slug', 'customer')
+    search_fields = ('customer__name',)
+    date_hierarchy = 'created_at'
+    fieldsets = (
+        ('Product', {
+            'fields': ('customer', 'product_slug', 'enabled')
+        }),
+        ('Configuration', {
+            'fields': ('config_json',),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('created_at', 'updated_at')

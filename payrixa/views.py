@@ -362,3 +362,25 @@ class MappingsView(LoginRequiredMixin, PermissionRequiredMixin, View):
             except CPTGroupMapping.DoesNotExist:
                 messages.error(request, "CPT group mapping not found")
         return redirect('mappings')
+
+
+class InsightsFeedView(LoginRequiredMixin, TemplateView):
+    """Shared insight feed showing SystemEvent activity across all products."""
+    template_name = "payrixa/insights_feed.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            customer = get_current_customer(self.request)
+            context['customer'] = customer
+            
+            # Import SystemEvent from ingestion models
+            from payrixa.ingestion.models import SystemEvent
+            
+            # Get recent system events for this customer
+            events = SystemEvent.objects.filter(customer=customer).order_by('-created_at')[:50]
+            context['events'] = events
+            context['has_events'] = events.exists()
+        except ValueError as e:
+            messages.error(self.request, str(e))
+        return context

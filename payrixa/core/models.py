@@ -54,3 +54,30 @@ class DomainAuditEvent(models.Model):
         ordering = ['-timestamp']
     def __str__(self):
         return f"{self.action} - {self.entity_type}:{self.entity_id} at {self.timestamp}"
+
+
+class ProductConfig(BaseModel):
+    """Product line enablement configuration per customer."""
+    
+    PRODUCT_CHOICES = [
+        ('payrixa-core', 'Payrixa Core'),
+        ('denialscope', 'DenialScope'),
+        ('contractiq', 'ContractIQ'),
+        ('opsvariance', 'OpsVariance'),
+        ('authsignal', 'AuthSignal'),
+    ]
+    
+    customer = models.ForeignKey('payrixa.Customer', on_delete=models.CASCADE, related_name='product_configs')
+    product_slug = models.CharField(max_length=50, choices=PRODUCT_CHOICES)
+    enabled = models.BooleanField(default=False)
+    config_json = models.JSONField(default=dict, blank=True, help_text='Product-specific configuration')
+    
+    class Meta:
+        verbose_name = 'Product Configuration'
+        verbose_name_plural = 'Product Configurations'
+        unique_together = ('customer', 'product_slug')
+        ordering = ['customer', 'product_slug']
+    
+    def __str__(self):
+        status = 'Enabled' if self.enabled else 'Disabled'
+        return f"{self.get_product_slug_display()} for {self.customer.name} ({status})"

@@ -2,22 +2,10 @@
 
 **Early-warning intelligence for healthcare revenue operations.**
 
----
-
-> Healthcare doesn't fail all at once. It fails quietly.
->
-> Payers change behavior. Processes slip. Revenue leaks.
-> And most teams only find out after the damage is done.
->
-> **Payrixa is your early-warning system.**
-
----
-
 ## What Payrixa Does
 
-Payrixa watches operational and payer behavior patterns to flag what's starting to break—**before it hits revenue**.
-
-We don't automate decisions. We tell you **where to look first**, while there's still time to act.
+Payrixa is a web-based system that detects payer behavior drift and operational variance using claims data.
+It surfaces signals and alerts for review without automating decisions.
 
 ### Core Features
 
@@ -25,8 +13,6 @@ We don't automate decisions. We tell you **where to look first**, while there's 
 - 📁 **Claim Upload & Normalization** — CSV upload with automatic payer name and CPT code mapping
 - ⚠️ **Threshold-Based Alerts** — Customizable sensitivity to flag statistically significant changes
 - 📈 **Weekly Report Runs** — Scheduled analysis with historical tracking
-
----
 
 ## Tech Stack
 
@@ -112,21 +98,8 @@ Multi-tenant architecture, CSV uploads, payer drift detection, API layer
 ### Phase 2: Enhanced Analytics
 Trend visualization, custom date ranges, CPT group-level drift, payer benchmarking
 
-### Phase 3: Desktop Application
-Electron client, offline capability, native OS notifications
-
-### Phase 4: Enterprise
+### Phase 3: Enterprise
 SSO/SAML, role-based access, webhook integrations, audit logging dashboard
-
----
-
-## Why Early Detection Matters
-
-Healthcare revenue cycle operates on thin margins. A 2% shift in denial rates from a major payer can mean hundreds of thousands in delayed or lost revenue—compounded weekly.
-
-Traditional approaches catch these problems in monthly or quarterly reviews. By then, appeal windows may have closed and the pattern has already repeated.
-
-**Payrixa's value is time.** Early detection means early intervention.
 
 ---
 

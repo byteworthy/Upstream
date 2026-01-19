@@ -126,3 +126,27 @@ class SimpleRateLimitMiddleware(MiddlewareMixin):
             ]
             if not self._request_log[ip]:
                 del self._request_log[ip]
+
+
+class ProductEnablementMiddleware(MiddlewareMixin):
+    """Attach enabled product slugs to the request for navigation gating."""
+    def process_request(self, request):
+        request.enabled_products = set()
+        
+        if not request.user.is_authenticated:
+            return None
+        
+        if not hasattr(request.user, 'profile') or not request.user.profile.customer:
+            return None
+        
+        from payrixa.core.models import ProductConfig
+        customer = request.user.profile.customer
+        all_configs = ProductConfig.objects.filter(customer=customer)
+
+        if not all_configs.exists():
+            request.enabled_products = {'payrixa-core'}
+            return None
+
+        enabled_configs = all_configs.filter(enabled=True)
+        request.enabled_products = {config.product_slug for config in enabled_configs}
+        return None

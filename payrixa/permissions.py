@@ -218,3 +218,37 @@ def get_user_permissions(user):
         'is_owner': profile.is_owner,
         'is_admin': profile.is_admin,
     }
+
+
+def is_product_enabled(customer, product_slug):
+    """Return True if the product is enabled for the customer."""
+    if not customer:
+        return False
+    from payrixa.core.models import ProductConfig
+    return ProductConfig.objects.filter(
+        customer=customer,
+        product_slug=product_slug,
+        enabled=True
+    ).exists()
+
+
+class ProductEnabledMixin:
+    """Mixin to enforce product enablement on class-based views."""
+    product_slug = None
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.product_slug:
+            raise ValueError("product_slug must be set for ProductEnabledMixin")
+
+        customer = getattr(request.user, 'profile', None)
+        customer = getattr(customer, 'customer', None)
+
+        if not is_product_enabled(customer, self.product_slug):
+            logger.warning(
+                f"Product disabled: user={request.user.username if request.user.is_authenticated else 'anonymous'} "
+                f"product={self.product_slug} path={request.path}"
+            )
+            messages.error(request, "This product is not enabled for your account.")
+            return HttpResponseForbidden("Product not enabled")
+
+        return super().dispatch(request, *args, **kwargs)

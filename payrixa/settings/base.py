@@ -56,6 +56,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "payrixa.middleware.RequestIdMiddleware",
+    "payrixa.middleware.ProductEnablementMiddleware",
     "auditlog.middleware.AuditlogMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",

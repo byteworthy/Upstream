@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-01-19
+
+### Added
+- Product line scaffolding (Sprint 1)
+- ProductConfig model for customer-level product enablement
+- Product enablement gating (middleware + view mixin)
+- DenialScope dashboard stub (empty state only)
+- Insights feed stub (SystemEvent-driven)
+- Enablement navigation gating in base template
+- New tests for product enablement and navigation
+
+### Notes
+- Scaffolding only; no new product analytics implemented
+- Payrixa Core logic remains in place (no refactor)
+
 ## [0.3.0] - 2026-01-17
 
 ### Added
@@ -100,8 +115,6 @@ All notable changes to this project will be documented in this file.
 - Management command: `run_weekly_payer_drift`
 - Basic web portal templates
 
----
-
 ## Roadmap
 
 ### Phase 2 (Planned)
@@ -111,11 +124,6 @@ All notable changes to this project will be documented in this file.
 - CPT group-level drift detection
 
 ### Phase 3 (Planned)
-- Electron desktop application
-- Offline capability with sync
-- Native OS notifications
-
-### Phase 4 (Planned)
 - SSO/SAML authentication
 - Role-based access control
 - Webhook integrations
