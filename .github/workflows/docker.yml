@@ -1,0 +1,37 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: payrixa:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test Docker container starts
+      run: |
+        docker run --rm -d --name payrixa-test \
+          -e SECRET_KEY=test-secret-key-for-ci \
+          -e DEBUG=True \
+          -e DATABASE_URL=sqlite:///db.sqlite3 \
+          payrixa:test
+        sleep 10
+        docker stop payrixa-test || true

@@ -1,0 +1,55 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggered on version tags like v1.0.0
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Run tests before deploy
+      run: |
+        pip install -r requirements.txt
+        python manage.py test --verbosity=0
+      env:
+        SECRET_KEY: ci-test-secret-key
+        DEBUG: 'True'
+    
+    - name: Build Docker image
+      run: |
+        docker build -t payrixa:${{ github.sha }} .
+    
+    - name: Deploy notification
+      run: |
+        echo "🚀 Ready to deploy Payrixa"
+        echo "Environment: ${{ github.event.inputs.environment || 'staging' }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Tag: ${{ github.ref_name }}"
+        echo ""
+        echo "Configure your deployment target in this workflow:"
+        echo "- AWS ECS, EKS, or App Runner"
+        echo "- Google Cloud Run"
+        echo "- Azure Container Apps"
+        echo "- Railway, Render, or Fly.io"
