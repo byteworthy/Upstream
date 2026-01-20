@@ -5,3 +5,6 @@ staticfiles/
 venv/
 logs/
 *.log
+
+# Diff artifacts
+.git_diff_*.txt
