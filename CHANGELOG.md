@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-01-19
+
+### Added
+- Sprint 2: DenialScope analytics with daily aggregates and signal detection
+- DenialScope dashboard with real denial metrics and recent signals
+- DenialScope management command `compute_denialscope`
+- DenialScope signal publishing into SystemEvent feed
+- ClaimRecord denial reason fields for ongoing ingestion
+- DenialScope unit tests (aggregates, signals, dashboard, idempotency)
+
+### Notes
+- DenialScope now has real analytics (not a stub)
+- Payrixa Core logic remains in place (no refactor)
+
 ## [0.4.0] - 2026-01-19
 
 ### Added

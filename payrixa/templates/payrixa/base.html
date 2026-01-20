@@ -20,7 +20,6 @@
                 {% if 'denialscope' in request.enabled_products %}
                 <a href="{% url 'denialscope_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'denialscope_dashboard' %}active{% endif %}">DenialScope</a>
                 {% endif %}
-                <a href="{% url 'insights_feed' %}" class="nav-link {% if request.resolver_match.url_name == 'insights_feed' %}active{% endif %}">Insights</a>
                 <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">Reports</a>
                 <a href="{% url 'settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">Settings</a>
                 <a href="{% url 'logout' %}" class="nav-link logout-link">Logout</a>

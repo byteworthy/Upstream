@@ -79,6 +79,7 @@ class SystemEvent(BaseModel):
         ('report_generated', 'Report Generated'),
         ('webhook_sent', 'Webhook Sent'),
         ('email_sent', 'Email Sent'),
+        ('denialscope_signal_created', 'DenialScope Signal Created'),
     ]
     
     customer = models.ForeignKey('payrixa.Customer', on_delete=models.CASCADE, related_name='system_events')

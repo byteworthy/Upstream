@@ -3,6 +3,27 @@
 ## Purpose
 Payrixa is a healthcare revenue cycle intelligence platform that detects payer behavior drift through statistical analysis of claims data. It provides actionable alerts when denial rates, decision times, or other key metrics deviate from historical baselines.
 
+## V1 Focus: DenialScope
+**One product. One signal. One story.**
+
+V1 focuses exclusively on DenialScope — denial pattern intelligence and trend detection. Other product modules (ContractIQ, OpsVariance, AuthSignal) are scaffolded but disabled. This keeps V1 sharp and trustworthy.
+
+### DenialScope Signal Chain ✅
+1. **Data ingestion** → Claims uploaded with denial reason codes
+2. **Aggregate computation** → Daily denial aggregates by payer/reason
+3. **Signal detection** → Denial rate spikes, dollar spikes, new denial reasons
+4. **Dashboard display** → Real metrics, real signals, real evidence
+5. **SystemEvent publishing** → Signals flow to event log for audit
+
+### Verified Signal Output
+```
+Signal: denial_dollars_spike
+  Payer: Blue Cross Blue Shield
+  Severity: critical
+  Confidence: 1.0
+  Summary: Denial Dollars spiked from $1,650 to $4,200
+```
+
 ## Tech Stack
 - **Backend**: Django 5.1.5, Python 3.12
 - **Database**: PostgreSQL (production), SQLite (dev)
@@ -23,53 +44,40 @@ Payrixa is a healthcare revenue cycle intelligence platform that detects payer b
 - Email and webhook delivery channels
 - Audit logging and domain events
 
-### Chunks 7-17: Platform Hardening (Complete ✅)
+### DenialScope (V1 Product ✅)
+- Daily denial aggregate computation
+- Signal detection: rate spikes, dollar spikes, new denial reasons
+- Baseline vs recent window comparison
+- Confidence scoring
+- SystemEvent publishing
+- Real dashboard with real metrics
+- Deterministic test data generator (`generate_denialscope_test_data`)
 
-| Chunk | Feature | Status | Commit |
-|-------|---------|--------|--------|
-| 7 | API endpoint tests | ✅ Complete | - |
-| 8 | Docker containerization | ✅ Complete | - |
-| 9 | GitHub Actions CI | ✅ Complete | - |
-| 10 | Celery async tasks | ✅ Complete | - |
-| 11 | Monitoring stack (Prometheus/Grafana) | ✅ Complete | - |
-| 12 | Performance and load testing | ✅ Complete | - |
-| 13 | Slack integration and routing | ✅ Complete | ba8a00c |
-| 14 | RBAC and permissions | ✅ Complete | 78faa62 |
-| 15 | Excel exports | ✅ Complete | e3411c9 |
-| 16 | Retention and rate limiting | ✅ Complete | bcd55aa |
-| 17 | Ingestion spine and event log | ✅ Complete | 48a4d49 |
+### Platform Hardening (Complete ✅)
 
-### Latest Features (Chunks 15-17)
-
-**Chunk 15: Excel Export System**
-- Multi-sheet Excel exports (summary + details)
-- Customer-scoped with isolation
-- Audit logging for compliance
-- BytesIO streaming (no disk writes)
-
-**Chunk 16: Operational Hardening**
-- Data retention policies (uploads: 90d, artifacts: 30-90d, reports: 365d)
-- Cleanup management command with dry-run mode
-- In-memory rate limiting (100 req/60s, configurable)
-- Per-IP tracking with 429 responses
-
-**Chunk 17: Ingestion Spine (Critical Architecture)**
-- Unified IngestionService for batch/webhook/streaming
-- Append-only SystemEvent log for audit and fanout
-- Token-based webhook authentication
-- Idempotency support
-- `publish_event()` - single fanout point for all system events
-- Clean seams for future modules (DenialScope, ContractIQ)
+| Chunk | Feature | Status |
+|-------|---------|--------|
+| 7 | API endpoint tests | ✅ Complete |
+| 8 | Docker containerization | ✅ Complete |
+| 9 | GitHub Actions CI | ✅ Complete |
+| 10 | Celery async tasks | ✅ Complete |
+| 11 | Monitoring stack (Prometheus/Grafana) | ✅ Complete |
+| 12 | Performance and load testing | ✅ Complete |
+| 13 | Slack integration and routing | ✅ Complete |
+| 14 | RBAC and permissions | ✅ Complete |
+| 15 | Excel exports | ✅ Complete |
+| 16 | Retention and rate limiting | ✅ Complete |
+| 17 | Ingestion spine and event log | ✅ Complete |
 
 ## Test Suite Status
-- **109 tests passing**
+- **117 tests passing**
 - **4 tests skipped** (external service integrations)
 - **0 failures**
 - All tests green ✅
 
 ## Running the Project
 
-### Local Development
+### Quick Start with Demo Data
 ```bash
 # Install dependencies
 pip install -r requirements.txt
@@ -77,14 +85,25 @@ pip install -r requirements.txt
 # Run migrations
 python manage.py migrate
 
-# Run checks
-python manage.py check
+# Load demo customer
+python manage.py loaddata demo_data
 
-# Run tests
-python manage.py test
+# Generate test claims with denial spike pattern
+python manage.py generate_denialscope_test_data --customer 1 --clear
+
+# Compute DenialScope signals
+python manage.py compute_denialscope --customer 1
 
 # Run development server
 python manage.py runserver
+```
+
+### Expected Output
+```
+Computing DenialScope for Riverside Family Practice...
+✓ DenialScope computation complete
+  Aggregates created: 46
+  Signals created: 1
 ```
 
 ### Docker
@@ -107,44 +126,22 @@ GitHub Actions runs on every push:
 - These are integration tests requiring live credentials
 - Unit test coverage is complete
 
-## Next Steps
+## Product Line Architecture
 
-### Product Line Evolution
-Payrixa is evolving from a single-product platform into a cohesive healthcare intelligence suite with 5 separate products:
+### V1 Active Products
+| Product | Status | Analytics |
+|---------|--------|-----------|
+| **DenialScope** | ✅ Active | ✅ Real signals |
 
-**First Deployable Suite (5 Products)**:
-1. **Payrixa Core** — External revenue risk signal detection (payer drift, existing)
-2. **DenialScope** — Denial pattern intelligence and trend detection
-3. **ContractIQ** — Payer contract intelligence and silent change detection
-4. **OpsVariance** — Operational behavior drift (volume, no-shows, auth lag)
-5. **AuthSignal** — Prior authorization risk tracking
+### Future Products (Scaffolded, Disabled)
+| Product | Status | Analytics |
+|---------|--------|-----------|
+| Payrixa Core | Gated | ✅ Real (drift detection) |
+| ContractIQ | Hidden | ❌ Stub only |
+| OpsVariance | Hidden | ❌ Stub only |
+| AuthSignal | Hidden | ❌ Stub only |
 
-### Sprint 1 Status (Scaffolding Only)
-Sprint 1 implements architecture scaffolding only. No product analytics are implemented yet.
-
-**Delivered**:
-- Product enablement model (ProductConfig)
-- Conditional product navigation
-- DenialScope dashboard stub (empty state only)
-- Insights feed stub (SystemEvent-driven)
-- Product enablement gating (middleware + permissions)
-
-**Not Delivered Yet**:
-- DenialScope analytics
-- ContractIQ parsing
-- OpsVariance analytics
-- AuthSignal analytics
-- Payrixa Core refactor into product app
-
-**Architecture Foundation Ready**:
-With Chunk 17 ingestion spine complete, product line architecture can proceed:
-- `IngestionService` for unified data entry across products
-- `SystemEvent` log for cross-product insights and audit
-- `ProductConfig` model for customer-level product enablement
-- Strict data boundaries between products
-- Existing RBAC and tenant isolation
-
-**Next**: See `ARCHITECTURE_PRODUCT_LINE.md` for detailed product line architecture and Sprint 1 implementation details.
+**Note**: Other products are scaffolded but hidden from navigation. V1 ships with DenialScope only to maintain focus and trust.
 
 ## Documentation
 - `README.md` - Quick start and overview
@@ -153,3 +150,4 @@ With Chunk 17 ingestion spine complete, product line architecture can proceed:
 - `MONITORING.md` - Prometheus/Grafana setup
 - `PERFORMANCE.md` - Load testing guide
 - `CHANGELOG.md` - Version history
+- `ARCHITECTURE_PRODUCT_LINE.md` - Multi-product architecture

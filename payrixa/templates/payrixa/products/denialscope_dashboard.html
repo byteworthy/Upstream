@@ -10,16 +10,82 @@
         <p class="subtitle">Denial pattern intelligence and trend detection</p>
     </div>
 
-    <div class="empty-state">
-        <div class="empty-state-icon">
-            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="32" cy="32" r="30" stroke="#ccc" stroke-width="2" fill="none"/>
-                <path d="M32 16v32M16 32h32" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+    <div class="data-header">
+        <div>
+            <h2>Last 30 days</h2>
+            <p>{{ start_date }} → {{ end_date }}</p>
         </div>
-        <h2>No denial data yet</h2>
-        <p>Denial reason intelligence will appear here once denial data has been ingested.</p>
-        <p class="text-muted">Sprint 1: Scaffolding only - analytics not yet implemented</p>
+        <div class="computed-at">
+            <strong>Last computed:</strong>
+            {% if last_computed %}
+                {{ last_computed|date:"M d, Y H:i" }}
+            {% else %}
+                Never
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="cards">
+        <div class="card">
+            <h3>Total Denials</h3>
+            <p class="card-value">{{ total_denials }}</p>
+        </div>
+        <div class="card">
+            <h3>Top Payer</h3>
+            <p class="card-value">{{ top_payer|default:"-" }}</p>
+            <p class="card-sub">{{ top_payer_count }} denials</p>
+        </div>
+        <div class="card">
+            <h3>Top Denial Reason</h3>
+            <p class="card-value">{{ top_reason|default:"-" }}</p>
+            <p class="card-sub">{{ top_reason_count }} denials</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Top denial reasons by payer</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Payer</th>
+                    <th>Denial Reason</th>
+                    <th>Denied Count</th>
+                    <th>Denial Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in top_denials_by_payer %}
+                <tr>
+                    <td>{{ row.payer }}</td>
+                    <td>{{ row.denial_reason }}</td>
+                    <td>{{ row.denied_count }}</td>
+                    <td>{{ row.denial_rate_percent|floatformat:1 }}%</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="empty">No denial aggregates yet. Run the DenialScope compute command.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>Recent signals</h3>
+        <div class="signals">
+            {% for signal in signals %}
+            <div class="signal-card">
+                <div class="signal-header">
+                    <span class="signal-type">{{ signal.get_signal_type_display }}</span>
+                    <span class="signal-severity {{ signal.severity }}">{{ signal.severity|title }}</span>
+                </div>
+                <p class="signal-summary">{{ signal.summary_text }}</p>
+                <p class="signal-meta">{{ signal.created_at|date:"M d, Y H:i" }}</p>
+            </div>
+            {% empty %}
+            <div class="empty">No signals yet.</div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 
@@ -30,7 +96,7 @@
         padding: 2rem;
     }
     .dashboard-header {
-        margin-bottom: 3rem;
+        margin-bottom: 2rem;
     }
     .dashboard-header h1 {
         margin: 0 0 0.5rem 0;
@@ -42,30 +108,105 @@
         color: #666;
         font-size: 1.1rem;
     }
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
+    .data-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
         background: #f9f9f9;
         border-radius: 8px;
-        border: 2px dashed #ddd;
+        padding: 1rem 1.5rem;
     }
-    .empty-state-icon {
-        margin-bottom: 1.5rem;
+    .computed-at {
+        color: #666;
+        font-size: 0.95rem;
     }
-    .empty-state h2 {
-        margin: 0 0 1rem 0;
-        font-size: 1.5rem;
+    .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+    .card-value {
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin: 0.5rem 0 0 0;
+    }
+    .card-sub {
+        margin: 0.25rem 0 0 0;
+        color: #777;
+    }
+    .section {
+        margin-bottom: 2.5rem;
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border: 1px solid #ddd;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+    }
+    .data-table th {
+        background: #f6f6f6;
+        font-weight: 600;
+    }
+    .data-table .empty {
+        text-align: center;
+        color: #777;
+    }
+    .signals {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+    .signal-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+    }
+    .signal-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    .signal-type {
+        font-weight: 600;
+        color: #333;
+    }
+    .signal-severity {
+        text-transform: capitalize;
+        font-size: 0.85rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        background: #eee;
+    }
+    .signal-severity.low { background: #e3f2fd; color: #1565c0; }
+    .signal-severity.medium { background: #fff3e0; color: #ef6c00; }
+    .signal-severity.high { background: #ffebee; color: #c62828; }
+    .signal-severity.critical { background: #ffebee; color: #b71c1c; }
+    .signal-summary {
+        margin: 0.5rem 0;
         color: #555;
     }
-    .empty-state p {
-        margin: 0.5rem 0;
-        color: #777;
-        font-size: 1rem;
+    .signal-meta {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #888;
     }
-    .empty-state .text-muted {
-        margin-top: 1.5rem;
-        font-size: 0.9rem;
-        color: #999;
+    .empty {
+        color: #777;
         font-style: italic;
     }
 </style>

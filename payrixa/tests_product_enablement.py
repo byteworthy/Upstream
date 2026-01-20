@@ -29,7 +29,7 @@ class ProductEnablementTests(TestCase):
 
         dashboard_response = self.client.get('/portal/products/denialscope/')
         self.assertEqual(dashboard_response.status_code, 200)
-        self.assertContains(dashboard_response, 'No denial data yet')
+        self.assertContains(dashboard_response, 'Total Denials')
 
     def test_denialscope_forbidden_when_disabled(self):
         ProductConfig.objects.create(

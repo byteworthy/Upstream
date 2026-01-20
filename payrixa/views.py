@@ -15,7 +15,7 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
     template_name = "payrixa/uploads.html"
     permission_required = 'upload_claims'
     MAX_ROWS = 200000  # Maximum rows to prevent large uploads
-    ALLOWED_COLUMNS = ['payer', 'cpt', 'submitted_date', 'decided_date', 'outcome', 'allowed_amount']
+    ALLOWED_COLUMNS = ['payer', 'cpt', 'submitted_date', 'decided_date', 'outcome', 'allowed_amount', 'denial_reason_code', 'denial_reason_text']
 
     def get(self, request):
         try:
@@ -138,7 +138,9 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     submitted_date=submitted_date,
                     decided_date=decided_date,
                     outcome=outcome,
-                    allowed_amount=self.parse_decimal(filtered_row.get('allowed_amount')) if filtered_row.get('allowed_amount') else None
+                    allowed_amount=self.parse_decimal(filtered_row.get('allowed_amount')) if filtered_row.get('allowed_amount') else None,
+                    denial_reason_code=filtered_row.get('denial_reason_code') or None,
+                    denial_reason_text=filtered_row.get('denial_reason_text') or None,
                 )
 
                 claim_records.append(claim_record)

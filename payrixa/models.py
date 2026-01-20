@@ -53,6 +53,12 @@ class ClaimRecord(models.Model):
     decided_date = models.DateField()
     outcome = models.CharField(max_length=20, choices=OUTCOME_CHOICES)
     allowed_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    
+    # DenialScope fields - additive for Sprint 2
+    denial_reason_code = models.CharField(max_length=50, blank=True, null=True, 
+                                         help_text='Denial reason code from payer')
+    denial_reason_text = models.TextField(blank=True, null=True,
+                                         help_text='Denial reason description')
 
     def __str__(self):
         return f"Claim {self.id} - {self.payer} - {self.outcome}"
@@ -192,3 +198,4 @@ from payrixa.core.models import *  # noqa: F401, F403, E402
 from payrixa.alerts.models import *  # noqa: F401, F403, E402
 from payrixa.integrations.models import *  # noqa: F401, F403, E402
 from payrixa.reporting.models import *  # noqa: F401, F403, E402
+from payrixa.products.denialscope.models import *  # noqa: F401, F403, E402
