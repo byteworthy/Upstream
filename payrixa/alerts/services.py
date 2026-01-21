@@ -8,7 +8,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from .models import AlertRule, AlertEvent, NotificationChannel
 from payrixa.models import DriftEvent
-from payrixa.services.evidence_payload import build_driftwatch_evidence_payload
+from payrixa.services.evidence_payload import build_driftwatch_evidence_payload, get_alert_interpretation
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +204,9 @@ def _send_email_with_pdf(alert_event, recipients, evidence_payload):
     }
     subject = render_to_string('email/alert_email_subject.txt', subject_context).strip()
 
+    # Generate interpretation for operator guidance
+    interpretation = get_alert_interpretation(evidence_payload)
+    
     # Render HTML body
     html_context = {
         'customer_name': customer.name,
@@ -211,6 +214,7 @@ def _send_email_with_pdf(alert_event, recipients, evidence_payload):
         'severity': severity_label,
         'summary_sentence': summary_sentence,
         'evidence_payload': evidence_payload,
+        'interpretation': interpretation,
         'portal_url': portal_url,
         'request_id': request_id
     }

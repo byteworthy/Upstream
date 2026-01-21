@@ -10,6 +10,38 @@
         <p class="subtitle">Denial rate drift detection. <strong>V1 Signal:</strong> {{ v1_signal_type }}</p>
     </div>
 
+    <!-- What is This? Section -->
+    <div class="info-section">
+        <h3>📊 What is DriftWatch?</h3>
+        <p><strong>DriftWatch detects when payers start denying your claims at different rates than normal.</strong></p>
+        <p>It compares this week's denial rate to your baseline (last 4 weeks) and flags statistically significant changes.</p>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <h4>What "DENIAL_RATE" means</h4>
+                <p>The percentage of claims a payer denies. If they normally deny 8% and suddenly deny 15%, that's a 7-point increase worth investigating.</p>
+            </div>
+            <div class="info-card">
+                <h4>What "Baseline" means</h4>
+                <p><strong>Baseline</strong> = Your average denial rate over the last 4 weeks.<br>
+                <strong>Current</strong> = This week's denial rate.<br>
+                <strong>Delta</strong> = The difference (+ means worse, - means better).</p>
+            </div>
+            <div class="info-card">
+                <h4>What "Severity" means</h4>
+                <p><strong>High (0.7+)</strong>: Investigate today<br>
+                <strong>Medium (0.4-0.7)</strong>: Review this week<br>
+                <strong>Low (&lt;0.4)</strong>: Monitor for trend</p>
+            </div>
+            <div class="info-card">
+                <h4>When to care</h4>
+                <p><strong>Care about</strong>: High severity + large delta (>10 points)<br>
+                <strong>Monitor</strong>: Medium severity or recurring patterns<br>
+                <strong>Ignore (for now)</strong>: Low severity + small delta (&lt;5 points)</p>
+            </div>
+        </div>
+    </div>
+
     {% if error %}
     <div class="alert-error">{{ error }}</div>
     {% else %}
@@ -107,6 +139,45 @@
         max-width: 1200px;
         margin: 0 auto;
         padding: 2rem;
+    }
+    .info-section {
+        background: #f0f7ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .info-section h3 {
+        margin-top: 0;
+        color: #1565c0;
+        font-size: 1.2rem;
+    }
+    .info-section > p {
+        margin: 0.5rem 0;
+        line-height: 1.6;
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    .info-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 6px;
+        border: 1px solid #e3f2fd;
+    }
+    .info-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: #1976d2;
+        font-size: 0.95rem;
+    }
+    .info-card p {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: #555;
     }
     .dashboard-header {
         margin-bottom: 2rem;

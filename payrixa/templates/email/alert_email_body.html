@@ -6,6 +6,14 @@
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: #1565c0; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
         .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
+        .interpretation { background: #e8f4f8; padding: 15px; border-left: 4px solid #1565c0; margin: 15px 0; border-radius: 4px; }
+        .action-box { background: #f0f9ff; padding: 15px; border-left: 4px solid #0288d1; margin: 15px 0; border-radius: 4px; }
+        .action-box ol { margin: 10px 0 0 0; padding-left: 20px; }
+        .action-box li { margin: 5px 0; line-height: 1.5; }
+        .urgency-badge { padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 13px; }
+        .urgency-badge.high { background: #ffebee; color: #c62828; }
+        .urgency-badge.medium { background: #fff3e0; color: #ef6c00; }
+        .urgency-badge.low { background: #e3f2fd; color: #1565c0; }
         .evidence { background: white; padding: 15px; border: 1px solid #eee; margin: 15px 0; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
@@ -22,8 +30,36 @@
     <div class="content">
         <p>{{ summary_sentence }}</p>
 
+        <!-- What This Means Section -->
+        <div class="interpretation">
+            <h3>💡 What This Means</h3>
+            <p><strong>{{ interpretation.plain_language|default:"This signal indicates a change in payer behavior that falls outside normal patterns." }}</strong></p>
+            {% if interpretation.historical_context %}
+            <p><strong>Context:</strong> {{ interpretation.historical_context }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Recommended Action Section -->
+        <div class="action-box">
+            <h3>✅ Recommended Action</h3>
+            <p><strong>Urgency:</strong> <span class="urgency-badge {{ interpretation.urgency_level|default:'medium' }}">{{ interpretation.urgency_label|default:"Review This Week" }}</span></p>
+            <p><strong>Next Steps:</strong></p>
+            <ol>
+                {% if interpretation.action_steps %}
+                    {% for step in interpretation.action_steps %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                {% else %}
+                    <li>Review the evidence table below to identify affected claims</li>
+                    <li>Check payer correspondence for policy changes</li>
+                    <li>Brief your billing team on what to watch</li>
+                    <li>Monitor for recurrence in next week's report</li>
+                {% endif %}
+            </ol>
+        </div>
+
         <div class="evidence">
-            <h3>Evidence</h3>
+            <h3>📊 Evidence</h3>
             <p><strong>Signal:</strong> {{ evidence_payload.signal_type|default:"-" }}</p>
             <p><strong>Entity:</strong> {{ evidence_payload.entity_label|default:"-" }}</p>
             <p><strong>Date range:</strong> {{ evidence_payload.date_range|default:"-" }}</p>
@@ -53,7 +89,7 @@
             {% endif %}
         </div>
 
-        <a href="{{ portal_url }}" class="cta">View Full Report</a>
+        <a href="{{ portal_url }}" class="cta">View Full Report in Portal</a>
 
         <p class="footer">Request ID: {{ request_id }}</p>
     </div>

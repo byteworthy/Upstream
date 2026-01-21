@@ -10,6 +10,38 @@
         <p class="subtitle">Denial pattern intelligence and trend detection</p>
     </div>
 
+    <!-- What is This? Section -->
+    <div class="info-section">
+        <h3>💰 What is DenialScope?</h3>
+        <p><strong>DenialScope detects sudden spikes in denial dollars that signal payer policy changes or systemic issues.</strong></p>
+        <p>It analyzes your denial patterns by payer and reason code to catch expensive problems early.</p>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <h4>What "denial_dollars_spike" means</h4>
+                <p>A sharp increase in total dollars denied by a specific payer or for a specific reason code. This is different from denial <em>rate</em>—it's about total financial impact.</p>
+            </div>
+            <div class="info-card">
+                <h4>What you'll see here</h4>
+                <p><strong>Total Denials</strong>: Count of all denied claims in the last 30 days<br>
+                <strong>Top Payer</strong>: Which payer is denying the most claims<br>
+                <strong>Top Reason</strong>: Most common denial reason code</p>
+            </div>
+            <div class="info-card">
+                <h4>Understanding signals</h4>
+                <p><strong>High/Critical</strong>: Large dollar spike, investigate immediately<br>
+                <strong>Medium</strong>: Notable increase, review this week<br>
+                <strong>Low</strong>: Small variance, monitor for trend</p>
+            </div>
+            <div class="info-card">
+                <h4>When to care</h4>
+                <p><strong>Act now</strong>: New spike in top payer or unfamiliar denial code<br>
+                <strong>Monitor</strong>: Known issues or seasonal patterns<br>
+                <strong>Note for later</strong>: Low-dollar variances</p>
+            </div>
+        </div>
+    </div>
+
     <div class="data-header">
         <div>
             <h2>Last 30 days</h2>
@@ -104,6 +136,45 @@
         max-width: 1200px;
         margin: 0 auto;
         padding: 2rem;
+    }
+    .info-section {
+        background: #f0f7ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .info-section h3 {
+        margin-top: 0;
+        color: #1565c0;
+        font-size: 1.2rem;
+    }
+    .info-section > p {
+        margin: 0.5rem 0;
+        line-height: 1.6;
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    .info-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 6px;
+        border: 1px solid #e3f2fd;
+    }
+    .info-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: #1976d2;
+        font-size: 0.95rem;
+    }
+    .info-card p {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: #555;
     }
     .dashboard-header {
         margin-bottom: 2rem;

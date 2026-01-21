@@ -4,15 +4,37 @@
 
 ## What Payrixa Does
 
-Payrixa is a web-based system that detects payer behavior drift and operational variance using claims data.
-It surfaces signals and alerts for review without automating decisions.
+Payrixa is an **early-warning intelligence system** for healthcare revenue operations. It detects when payers change their behavior—denying more claims, changing policies, or creating new revenue risks—usually 30-60 days before traditional monthly reporting would catch it.
+
+**For Operators**: Think of Payrixa as a smoke detector for your revenue cycle. It doesn't fight the fire for you, but it tells you early when something's wrong so you can act before it becomes expensive.
 
 ### Core Features
 
-- 📊 **Payer Drift Detection** — Week-over-week analysis identifies when payer denial rates shift beyond normal variance
-- 📁 **Claim Upload & Normalization** — CSV upload with automatic payer name and CPT code mapping
-- ⚠️ **Threshold-Based Alerts** — Customizable sensitivity to flag statistically significant changes
-- 📈 **Weekly Report Runs** — Scheduled analysis with historical tracking
+- 📊 **DriftWatch (Denial Rate Detection)** — Detects week-over-week changes in payer denial rates. Catches when a payer who normally denies 8% suddenly denies 15%.
+- 💰 **DenialScope (Dollar Spike Detection)** — Flags sudden increases in denial dollars by payer or reason code. Identifies $50K+ revenue leaks before they compound.
+- 📁 **Claim Upload & Normalization** — CSV upload with automatic payer name and CPT code mapping. Works with your existing data.
+- ⚠️ **Smart Alerting** — Statistical thresholds flag significant changes, not noise. Email alerts with evidence and context.
+- 📈 **Weekly Analysis** — Runs automatically. You get early signals, not month-end surprises.
+
+### Who Should Use Payrixa
+
+**Primary Users**:
+- Revenue Cycle Directors who need early visibility into payer behavior changes
+- Billing Managers tracking denial trends and payer policy shifts
+- RCM Analysts investigating root causes of revenue variance
+
+**What You'll See**:
+- Alerts when payers change denial behavior outside normal variance
+- Evidence tables showing which claims, payers, and codes are affected
+- Historical context to distinguish new issues from recurring patterns
+- Actionable signals, not raw data dumps
+
+**Time to Value**: 
+- Setup: 30 minutes (upload claims, configure alerts)
+- First insight: After first weekly run (~5 days)
+- Routine use: 5-minute daily check, 20-minute weekly review
+
+**Read more**: See `OPERATOR_GUIDE.md` for detailed workflows and decision frameworks.
 
 ## Tech Stack
 
