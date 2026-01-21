@@ -13,7 +13,7 @@ from django.db.models import Count, Avg, Max
 from payrixa.utils import get_current_customer
 from payrixa.models import DriftEvent, ReportRun
 from payrixa.products.driftwatch import DRIFTWATCH_V1_EVENT_TYPE
-from payrixa.services.evidence_payload import build_driftwatch_evidence_payload
+from payrixa.services.evidence_payload import build_driftwatch_evidence_payload, get_alert_interpretation
 from payrixa.permissions import ProductEnabledMixin
 
 
@@ -41,7 +41,37 @@ class DriftWatchDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
             )
             
             # Get recent drift events for display (sliced)
-            drift_events = base_queryset.order_by('-created_at')[:50]
+            drift_events_qs = base_queryset.order_by('-created_at')[:50]
+            
+            # Add interpretation to each event for dashboard display (Deliverable 6)
+            drift_events = []
+            for event in drift_events_qs:
+                # Build a mini payload for interpretation
+                event_payload = {
+                    'severity': event.severity,
+                    'delta': event.delta_value,
+                    'signal_type': event.drift_type,
+                    'entity_label': event.payer,
+                    'product_name': 'DriftWatch',
+                }
+                interp = get_alert_interpretation(event_payload)
+                # Attach interpretation to event as dict for template access
+                drift_events.append({
+                    'event': event,
+                    'payer': event.payer,
+                    'cpt_group': event.cpt_group,
+                    'drift_type': event.drift_type,
+                    'baseline_value': event.baseline_value,
+                    'current_value': event.current_value,
+                    'delta_value': event.delta_value,
+                    'severity': event.severity,
+                    'confidence': event.confidence,
+                    'created_at': event.created_at,
+                    'urgency_label': interp['urgency_label'],
+                    'urgency_level': interp['urgency_level'],
+                    'plain_language': interp['plain_language'],
+                    'is_likely_noise': interp['is_likely_noise'],
+                })
 
             # Summary metrics (from v1 filtered queryset)
             total_events = base_queryset.count()
@@ -58,8 +88,9 @@ class DriftWatchDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
                 customer=customer
             ).order_by('-started_at')[:5]
 
-            latest_event = drift_events[0] if drift_events else None
-            evidence_payload = build_driftwatch_evidence_payload(latest_event, drift_events)
+            # For evidence payload, use the raw event object
+            latest_raw_event = drift_events_qs.first() if drift_events_qs.exists() else None
+            evidence_payload = build_driftwatch_evidence_payload(latest_raw_event, list(drift_events_qs))
 
             context.update({
                 'drift_events': drift_events,

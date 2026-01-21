@@ -7,7 +7,7 @@ from django.db.models import Sum
 from payrixa.utils import get_current_customer
 from payrixa.permissions import ProductEnabledMixin
 from payrixa.products.denialscope.models import DenialAggregate, DenialSignal
-from payrixa.services.evidence_payload import build_denialscope_evidence_payload
+from payrixa.services.evidence_payload import build_denialscope_evidence_payload, get_alert_interpretation
 
 
 class DenialScopeDashboardView(LoginRequiredMixin, ProductEnabledMixin, View):
@@ -28,10 +28,37 @@ class DenialScopeDashboardView(LoginRequiredMixin, ProductEnabledMixin, View):
             )
 
             # Hub v1: filter to denial_dollars_spike only
-            signals = DenialSignal.objects.filter(
+            signals_qs = DenialSignal.objects.filter(
                 customer=customer,
                 signal_type='denial_dollars_spike'
             ).order_by('-created_at')[:10]
+            
+            # Add interpretation to each signal for dashboard display (Deliverable 6)
+            signals = []
+            for signal in signals_qs:
+                # Build a mini payload for interpretation
+                details = signal.details or {}
+                signal_payload = {
+                    'severity': signal.severity,
+                    'delta': details.get('delta') or details.get('rate_delta'),
+                    'signal_type': signal.signal_type,
+                    'entity_label': signal.payer,
+                    'product_name': 'DenialScope',
+                }
+                interp = get_alert_interpretation(signal_payload)
+                signals.append({
+                    'signal': signal,
+                    'signal_type': signal.signal_type,
+                    'get_signal_type_display': signal.get_signal_type_display(),
+                    'payer': signal.payer,
+                    'severity': signal.severity,
+                    'summary_text': signal.summary_text,
+                    'created_at': signal.created_at,
+                    'urgency_label': interp['urgency_label'],
+                    'urgency_level': interp['urgency_level'],
+                    'plain_language': interp['plain_language'],
+                    'is_likely_noise': interp['is_likely_noise'],
+                })
 
             total_denials = aggregates.aggregate(total=Sum('denied_count'))['total'] or 0
 
@@ -52,7 +79,7 @@ class DenialScopeDashboardView(LoginRequiredMixin, ProductEnabledMixin, View):
                 top_reason_count = reason_totals[0]['total'] or 0
 
             # Shared evidence payload (Hub v1)
-            latest_signal = signals.first() if signals else None
+            latest_signal = signals_qs.first() if signals_qs.exists() else None
             evidence_payload = build_denialscope_evidence_payload(
                 latest_signal,
                 aggregates,
