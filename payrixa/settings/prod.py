@@ -8,6 +8,19 @@ import os
 from .base import *
 
 # =============================================================================
+# WHITENOISE STATIC FILES (Production)
+# =============================================================================
+
+# Insert WhiteNoise middleware after SecurityMiddleware
+MIDDLEWARE.insert(
+    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+)
+
+# WhiteNoise storage backend for compressed and cached static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# =============================================================================
 # SECURITY SETTINGS (Production)
 # =============================================================================
 
@@ -18,7 +31,8 @@ SECRET_KEY = config("SECRET_KEY")  # Required in production, no default
 DEBUG = False  # Always False in production
 
 # ALLOWED_HOSTS must come from env and must not default to wildcard
-ALLOWED_HOSTS = config('ALLOWED_HOSTS').split(',')  # Required in production, no default
+# Strip whitespace to avoid invisible bugs
+ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS').split(',') if h.strip()]
 
 # HTTPS settings (enabled in production)
 SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
@@ -55,9 +69,14 @@ DATABASES = {
 }
 
 # Support DATABASE_URL format as well
+# Note: SSL mode should be specified in the DATABASE_URL itself (e.g., ?sslmode=require for prod)
+# This allows local development with ?sslmode=disable while production uses ?sslmode=require
 if 'DATABASE_URL' in os.environ:
     import dj_database_url
-    DATABASES['default'] = dj_database_url.parse(config('DATABASE_URL'))
+    DATABASES['default'] = dj_database_url.parse(
+        config('DATABASE_URL'),
+        conn_max_age=60,
+    )
 
 # =============================================================================
 # EMAIL CONFIGURATION (Production)

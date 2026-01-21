@@ -255,6 +255,87 @@ class AlertDeliveryTests(TestCase):
         audit_events = DomainAuditEvent.objects.filter(action='alert_event_sent')
         self.assertEqual(audit_events.count(), 1)
     
+    def test_suppression_window_prevents_duplicate_sends(self):
+        """
+        Test that second send within 4-hour suppression window is suppressed.
+        
+        Gate D proof: Creates drift event, evaluates it to AlertEvent, sends first,
+        then a second send within window marks as suppressed not resent.
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Create alert event with same product_name, signal_type, entity_label
+        alert_event1 = AlertEvent.objects.create(
+            customer=self.customer,
+            alert_rule=self.alert_rule,
+            drift_event=self.drift_event,
+            report_run=self.report_run,
+            status='pending',
+            payload={
+                'product_name': 'DriftWatch',
+                'signal_type': 'DENIAL_RATE',
+                'entity_label': 'UnitedHealthcare',
+                'payer': 'UnitedHealthcare',
+                'severity': 0.8,
+            }
+        )
+        
+        # Send first alert
+        success1 = send_alert_notification(alert_event1)
+        self.assertTrue(success1)
+        alert_event1.refresh_from_db()
+        self.assertEqual(alert_event1.status, 'sent')
+        self.assertIsNone(alert_event1.error_message)
+        self.assertEqual(len(mail.outbox), 1)
+        
+        # Create second alert event with same payload fingerprint (same product, signal, entity)
+        second_drift = DriftEvent.objects.create(
+            customer=self.customer,
+            report_run=self.report_run,
+            payer='UnitedHealthcare',  # Same payer = same entity_label
+            cpt_group='EVAL',
+            drift_type='DENIAL_RATE',  # Same signal_type
+            baseline_value=0.25,
+            current_value=0.65,
+            delta_value=0.4,
+            severity=0.75,
+            confidence=0.9,
+            baseline_start=timezone.now().date() - timedelta(days=104),
+            baseline_end=timezone.now().date() - timedelta(days=14),
+            current_start=timezone.now().date() - timedelta(days=14),
+            current_end=timezone.now().date()
+        )
+        
+        alert_event2 = AlertEvent.objects.create(
+            customer=self.customer,
+            alert_rule=self.alert_rule,
+            drift_event=second_drift,
+            report_run=self.report_run,
+            status='pending',
+            payload={
+                'product_name': 'DriftWatch',  # Same
+                'signal_type': 'DENIAL_RATE',  # Same
+                'entity_label': 'UnitedHealthcare',  # Same
+                'payer': 'UnitedHealthcare',
+                'severity': 0.75,
+            }
+        )
+        
+        # Clear mail outbox
+        mail.outbox = []
+        
+        # Send second alert (should be suppressed)
+        success2 = send_alert_notification(alert_event2)
+        self.assertTrue(success2)  # Returns True but was suppressed
+        
+        alert_event2.refresh_from_db()
+        self.assertEqual(alert_event2.status, 'sent')  # Marked as sent
+        self.assertEqual(alert_event2.error_message, 'suppressed')  # Suppression marker
+        
+        # No new email sent (suppressed)
+        self.assertEqual(len(mail.outbox), 0)
+    
     def test_pdf_artifact_not_duplicated_on_resend(self):
         """Test that PDF artifacts are not duplicated when reprocessing alerts."""
         from payrixa.reporting.models import ReportArtifact

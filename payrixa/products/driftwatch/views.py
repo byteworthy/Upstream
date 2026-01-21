@@ -14,9 +14,10 @@ from payrixa.utils import get_current_customer
 from payrixa.models import DriftEvent, ReportRun
 from payrixa.products.driftwatch import DRIFTWATCH_V1_EVENT_TYPE
 from payrixa.services.evidence_payload import build_driftwatch_evidence_payload
+from payrixa.permissions import ProductEnabledMixin
 
 
-class DriftWatchDashboardView(LoginRequiredMixin, TemplateView):
+class DriftWatchDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateView):
     """
     DriftWatch dashboard showing denial rate drift signals.
     
@@ -24,6 +25,7 @@ class DriftWatchDashboardView(LoginRequiredMixin, TemplateView):
     Uses existing DriftEvent model - NO new models for V1.
     """
     template_name = 'payrixa/products/driftwatch_dashboard.html'
+    product_slug = 'driftwatch'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
