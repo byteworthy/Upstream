@@ -190,9 +190,8 @@ def _send_email_with_pdf(alert_event, recipients, evidence_payload):
     product_name = evidence_payload.get('product_name', 'Payrixa')
     summary_sentence = evidence_payload.get('one_sentence_explanation', '')
     
-    # Portal URL (configurable via settings)
-    portal_base_url = getattr(settings, 'PORTAL_BASE_URL', 'https://app.payrixa.com')
-    portal_url = f"{portal_base_url}/portal/"
+    # Portal URL from settings (no fallback - must be configured)
+    portal_url = f"{settings.PORTAL_BASE_URL}/portal/"
     
     # Request ID for traceability
     request_id = get_request_id() or str(uuid.uuid4())
@@ -335,9 +334,8 @@ def send_slack_notification(alert_event, channel):
         color = "#2196f3"  # Blue
         emoji = "ℹ️"
     
-    # Portal URL
-    portal_base_url = getattr(settings, 'PORTAL_BASE_URL', 'https://app.payrixa.com')
-    portal_url = f"{portal_base_url}/portal/"
+    # Portal URL from settings
+    portal_url = f"{settings.PORTAL_BASE_URL}/portal/"
     
     # Build Slack message with blocks
     slack_payload = {
