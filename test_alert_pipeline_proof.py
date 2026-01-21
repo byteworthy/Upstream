@@ -42,7 +42,7 @@ def main():
     print("Step 1: Ensuring customer exists...")
     customer, created = Customer.objects.get_or_create(
         id=1,
-        defaults={'name': 'Demo Healthcare System', 'is_active': True}
+        defaults={'name': 'Demo Healthcare System'}
     )
     print(f"✓ Customer: {customer.name} (ID: {customer.id})")
     

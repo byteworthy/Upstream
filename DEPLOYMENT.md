@@ -7,27 +7,50 @@ MVP1 deployment path covering one production-like workflow.
 - Python 3.12+
 - PostgreSQL 13+
 - Docker & Docker Compose (for local Postgres)
-- Mailgun account for email delivery
 
-## Required Environment Variables
+## Required Environment Variables (Minimal MVP)
 
 ```bash
 # Security (required)
 SECRET_KEY=your-production-secret-key  # Generate with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-CSRF_TRUSTED_ORIGINS=https://yourdomain.com
+PORTAL_BASE_URL=https://yourdomain.com
 
 # Database (required for production)
 DATABASE_URL=postgresql://user:pass@host:5432/payrixa?sslmode=require
+```
 
-# Email (required)
+With only these vars, production boots successfully. Emails print to console (stdout).
+
+## Optional: Enable Email Delivery (Mailgun)
+
+Add these to enable real email sending:
+
+```bash
+EMAIL_BACKEND=anymail.backends.mailgun.EmailBackend
 MAILGUN_API_KEY=key-xxxxx
 MAILGUN_DOMAIN=mg.yourdomain.com
-
-# Optional but recommended
 DEFAULT_FROM_EMAIL=alerts@yourdomain.com
-PORTAL_BASE_URL=https://yourdomain.com
 ```
+
+## Optional: Enable CSRF Trusted Origins
+
+For production behind proxies or custom domains:
+
+```bash
+CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+```
+
+## Optional: Enable Real Data Mode (PHI Protection)
+
+When handling real patient data, enable encryption:
+
+```bash
+REAL_DATA_MODE=True
+FIELD_ENCRYPTION_KEY=your-fernet-key  # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+When `REAL_DATA_MODE=True`, the app will fail to start without a valid encryption key.
 
 ## Gate B: Postgres Workflow Verification
 

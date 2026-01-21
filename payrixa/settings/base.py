@@ -292,9 +292,10 @@ ALERT_ATTACH_PDF = config('ALERT_ATTACH_PDF', default=False, cast=bool)
 # Portal base URL used in email templates for links
 # Required in production - broken links are a product bug
 # Uses os.environ first (for tests), then config (for .env file)
+# Default to localhost for dev/test - production should explicitly set this
 PORTAL_BASE_URL = os.environ.get(
     'PORTAL_BASE_URL',
-    config('PORTAL_BASE_URL', default='https://app.payrixa.com')
+    config('PORTAL_BASE_URL', default='http://localhost:8000')
 ).rstrip('/')
 
 # =============================================================================

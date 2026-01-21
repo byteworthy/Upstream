@@ -46,8 +46,48 @@ SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=31536000, cast=int) 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = config("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True, cast=bool)
 SECURE_HSTS_PRELOAD = config("SECURE_HSTS_PRELOAD", default=True, cast=bool)
 
+# CSRF trusted origins for production (comma-separated domains with scheme)
+# Example: CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+_csrf_origins = config('CSRF_TRUSTED_ORIGINS', default='')
+if _csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
+
 # Update JWT signing key
 SIMPLE_JWT['SIGNING_KEY'] = SECRET_KEY
+
+# =============================================================================
+# DATA MODE & ENCRYPTION (PHI Protection)
+# =============================================================================
+
+# REAL_DATA_MODE: Set to True when handling real patient data (PHI)
+# When True, FIELD_ENCRYPTION_KEY is required and validated
+# When False (default), allows MVP demo with synthetic data
+REAL_DATA_MODE = config("REAL_DATA_MODE", default=False, cast=bool)
+
+if REAL_DATA_MODE:
+    # Production with real PHI - encryption is REQUIRED
+    encryption_key = config("FIELD_ENCRYPTION_KEY", default=None)
+    
+    if not encryption_key:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "FIELD_ENCRYPTION_KEY is REQUIRED when REAL_DATA_MODE=True. "
+            "Generate a key with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
+    
+    if len(encryption_key) < 32:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            f"FIELD_ENCRYPTION_KEY must be at least 32 bytes (got {len(encryption_key)}). "
+            "Use Fernet.generate_key() to generate a secure key."
+        )
+    
+    # Override base setting with validated key
+    FIELD_ENCRYPTION_KEY = encryption_key
+else:
+    # MVP demo mode with synthetic data - encryption optional
+    # Inherits from base.py (defaults to empty string for dev compatibility)
+    pass
 
 # =============================================================================
 # DATABASE
@@ -83,20 +123,33 @@ else:
 # EMAIL CONFIGURATION (Production)
 # =============================================================================
 
-# Configure Anymail via env only for production
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.mailgun.EmailBackend')
+# Email backend: configurable via env, defaults to console for MVP
+# Set EMAIL_BACKEND=anymail.backends.mailgun.EmailBackend to use Mailgun
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend'
+)
 
-# Anymail configuration
-ANYMAIL = {
-    "MAILGUN_API_KEY": config("MAILGUN_API_KEY"),
-    "MAILGUN_SENDER_DOMAIN": config("MAILGUN_DOMAIN"),
-}
+# Anymail configuration (only used if EMAIL_BACKEND is set to Anymail)
+# Check if Mailgun credentials are provided
+MAILGUN_API_KEY = config("MAILGUN_API_KEY", default=None)
+MAILGUN_DOMAIN = config("MAILGUN_DOMAIN", default=None)
+
+if MAILGUN_API_KEY and MAILGUN_DOMAIN:
+    # Mailgun is configured - set up Anymail
+    ANYMAIL = {
+        "MAILGUN_API_KEY": MAILGUN_API_KEY,
+        "MAILGUN_SENDER_DOMAIN": MAILGUN_DOMAIN,
+    }
+    # Email server settings (for SMTP fallback)
+    EMAIL_HOST = config('EMAIL_HOST', default='smtp.mailgun.org')
+    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+else:
+    # No Mailgun configured - console backend will be used
+    # Emails will print to stdout (suitable for MVP/testing)
+    pass
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='alerts@payrixa.com')
-
-# Email server settings (for SMTP fallback)
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.mailgun.org')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
