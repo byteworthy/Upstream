@@ -8,8 +8,11 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from .models import AlertRule, AlertEvent, NotificationChannel
 from payrixa.models import DriftEvent
+from payrixa.services.evidence_payload import build_driftwatch_evidence_payload
 
 logger = logging.getLogger(__name__)
+
+ALERT_SUPPRESSION_COOLDOWN = timezone.timedelta(hours=4)
 
 def evaluate_drift_event(drift_event):
     """Evaluate a drift event against all active alert rules for the customer."""
@@ -31,10 +34,18 @@ def evaluate_drift_event(drift_event):
                 continue
             
             payload = {
-                'payer': drift_event.payer, 'cpt_group': drift_event.cpt_group, 'drift_type': drift_event.drift_type,
-                'baseline_value': drift_event.baseline_value, 'current_value': drift_event.current_value,
-                'delta_value': drift_event.delta_value, 'severity': drift_event.severity,
-                'rule_name': rule.name, 'rule_threshold': rule.threshold_value,
+                'product_name': 'DriftWatch',
+                'signal_type': drift_event.drift_type,
+                'entity_label': drift_event.payer,
+                'payer': drift_event.payer,
+                'cpt_group': drift_event.cpt_group,
+                'drift_type': drift_event.drift_type,
+                'baseline_value': drift_event.baseline_value,
+                'current_value': drift_event.current_value,
+                'delta_value': drift_event.delta_value,
+                'severity': drift_event.severity,
+                'rule_name': rule.name,
+                'rule_threshold': rule.threshold_value,
             }
             alert_event = AlertEvent.objects.create(
                 customer=drift_event.customer, alert_rule=rule, drift_event=drift_event,
@@ -80,6 +91,19 @@ def send_alert_notification(alert_event):
         channels = alert_rule.routing_channels.filter(enabled=True)
     else:
         channels = NotificationChannel.objects.filter(customer=customer, enabled=True)
+
+    evidence_payload = build_driftwatch_evidence_payload(
+        alert_event.drift_event,
+        [alert_event.drift_event] if alert_event.drift_event else [],
+    )
+
+    if _is_suppressed(alert_event.customer, evidence_payload):
+        alert_event.status = 'sent'
+        alert_event.notification_sent_at = timezone.now()
+        alert_event.error_message = 'suppressed'
+        alert_event.save()
+        logger.info(f"Alert event {alert_event.id} suppressed within cooldown window")
+        return True
     
     success = False
     error_message = None
@@ -87,7 +111,7 @@ def send_alert_notification(alert_event):
     try:
         for channel in channels:
             if channel.channel_type == 'email':
-                success = send_email_notification(alert_event, channel)
+                success = send_email_notification(alert_event, channel, evidence_payload)
             elif channel.channel_type == 'slack':
                 success = send_slack_notification(alert_event, channel)
             elif channel.channel_type == 'webhook':
@@ -95,7 +119,7 @@ def send_alert_notification(alert_event):
                 logger.info(f"Skipping webhook channel {channel.id} - handled by send_webhooks command")
         
         if not channels.exists():
-            success = send_default_email_notification(alert_event)
+            success = send_default_email_notification(alert_event, evidence_payload)
         
         if success:
             alert_event.status = 'sent'
@@ -138,21 +162,21 @@ def send_alert_notification(alert_event):
     
     return success
 
-def send_email_notification(alert_event, channel):
+def send_email_notification(alert_event, channel, evidence_payload):
     """Send email notification with HTML body and PDF attachment for an alert event."""
     config = channel.config or {}
     recipients = config.get('recipients', [])
     if not recipients:
         return False
     
-    return _send_email_with_pdf(alert_event, recipients)
+    return _send_email_with_pdf(alert_event, recipients, evidence_payload)
 
-def send_default_email_notification(alert_event):
+def send_default_email_notification(alert_event, evidence_payload):
     """Send email notification using default settings with HTML body and PDF attachment."""
     recipients = [getattr(settings, 'DEFAULT_ALERT_EMAIL', 'alerts@example.com')]
-    return _send_email_with_pdf(alert_event, recipients)
+    return _send_email_with_pdf(alert_event, recipients, evidence_payload)
 
-def _send_email_with_pdf(alert_event, recipients):
+def _send_email_with_pdf(alert_event, recipients, evidence_payload):
     """Send branded HTML email with PDF attachment."""
     from payrixa.middleware import get_request_id
     from payrixa.reporting.services import generate_weekly_drift_pdf
@@ -160,40 +184,11 @@ def _send_email_with_pdf(alert_event, recipients):
     
     # Gather context data
     customer = alert_event.customer
-    payload = alert_event.payload
     report_run = alert_event.report_run
-    drift_event = alert_event.drift_event
-    
-    # Get all drift events for this report run
-    if report_run:
-        all_drift_events = report_run.drift_events.all().order_by('-severity')[:5]
-    else:
-        all_drift_events = []
-    
-    # Determine highest severity
-    if all_drift_events:
-        highest_severity_val = max(e.severity for e in all_drift_events)
-        if highest_severity_val >= 0.7:
-            highest_severity = 'high'
-        elif highest_severity_val >= 0.4:
-            highest_severity = 'medium'
-        else:
-            highest_severity = 'low'
-    else:
-        highest_severity = 'unknown'
-    
-    # Get top payer
-    top_payer = payload.get('payer', '')
-    
-    # Build summary sentence
-    event_count = len(all_drift_events)
-    summary_sentence = f"We detected {event_count} significant drift event{'s' if event_count != 1 else ''} in your latest payer analytics report."
-    
-    # Build top drift bullets
-    top_drifts = []
-    for event in all_drift_events[:3]:
-        bullet = f"{event.payer} {event.drift_type.replace('_', ' ').title()}: {event.delta_value:+.2f} change"
-        top_drifts.append(bullet)
+
+    severity_label = _severity_label(evidence_payload.get('severity'))
+    product_name = evidence_payload.get('product_name', 'Payrixa')
+    summary_sentence = evidence_payload.get('one_sentence_explanation', '')
     
     # Portal URL (configurable via settings)
     portal_base_url = getattr(settings, 'PORTAL_BASE_URL', 'https://app.payrixa.com')
@@ -205,26 +200,30 @@ def _send_email_with_pdf(alert_event, recipients):
     # Render subject
     subject_context = {
         'customer_name': customer.name,
-        'highest_severity': highest_severity,
-        'top_payer': top_payer
+        'product_name': product_name,
+        'severity': severity_label,
     }
     subject = render_to_string('email/alert_email_subject.txt', subject_context).strip()
-    
+
     # Render HTML body
     html_context = {
         'customer_name': customer.name,
-        'report_type': 'Weekly Drift Report',
+        'product_name': product_name,
+        'severity': severity_label,
         'summary_sentence': summary_sentence,
-        'highest_severity': highest_severity,
-        'top_drifts': top_drifts,
-        'top_events': all_drift_events,
+        'evidence_payload': evidence_payload,
         'portal_url': portal_url,
         'request_id': request_id
     }
     html_body = render_to_string('email/alert_email_body.html', html_context)
     
     # Plain text fallback
-    text_body = f"Payrixa Alert - {customer.name}\n\n{summary_sentence}\n\nView the full report: {portal_url}\n\nRequest ID: {request_id}"
+    text_body = (
+        f"{product_name} Alert - {customer.name}\n\n"
+        f"{summary_sentence}\n\n"
+        f"View the full report: {portal_url}\n\n"
+        f"Request ID: {request_id}"
+    )
     
     # Create email
     email = EmailMultiAlternatives(
@@ -235,8 +234,9 @@ def _send_email_with_pdf(alert_event, recipients):
     )
     email.attach_alternative(html_body, "text/html")
     
-    # Attach PDF if report_run exists
-    if report_run:
+    # Attach PDF if report_run exists and PDF attachment is enabled
+    attach_pdf = getattr(settings, 'ALERT_ATTACH_PDF', False)
+    if report_run and attach_pdf:
         try:
             # Try to fetch existing artifact
             artifact = ReportArtifact.objects.filter(
@@ -262,10 +262,38 @@ def _send_email_with_pdf(alert_event, recipients):
         except Exception as e:
             logger.error(f"Failed to attach PDF to email: {str(e)}")
             # Continue without attachment - don't fail the email send
+    elif report_run and not attach_pdf:
+        logger.debug(f"PDF attachment disabled (ALERT_ATTACH_PDF=False), skipping for report run {report_run.id}")
     
     # Send email
     email.send(fail_silently=False)
     return True
+
+
+def _severity_label(severity_value):
+    if severity_value is None:
+        return 'unknown'
+    if isinstance(severity_value, str):
+        return severity_value.lower()
+    if severity_value >= 0.7:
+        return 'high'
+    if severity_value >= 0.4:
+        return 'medium'
+    return 'low'
+
+
+def _is_suppressed(customer, evidence_payload):
+    if not evidence_payload:
+        return False
+    window_start = timezone.now() - ALERT_SUPPRESSION_COOLDOWN
+    return AlertEvent.objects.filter(
+        customer=customer,
+        status='sent',
+        notification_sent_at__gte=window_start,
+        payload__product_name=evidence_payload.get('product_name'),
+        payload__signal_type=evidence_payload.get('signal_type'),
+        payload__entity_label=evidence_payload.get('entity_label'),
+    ).exists()
 
 def send_slack_notification(alert_event, channel):
     """Send Slack notification via webhook."""

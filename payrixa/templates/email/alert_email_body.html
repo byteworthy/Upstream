@@ -2,150 +2,60 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Payrixa Alert</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
-            color: #1f2a37;
-            margin: 0;
-            padding: 0;
-            background-color: #f3f4f6;
-        }
-        .container {
-            max-width: 640px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-        }
-        .header {
-            background-color: #007bff;
-            color: #ffffff;
-            padding: 20px 24px;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 20px;
-        }
-        .content {
-            padding: 24px;
-        }
-        .summary {
-            font-size: 15px;
-            margin-bottom: 16px;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            background-color: #eef2ff;
-            color: #1d4ed8;
-        }
-        .section-title {
-            font-size: 16px;
-            margin: 24px 0 12px 0;
-            color: #111827;
-        }
-        ul {
-            padding-left: 18px;
-            margin: 0;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 12px;
-            font-size: 13px;
-        }
-        th {
-            text-align: left;
-            background-color: #f8fafc;
-            padding: 8px;
-            border: 1px solid #e5e7eb;
-        }
-        td {
-            padding: 8px;
-            border: 1px solid #e5e7eb;
-        }
-        .footer {
-            padding: 16px 24px 24px;
-            font-size: 12px;
-            color: #6b7280;
-        }
-        .cta {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 10px 16px;
-            background-color: #007bff;
-            color: #ffffff;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .muted {
-            color: #6b7280;
-        }
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #1565c0; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
+        .evidence { background: white; padding: 15px; border: 1px solid #eee; margin: 15px 0; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+        th { background: #f0f0f0; }
+        .cta { display: inline-block; background: #1565c0; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+        .footer { font-size: 12px; color: #888; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Payrixa Alert</h1>
-            <div>{{ customer_name }} • {{ report_type }}</div>
-        </div>
-        <div class="content">
-            <p class="summary">
-                {{ summary_sentence }}
-                <span class="badge">{{ highest_severity|title }} Severity</span>
-            </p>
+    <div class="header">
+        <h1>{{ product_name }} Alert</h1>
+        <p>{{ customer_name }} • {{ severity|title }} Severity</p>
+    </div>
+    <div class="content">
+        <p>{{ summary_sentence }}</p>
 
-            <h2 class="section-title">Top drift signals</h2>
-            <ul>
-                {% for bullet in top_drifts %}
-                <li>{{ bullet }}</li>
-                {% empty %}
-                <li class="muted">No drift events matched the alert scope.</li>
-                {% endfor %}
-            </ul>
+        <div class="evidence">
+            <h3>Evidence</h3>
+            <p><strong>Signal:</strong> {{ evidence_payload.signal_type|default:"-" }}</p>
+            <p><strong>Entity:</strong> {{ evidence_payload.entity_label|default:"-" }}</p>
+            <p><strong>Date range:</strong> {{ evidence_payload.date_range|default:"-" }}</p>
+            {% if evidence_payload.delta %}<p><strong>Delta:</strong> {{ evidence_payload.delta }}</p>{% endif %}
 
-            <h2 class="section-title">Top 5 drift events</h2>
+            {% if evidence_payload.evidence_rows %}
             <table>
                 <thead>
                     <tr>
                         <th>Payer</th>
-                        <th>Metric</th>
-                        <th>Baseline</th>
-                        <th>Current</th>
+                        <th>Type</th>
                         <th>Delta</th>
                         <th>Severity</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for event in top_events %}
+                {% for row in evidence_payload.evidence_rows|slice:":5" %}
                     <tr>
-                        <td>{{ event.payer }}</td>
-                        <td>{{ event.drift_type }}</td>
-                        <td>{{ event.baseline_value|floatformat:2 }}</td>
-                        <td>{{ event.current_value|floatformat:2 }}</td>
-                        <td>{{ event.delta_value|floatformat:2 }}</td>
-                        <td>{{ event.severity|floatformat:2 }}</td>
+                        <td>{{ row.payer|default:"-" }}</td>
+                        <td>{{ row.drift_type|default:"-" }}</td>
+                        <td>{{ row.delta_value|default:"-" }}</td>
+                        <td>{{ row.severity|default:"-" }}</td>
                     </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="muted">No drift events available.</td>
-                    </tr>
-                    {% endfor %}
+                {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
+        </div>
 
-            <a class="cta" href="{{ portal_url }}">View full report in Payrixa</a>
-        </div>
-        <div class="footer">
-            <div>Request ID: {{ request_id }}</div>
-            <div class="muted">Generated by Payrixa — early-warning intelligence for healthcare revenue operations.</div>
-        </div>
+        <a href="{{ portal_url }}" class="cta">View Full Report</a>
+
+        <p class="footer">Request ID: {{ request_id }}</p>
     </div>
 </body>
 </html>

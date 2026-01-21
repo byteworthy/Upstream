@@ -43,6 +43,16 @@
     </div>
 
     <div class="section">
+        <h3>Evidence</h3>
+        <div class="evidence-summary">
+            <p><strong>Signal:</strong> {{ evidence_payload.signal_type }}</p>
+            <p><strong>Entity:</strong> {{ evidence_payload.entity_label }}</p>
+            <p><strong>Date range:</strong> {{ evidence_payload.date_range }}</p>
+            <p><strong>Explanation:</strong> {{ evidence_payload.one_sentence_explanation }}</p>
+        </div>
+    </div>
+
+    <div class="section">
         <h3>Top denial reasons by payer</h3>
         <table class="data-table">
             <thead>
@@ -54,7 +64,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for row in top_denials_by_payer %}
+                {% for row in evidence_payload.evidence_rows %}
                 <tr>
                     <td>{{ row.payer }}</td>
                     <td>{{ row.denial_reason }}</td>

@@ -12,14 +12,11 @@
         <div class="container">
             <h1 class="logo">Payrixa</h1>
             <nav class="main-nav">
+                <a href="{% url 'axis_hub' %}" class="nav-link {% if request.resolver_match.url_name == 'axis_hub' %}active{% endif %}">Axis</a>
+                <a href="{% url 'denialscope_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'denialscope_dashboard' %}active{% endif %}">DenialScope</a>
+                <a href="{% url 'driftwatch_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'driftwatch_dashboard' %}active{% endif %}">DriftWatch</a>
                 <a href="{% url 'uploads' %}" class="nav-link {% if request.resolver_match.url_name == 'uploads' %}active{% endif %}">Uploads</a>
                 <a href="{% url 'mappings' %}" class="nav-link {% if request.resolver_match.url_name == 'mappings' %}active{% endif %}">Mappings</a>
-                {% if 'payrixa-core' in request.enabled_products %}
-                <a href="{% url 'drift_feed' %}" class="nav-link {% if request.resolver_match.url_name == 'drift_feed' %}active{% endif %}">Payrixa Core</a>
-                {% endif %}
-                {% if 'denialscope' in request.enabled_products %}
-                <a href="{% url 'denialscope_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'denialscope_dashboard' %}active{% endif %}">DenialScope</a>
-                {% endif %}
                 <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">Reports</a>
                 <a href="{% url 'settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">Settings</a>
                 <a href="{% url 'logout' %}" class="nav-link logout-link">Logout</a>

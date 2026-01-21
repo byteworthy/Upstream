@@ -366,6 +366,20 @@ class MappingsView(LoginRequiredMixin, PermissionRequiredMixin, View):
         return redirect('mappings')
 
 
+class AxisHubView(LoginRequiredMixin, TemplateView):
+    """Axis Hub - Landing page for Hub v1 products (DenialScope + DriftWatch)."""
+    template_name = "payrixa/products/axis.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            customer = get_current_customer(self.request)
+            context['customer'] = customer
+        except ValueError as e:
+            messages.error(self.request, str(e))
+        return context
+
+
 class InsightsFeedView(LoginRequiredMixin, TemplateView):
     """Shared insight feed showing SystemEvent activity across all products."""
     template_name = "payrixa/insights_feed.html"

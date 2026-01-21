@@ -11,11 +11,11 @@ class ProductEnablementTests(TestCase):
         UserProfile.objects.create(user=self.user, customer=self.customer, role='admin')
         self.client.force_login(self.user)
 
-    def test_navigation_defaults_to_payrixa_core(self):
+    def test_navigation_defaults_to_axis_hub(self):
+        """Hub v1: Navigation shows Axis as primary entry."""
         response = self.client.get('/portal/uploads/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Payrixa Core')
-        self.assertNotContains(response, 'DenialScope')
+        self.assertContains(response, 'Axis')
 
     def test_denialscope_nav_and_access_when_enabled(self):
         ProductConfig.objects.create(

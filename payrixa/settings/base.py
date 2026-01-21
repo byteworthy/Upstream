@@ -282,6 +282,9 @@ CELERY_ENABLED = config('CELERY_ENABLED', default=False, cast=bool)
 # V1 ships with email-only alerts. Slack is disabled by default.
 SLACK_ENABLED = config('SLACK_ENABLED', default=False, cast=bool)
 
+# V1 ships without PDF attachments due to rendering issues. Can be enabled later.
+ALERT_ATTACH_PDF = config('ALERT_ATTACH_PDF', default=False, cast=bool)
+
 # =============================================================================
 # SECURITY SETTINGS (Common)
 # =============================================================================

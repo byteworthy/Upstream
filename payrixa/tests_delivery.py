@@ -121,15 +121,15 @@ class AlertDeliveryTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         sent_email = mail.outbox[0]
         
-        # Check subject contains customer name and severity
+        # Check subject contains customer name and product (Hub v1 format)
         self.assertIn(self.customer.name, sent_email.subject)
-        self.assertIn('Payrixa Alert', sent_email.subject)
+        self.assertIn('Alert', sent_email.subject)
         
         # Check HTML alternative exists
         self.assertEqual(len(sent_email.alternatives), 1)
         html_content, content_type = sent_email.alternatives[0]
         self.assertEqual(content_type, 'text/html')
-        self.assertIn('Payrixa Alert', html_content)
+        self.assertIn('Alert', html_content)
         self.assertIn(self.customer.name, html_content)
         
         # Check PDF attachment (may be absent if WeasyPrint fails, which is gracefully handled)

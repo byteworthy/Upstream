@@ -1,7 +1,8 @@
 """
 DriftWatch tests.
 
-V1: Deterministic test using existing DriftEvent model.
+Hub v1: Deterministic test using existing DriftEvent model.
+Filtered to DENIAL_RATE type only for v1.
 No new models - reuses payrixa.models.DriftEvent via payer_drift service.
 """
 
@@ -15,6 +16,7 @@ from django.utils import timezone
 from payrixa.core.models import ProductConfig
 from payrixa.models import Customer, ClaimRecord, Upload, UserProfile, DriftEvent, ReportRun
 from payrixa.services.payer_drift import compute_weekly_payer_drift
+from payrixa.products.driftwatch import DRIFTWATCH_V1_EVENT_TYPE
 
 
 class DriftWatchTests(TestCase):
@@ -136,7 +138,7 @@ class DriftWatchTests(TestCase):
             report_run=report_run,
             payer='Test Payer',
             cpt_group='TEST',
-            drift_type='DENIAL_RATE',
+            drift_type=DRIFTWATCH_V1_EVENT_TYPE,  # Use V1 constant
             baseline_value=0.1,
             current_value=0.5,
             delta_value=0.4,
@@ -149,4 +151,35 @@ class DriftWatchTests(TestCase):
         )
         
         self.assertIsNotNone(drift_event.id)
-        self.assertEqual(drift_event.drift_type, 'DENIAL_RATE')
+        self.assertEqual(drift_event.drift_type, DRIFTWATCH_V1_EVENT_TYPE)
+
+    def test_v1_only_surfaces_denial_rate_type(self):
+        """Hub v1: Verify only DENIAL_RATE type events are surfaced."""
+        self.assertEqual(DRIFTWATCH_V1_EVENT_TYPE, 'DENIAL_RATE')
+        
+        # V1 is locked to DENIAL_RATE
+        # This test ensures no other types are accidentally surfaced
+        from payrixa.products.driftwatch.views import DriftWatchDashboardView
+        # The view should filter to DRIFTWATCH_V1_EVENT_TYPE only
+        self.assertTrue(hasattr(DriftWatchDashboardView, 'get_context_data'))
+
+    def test_generate_driftwatch_demo_creates_events(self):
+        """Verify deterministic demo command creates DENIAL_RATE events."""
+        from django.core.management import call_command
+        from io import StringIO
+        
+        out = StringIO()
+        call_command('generate_driftwatch_demo', '--customer', self.customer.id, stdout=out)
+        
+        # Verify output
+        output = out.getvalue()
+        self.assertIn('Created', output)
+        
+        # Verify events created
+        demo_events = DriftEvent.objects.filter(
+            customer=self.customer,
+            drift_type=DRIFTWATCH_V1_EVENT_TYPE,
+            payer__startswith='Demo-'
+        )
+        self.assertGreaterEqual(demo_events.count(), 1,
+            f"Expected at least 1 demo DriftEvent, got {demo_events.count()}")

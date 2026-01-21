@@ -1,1 +1,1 @@
-[Payrixa Alert] {{ customer_name }} - {{ highest_severity|title }} Severity{% if top_payer %} - {{ top_payer }}{% endif %}
+[{{ product_name }} Alert] {{ customer_name }} - {{ severity|title }} Severity

@@ -7,6 +7,7 @@ from django.db.models import Sum
 from payrixa.utils import get_current_customer
 from payrixa.permissions import ProductEnabledMixin
 from payrixa.products.denialscope.models import DenialAggregate, DenialSignal
+from payrixa.services.evidence_payload import build_denialscope_evidence_payload
 
 
 class DenialScopeDashboardView(LoginRequiredMixin, ProductEnabledMixin, View):
@@ -26,7 +27,11 @@ class DenialScopeDashboardView(LoginRequiredMixin, ProductEnabledMixin, View):
                 aggregate_date__lt=end_date
             )
 
-            signals = DenialSignal.objects.filter(customer=customer).order_by('-created_at')[:10]
+            # Hub v1: filter to denial_dollars_spike only
+            signals = DenialSignal.objects.filter(
+                customer=customer,
+                signal_type='denial_dollars_spike'
+            ).order_by('-created_at')[:10]
 
             total_denials = aggregates.aggregate(total=Sum('denied_count'))['total'] or 0
 
@@ -46,16 +51,14 @@ class DenialScopeDashboardView(LoginRequiredMixin, ProductEnabledMixin, View):
                 top_reason = reason_totals[0]['denial_reason']
                 top_reason_count = reason_totals[0]['total'] or 0
 
-            # Table data: top denial reasons by payer
-            top_denials_by_payer = aggregates.values('payer', 'denial_reason').annotate(
-                denied_count=Sum('denied_count'),
-                total_submitted=Sum('total_submitted_count'),
-            ).order_by('-denied_count')[:20]
-
-            for row in top_denials_by_payer:
-                total_submitted = row['total_submitted'] or 0
-                denial_rate = (row['denied_count'] / total_submitted) if total_submitted > 0 else 0
-                row['denial_rate_percent'] = denial_rate * 100
+            # Shared evidence payload (Hub v1)
+            latest_signal = signals.first() if signals else None
+            evidence_payload = build_denialscope_evidence_payload(
+                latest_signal,
+                aggregates,
+                start_date,
+                end_date,
+            )
 
             last_computed = aggregates.order_by('-updated_at').first()
 
@@ -70,8 +73,9 @@ class DenialScopeDashboardView(LoginRequiredMixin, ProductEnabledMixin, View):
                 'top_payer_count': top_payer_count,
                 'top_reason': top_reason,
                 'top_reason_count': top_reason_count,
-                'top_denials_by_payer': top_denials_by_payer,
                 'signals': signals,
+                'evidence_payload': evidence_payload,
+                'top_denials_by_payer': evidence_payload['evidence_rows'],
             })
         except ValueError as e:
             from django.contrib import messages

@@ -1,7 +1,8 @@
 """
 DriftWatch views.
 
-V1: Dashboard reading from existing DriftEvent model.
+Hub v1: Dashboard reading from existing DriftEvent model.
+Filtered to DENIAL_RATE type only for v1.
 No new models - reuses payrixa.models.DriftEvent.
 """
 
@@ -11,12 +12,15 @@ from django.db.models import Count, Avg, Max
 
 from payrixa.utils import get_current_customer
 from payrixa.models import DriftEvent, ReportRun
+from payrixa.products.driftwatch import DRIFTWATCH_V1_EVENT_TYPE
+from payrixa.services.evidence_payload import build_driftwatch_evidence_payload
 
 
 class DriftWatchDashboardView(LoginRequiredMixin, TemplateView):
     """
-    DriftWatch dashboard showing volume and decision time drift signals.
+    DriftWatch dashboard showing denial rate drift signals.
     
+    Hub v1: Filtered to DENIAL_RATE type only.
     Uses existing DriftEvent model - NO new models for V1.
     """
     template_name = 'payrixa/products/driftwatch_dashboard.html'
@@ -28,23 +32,20 @@ class DriftWatchDashboardView(LoginRequiredMixin, TemplateView):
             customer = get_current_customer(self.request)
             context['customer'] = customer
 
-            # Get base queryset (unsliced for filtering)
-            base_queryset = DriftEvent.objects.filter(customer=customer)
+            # Hub v1: Filter to DENIAL_RATE type only
+            base_queryset = DriftEvent.objects.filter(
+                customer=customer,
+                drift_type=DRIFTWATCH_V1_EVENT_TYPE
+            )
             
             # Get recent drift events for display (sliced)
             drift_events = base_queryset.order_by('-created_at')[:50]
 
-            # Summary metrics (from unsliced queryset)
+            # Summary metrics (from v1 filtered queryset)
             total_events = base_queryset.count()
-            
-            # Group by drift type (from unsliced queryset)
-            denial_rate_count = base_queryset.filter(drift_type='DENIAL_RATE').count()
-            decision_time_count = base_queryset.filter(drift_type='DECISION_TIME').count()
 
-            # Top payers by drift frequency
-            top_payers = DriftEvent.objects.filter(
-                customer=customer
-            ).values('payer').annotate(
+            # Top payers by drift frequency (v1 type only)
+            top_payers = base_queryset.values('payer').annotate(
                 event_count=Count('id'),
                 avg_severity=Avg('severity'),
                 max_delta=Max('delta_value')
@@ -55,16 +56,17 @@ class DriftWatchDashboardView(LoginRequiredMixin, TemplateView):
                 customer=customer
             ).order_by('-started_at')[:5]
 
-            # Evidence payload (shared schema)
+            latest_event = drift_events[0] if drift_events else None
+            evidence_payload = build_driftwatch_evidence_payload(latest_event, drift_events)
+
             context.update({
                 'drift_events': drift_events,
                 'total_events': total_events,
-                'denial_rate_count': denial_rate_count,
-                'decision_time_count': decision_time_count,
                 'top_payers': top_payers,
                 'recent_runs': recent_runs,
-                # V1 signal type for DriftWatch
-                'v1_signal_type': 'volume_spike',
+                'evidence_payload': evidence_payload,
+                # V1 signal type constant
+                'v1_signal_type': DRIFTWATCH_V1_EVENT_TYPE,
             })
 
         except ValueError as e:
