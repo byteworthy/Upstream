@@ -4,9 +4,11 @@ RBAC Permission Service for Payrixa.
 Provides permission checks and decorators for enforcing access control.
 """
 
+from typing import Optional, Dict, Any, Tuple, Callable
 import logging
 from functools import wraps
-from django.http import HttpResponseForbidden
+from django.contrib.auth.models import User
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -14,7 +16,7 @@ from django.core.exceptions import PermissionDenied
 logger = logging.getLogger(__name__)
 
 
-def get_user_profile(user):
+def get_user_profile(user: User) -> Optional[Any]:
     """Get user profile, returns None if not found."""
     if not user or not user.is_authenticated:
         return None
@@ -24,10 +26,10 @@ def get_user_profile(user):
         return None
 
 
-def has_permission(user, permission_name):
+def has_permission(user: User, permission_name: str) -> bool:
     """
     Check if user has a specific permission.
-    
+
     Permission names:
     - view_reports: View dashboards, drift feed, reports
     - upload_claims: Upload claim files
@@ -54,14 +56,14 @@ def has_permission(user, permission_name):
     return permission_map.get(permission_name, False)
 
 
-def permission_required(permission_name, redirect_url='portal_root'):
+def permission_required(permission_name: str, redirect_url: str = 'portal_root') -> Callable:
     """
     Decorator for views that require a specific permission.
     Returns 403 if permission denied.
     """
-    def decorator(view_func):
+    def decorator(view_func: Callable) -> Callable:
         @wraps(view_func)
-        def wrapper(request, *args, **kwargs):
+        def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
             if not has_permission(request.user, permission_name):
                 logger.warning(
                     f"Permission denied: user={request.user.username if request.user.is_authenticated else 'anonymous'} "
@@ -93,10 +95,10 @@ class PermissionRequiredMixin:
         return super().dispatch(request, *args, **kwargs)
 
 
-def can_manage_member(acting_user, target_profile):
+def can_manage_member(acting_user: User, target_profile: Any) -> bool:
     """
     Check if acting_user can manage (edit/remove) target_profile.
-    
+
     Rules:
     - Owners can manage anyone
     - Admins can manage analysts and viewers, but not owners or other admins
@@ -120,7 +122,7 @@ def can_manage_member(acting_user, target_profile):
     return True
 
 
-def is_last_owner(profile):
+def is_last_owner(profile: Any) -> bool:
     """Check if this profile is the last owner of the customer."""
     if profile.role != 'owner':
         return False
@@ -134,10 +136,10 @@ def is_last_owner(profile):
     return owner_count <= 1
 
 
-def validate_role_change(acting_user, target_profile, new_role):
+def validate_role_change(acting_user: User, target_profile: Any, new_role: str) -> Tuple[bool, Optional[str]]:
     """
     Validate a role change operation.
-    
+
     Returns (is_valid, error_message)
     """
     acting_profile = get_user_profile(acting_user)
@@ -162,10 +164,10 @@ def validate_role_change(acting_user, target_profile, new_role):
     return True, None
 
 
-def validate_remove_member(acting_user, target_profile):
+def validate_remove_member(acting_user: User, target_profile: Any) -> Tuple[bool, Optional[str]]:
     """
     Validate a member removal operation.
-    
+
     Returns (is_valid, error_message)
     """
     acting_profile = get_user_profile(acting_user)
@@ -187,7 +189,7 @@ def validate_remove_member(acting_user, target_profile):
     return True, None
 
 
-def get_user_permissions(user):
+def get_user_permissions(user: User) -> Dict[str, Any]:
     """
     Get all permissions for a user as a dict for template context.
     """
@@ -220,7 +222,7 @@ def get_user_permissions(user):
     }
 
 
-def is_product_enabled(customer, product_slug):
+def is_product_enabled(customer: Optional[Any], product_slug: str) -> bool:
     """Return True if the product is enabled for the customer."""
     if not customer:
         return False

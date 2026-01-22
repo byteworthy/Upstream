@@ -1,4 +1,5 @@
 """Alert services for evaluating drift events and sending notifications."""
+from typing import List, Dict, Optional, Union, Any
 import logging
 import os
 import uuid
@@ -7,7 +8,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 from .models import AlertRule, AlertEvent, NotificationChannel
-from payrixa.models import DriftEvent
+from payrixa.models import DriftEvent, Customer
 from payrixa.services.evidence_payload import build_driftwatch_evidence_payload, get_alert_interpretation
 
 logger = logging.getLogger(__name__)

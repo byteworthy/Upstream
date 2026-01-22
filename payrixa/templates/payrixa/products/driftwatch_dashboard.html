@@ -12,34 +12,38 @@
 
     <!-- What is This? Section -->
     <div class="info-section">
-        <h3>📊 What is DriftWatch?</h3>
-        <p><strong>DriftWatch detects when payers start denying your claims at different rates than normal.</strong></p>
-        <p>It compares this week's denial rate to your baseline (last 4 weeks) and flags statistically significant changes.</p>
-        
-        <div class="info-grid">
-            <div class="info-card">
-                <h4>What "DENIAL_RATE" means</h4>
-                <p>The percentage of claims a payer denies. If they normally deny 8% and suddenly deny 15%, that's a 7-point increase worth investigating.</p>
+        <details>
+            <summary><h3 style="margin: 0;">📊 What is DriftWatch?</h3></summary>
+            <div class="collapsible-content">
+                <p><strong>DriftWatch detects when payers start denying your claims at different rates than normal.</strong></p>
+                <p>It compares this week's denial rate to your baseline (last 4 weeks) and flags statistically significant changes.</p>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h4>What "DENIAL_RATE" means</h4>
+                        <p>The percentage of claims a payer denies. If they normally deny 8% and suddenly deny 15%, that's a 7-point increase worth investigating.</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>What "Baseline" means</h4>
+                        <p><strong>Baseline</strong> = Your average denial rate over the last 4 weeks.<br>
+                        <strong>Current</strong> = This week's denial rate.<br>
+                        <strong>Delta</strong> = The difference (+ means worse, - means better).</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>What "Severity" means</h4>
+                        <p><strong>High (0.7+)</strong>: Investigate today<br>
+                        <strong>Medium (0.4-0.7)</strong>: Review this week<br>
+                        <strong>Low (&lt;0.4)</strong>: Monitor for trend</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>When to care</h4>
+                        <p><strong>Care about</strong>: High severity + large delta (>10 points)<br>
+                        <strong>Monitor</strong>: Medium severity or recurring patterns<br>
+                        <strong>Ignore (for now)</strong>: Low severity + small delta (&lt;5 points)</p>
+                    </div>
+                </div>
             </div>
-            <div class="info-card">
-                <h4>What "Baseline" means</h4>
-                <p><strong>Baseline</strong> = Your average denial rate over the last 4 weeks.<br>
-                <strong>Current</strong> = This week's denial rate.<br>
-                <strong>Delta</strong> = The difference (+ means worse, - means better).</p>
-            </div>
-            <div class="info-card">
-                <h4>What "Severity" means</h4>
-                <p><strong>High (0.7+)</strong>: Investigate today<br>
-                <strong>Medium (0.4-0.7)</strong>: Review this week<br>
-                <strong>Low (&lt;0.4)</strong>: Monitor for trend</p>
-            </div>
-            <div class="info-card">
-                <h4>When to care</h4>
-                <p><strong>Care about</strong>: High severity + large delta (>10 points)<br>
-                <strong>Monitor</strong>: Medium severity or recurring patterns<br>
-                <strong>Ignore (for now)</strong>: Low severity + small delta (&lt;5 points)</p>
-            </div>
-        </div>
+        </details>
     </div>
 
     {% if error %}
@@ -56,94 +60,104 @@
     </div>
 
     <div class="section">
-        <h3>Evidence</h3>
-        <div class="evidence-summary">
-            <p><strong>Signal:</strong> {{ evidence_payload.signal_type }}</p>
-            <p><strong>Entity:</strong> {{ evidence_payload.entity_label }}</p>
-            <p><strong>Date range:</strong> {{ evidence_payload.date_range }}</p>
-            <p><strong>Explanation:</strong> {{ evidence_payload.one_sentence_explanation }}</p>
-        </div>
+        <details open>
+            <summary><h3 style="margin: 0;">Evidence</h3></summary>
+            <div class="evidence-summary collapsible-content">
+                <p><strong>Signal:</strong> {{ evidence_payload.signal_type }}</p>
+                <p><strong>Entity:</strong> {{ evidence_payload.entity_label }}</p>
+                <p><strong>Date range:</strong> {{ evidence_payload.date_range }}</p>
+                <p><strong>Explanation:</strong> {{ evidence_payload.one_sentence_explanation }}</p>
+            </div>
+        </details>
     </div>
 
     <!-- Top Payers by Drift -->
     <div class="section">
-        <h3>Top Payers by Drift Frequency</h3>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Payer</th>
-                    <th>Event Count</th>
-                    <th>Avg Severity</th>
-                    <th>Max Delta</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for payer in top_payers %}
-                <tr>
-                    <td>{{ payer.payer }}</td>
-                    <td>{{ payer.event_count }}</td>
-                    <td>{{ payer.avg_severity|floatformat:2 }}</td>
-                    <td>{{ payer.max_delta|floatformat:2 }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="empty">No drift events yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <details open>
+            <summary><h3 style="margin: 0;">Top Payers by Drift Frequency</h3></summary>
+            <div class="collapsible-content">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Payer</th>
+                            <th>Event Count</th>
+                            <th>Avg Severity</th>
+                            <th>Max Delta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payer in top_payers %}
+                        <tr>
+                            <td>{{ payer.payer }}</td>
+                            <td>{{ payer.event_count }}</td>
+                            <td>{{ payer.avg_severity|floatformat:2 }}</td>
+                            <td>{{ payer.max_delta|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="empty">No drift events yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
     </div>
 
     <!-- Recent Drift Events -->
     <div class="section">
-        <h3>Recent Drift Events</h3>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Action</th>
-                    <th>Payer</th>
-                    <th>Interpretation</th>
-                    <th>Baseline</th>
-                    <th>Current</th>
-                    <th>Delta</th>
-                    <th>Severity</th>
-                    <th>Last Seen</th>
-                    <th>Quick Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for event in drift_events %}
-                <tr>
-                    <td>
-                        <span class="urgency-badge {{ event.urgency_level }}">{{ event.urgency_label }}</span>
-                    </td>
-                    <td><strong>{{ event.payer }}</strong><br><small class="text-muted">{{ event.cpt_group }}</small></td>
-                    <td class="interpretation-cell">
-                        <span class="plain-language">{{ event.plain_language|truncatechars:80 }}</span>
-                        {% if event.is_likely_noise %}<br><small class="noise-indicator">⚠️ May be noise</small>{% endif %}
-                    </td>
-                    <td>{{ event.baseline_value|floatformat:1 }}%</td>
-                    <td>{{ event.current_value|floatformat:1 }}%</td>
-                    <td>{% if event.delta_value > 0 %}+{% endif %}{{ event.delta_value|floatformat:1 }} pts</td>
-                    <td>
-                        <span class="severity-badge {% if event.severity >= 0.7 %}high{% elif event.severity >= 0.4 %}medium{% else %}low{% endif %}">
-                            {{ event.severity|floatformat:2 }}
-                        </span>
-                    </td>
-                    <td><small>{{ event.created_at|date:"M d, H:i" }}</small></td>
-                    <td class="quick-actions">
-                        <button class="btn-action btn-review" onclick="showNotWiredModal()">✓ Reviewed</button>
-                        <button class="btn-action btn-flag" onclick="showNotWiredModal()">🔍 Deep Dive</button>
-                        <button class="btn-action btn-noise" onclick="showNotWiredModal()">🔇 Noise</button>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="9" class="empty">No drift events yet. Run drift analysis to detect denial rate changes.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <details open>
+            <summary><h3 style="margin: 0;">Recent Drift Events</h3></summary>
+            <div class="collapsible-content">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Payer</th>
+                            <th>Interpretation</th>
+                            <th>Baseline</th>
+                            <th>Current</th>
+                            <th>Delta</th>
+                            <th>Severity</th>
+                            <th>Last Seen</th>
+                            <th>Quick Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in drift_events %}
+                        <tr>
+                            <td>
+                                <span class="urgency-badge {{ event.urgency_level }}">{{ event.urgency_label }}</span>
+                            </td>
+                            <td><strong>{{ event.payer }}</strong><br><small class="text-muted">{{ event.cpt_group }}</small></td>
+                            <td class="interpretation-cell">
+                                <span class="plain-language">{{ event.plain_language|truncatechars:80 }}</span>
+                                {% if event.is_likely_noise %}<br><small class="noise-indicator">⚠️ May be noise</small>{% endif %}
+                            </td>
+                            <td>{{ event.baseline_value|floatformat:1 }}%</td>
+                            <td>{{ event.current_value|floatformat:1 }}%</td>
+                            <td>{% if event.delta_value > 0 %}+{% endif %}{{ event.delta_value|floatformat:1 }} pts</td>
+                            <td>
+                                <span class="severity-badge {% if event.severity >= 0.7 %}high{% elif event.severity >= 0.4 %}medium{% else %}low{% endif %}">
+                                    {{ event.severity|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td><small>{{ event.created_at|date:"M d, H:i" }}</small></td>
+                            <td class="quick-actions">
+                                <button class="btn-action btn-review" onclick="showNotWiredModal()">✓ Reviewed</button>
+                                <button class="btn-action btn-flag" onclick="showNotWiredModal()">🔍 Deep Dive</button>
+                                <button class="btn-action btn-noise" onclick="showNotWiredModal()">🔇 Noise</button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="empty">No drift events yet. Run drift analysis to detect denial rate changes.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
     </div>
 
     <!-- Not Wired Modal (Deliverable 8) -->

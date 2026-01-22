@@ -4,14 +4,16 @@ Export service for Payrixa data.
 Provides Excel and CSV export functionality for core data types.
 """
 
+from typing import Optional, Dict, Any
 import os
 import csv
 from datetime import datetime
 from io import BytesIO
 from django.conf import settings
+from django.contrib.auth.models import User
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
-from payrixa.models import DriftEvent, ReportRun
+from payrixa.models import DriftEvent, ReportRun, Customer
 from payrixa.alerts.models import AlertEvent, Alert
 from payrixa.core.models import DomainAuditEvent
 
@@ -19,23 +21,23 @@ from payrixa.core.models import DomainAuditEvent
 class ExportService:
     """Service for exporting Payrixa data to various formats."""
     
-    def __init__(self, customer):
+    def __init__(self, customer: Customer) -> None:
         """
         Initialize export service for a specific customer.
-        
+
         Args:
             customer: Customer instance to scope exports to
         """
         self.customer = customer
     
-    def export_drift_events_excel(self, report_run, filters=None):
+    def export_drift_events_excel(self, report_run: ReportRun, filters: Optional[Dict[str, Any]] = None) -> BytesIO:
         """
         Export drift events to Excel format.
-        
+
         Args:
             report_run: ReportRun instance
             filters: Optional dict with filters (min_severity, payer, etc.)
-        
+
         Returns:
             BytesIO: Excel file as bytes
         """
@@ -111,13 +113,13 @@ class ExportService:
         output.seek(0)
         return output
     
-    def export_alert_events_excel(self, filters=None):
+    def export_alert_events_excel(self, filters: Optional[Dict[str, Any]] = None) -> BytesIO:
         """
         Export alert events to Excel format.
-        
+
         Args:
             filters: Optional dict with filters (severity, date_range, etc.)
-        
+
         Returns:
             BytesIO: Excel file as bytes
         """
@@ -188,13 +190,13 @@ class ExportService:
         output.seek(0)
         return output
     
-    def export_weekly_summary_excel(self, report_run):
+    def export_weekly_summary_excel(self, report_run: ReportRun) -> BytesIO:
         """
         Export weekly summary to Excel with multiple sheets.
-        
+
         Args:
             report_run: ReportRun instance
-        
+
         Returns:
             BytesIO: Excel file as bytes
         """
@@ -284,10 +286,10 @@ class ExportService:
         output.seek(0)
         return output
     
-    def log_export(self, user, export_type, record_count):
+    def log_export(self, user: User, export_type: str, record_count: int) -> None:
         """
         Log export action for audit trail.
-        
+
         Args:
             user: User who performed the export
             export_type: Type of export (drift_events, alert_events, etc.)

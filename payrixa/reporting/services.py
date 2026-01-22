@@ -1,3 +1,4 @@
+from typing import Optional, Dict, Any, Union
 import csv
 import os
 import hashlib
@@ -11,12 +12,12 @@ from .models import ReportArtifact
 
 # Template filter for percentage calculation
 @Library.filter
-def get_percentage(value, total):
+def get_percentage(value: Union[int, float], total: Union[int, float]) -> int:
     if total == 0:
         return 0
     return round((value / total) * 100)
 
-def generate_drift_events_csv(report_run, params=None):
+def generate_drift_events_csv(report_run: ReportRun, params: Optional[Dict[str, Any]] = None) -> ReportArtifact:
     """Generate CSV export of drift events for a report run."""
     if params is None:
         params = {}
@@ -49,7 +50,7 @@ def generate_drift_events_csv(report_run, params=None):
         artifact.save()
         raise Exception(f"CSV generation failed: {str(e)}")
 
-def generate_weekly_drift_pdf(report_run_id):
+def generate_weekly_drift_pdf(report_run_id: int) -> ReportArtifact:
     """
     Generate a PDF report artifact from a ReportRun and its DriftEvents.
 

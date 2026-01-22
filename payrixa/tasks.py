@@ -5,6 +5,7 @@ These tasks allow drift detection, alert sending, webhook delivery,
 and report generation to run asynchronously.
 """
 
+from typing import Dict, Any
 from celery import shared_task
 from decouple import config
 import logging
@@ -16,14 +17,14 @@ CELERY_ENABLED = config('CELERY_ENABLED', default=False, cast=bool)
 
 
 @shared_task(name='payrixa.tasks.run_drift_detection')
-def run_drift_detection_task(customer_id, **kwargs):
+def run_drift_detection_task(customer_id: int, **kwargs: Any) -> Dict[str, Any]:
     """
     Async task for running payer drift detection.
-    
+
     Args:
         customer_id: The customer to run drift detection for
         **kwargs: Additional arguments for drift detection
-    
+
     Returns:
         dict: Summary of drift detection results
     """
@@ -48,13 +49,13 @@ def run_drift_detection_task(customer_id, **kwargs):
 
 
 @shared_task(name='payrixa.tasks.send_alert')
-def send_alert_task(alert_id):
+def send_alert_task(alert_id: int) -> Dict[str, Any]:
     """
     Async task for sending a single alert.
-    
+
     Args:
         alert_id: The alert to send
-    
+
     Returns:
         dict: Send result
     """
@@ -75,13 +76,13 @@ def send_alert_task(alert_id):
 
 
 @shared_task(name='payrixa.tasks.send_webhook')
-def send_webhook_task(webhook_delivery_id):
+def send_webhook_task(webhook_delivery_id: int) -> Dict[str, Any]:
     """
     Async task for sending a webhook.
-    
+
     Args:
         webhook_delivery_id: The webhook delivery record to process
-    
+
     Returns:
         dict: Send result
     """
@@ -102,14 +103,14 @@ def send_webhook_task(webhook_delivery_id):
 
 
 @shared_task(name='payrixa.tasks.generate_report_artifact')
-def generate_report_artifact_task(report_run_id, artifact_type='pdf'):
+def generate_report_artifact_task(report_run_id: int, artifact_type: str = 'pdf') -> Dict[str, Any]:
     """
     Async task for generating report artifacts.
-    
+
     Args:
         report_run_id: The report run to generate artifacts for
         artifact_type: Type of artifact ('pdf', 'csv', 'xlsx')
-    
+
     Returns:
         dict: Generation result
     """
@@ -141,14 +142,14 @@ def generate_report_artifact_task(report_run_id, artifact_type='pdf'):
 
 
 @shared_task(name='payrixa.tasks.send_scheduled_report')
-def send_scheduled_report_task(customer_id, report_type='weekly_drift'):
+def send_scheduled_report_task(customer_id: int, report_type: str = 'weekly_drift') -> Dict[str, Any]:
     """
     Async task for generating and sending scheduled reports.
-    
+
     Args:
         customer_id: The customer to generate report for
         report_type: Type of report to generate
-    
+
     Returns:
         dict: Send result
     """
@@ -169,10 +170,10 @@ def send_scheduled_report_task(customer_id, report_type='weekly_drift'):
 
 
 # Helper function to enqueue tasks conditionally
-def enqueue_or_run_sync(task, *args, **kwargs):
+def enqueue_or_run_sync(task: Any, *args: Any, **kwargs: Any) -> Any:
     """
     Either enqueue a task to Celery or run it synchronously.
-    
+
     This allows the system to work with or without Celery running.
     """
     if CELERY_ENABLED:

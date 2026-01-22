@@ -12,34 +12,38 @@
 
     <!-- What is This? Section -->
     <div class="info-section">
-        <h3>💰 What is DenialScope?</h3>
-        <p><strong>DenialScope detects sudden spikes in denial dollars that signal payer policy changes or systemic issues.</strong></p>
-        <p>It analyzes your denial patterns by payer and reason code to catch expensive problems early.</p>
-        
-        <div class="info-grid">
-            <div class="info-card">
-                <h4>What "denial_dollars_spike" means</h4>
-                <p>A sharp increase in total dollars denied by a specific payer or for a specific reason code. This is different from denial <em>rate</em>—it's about total financial impact.</p>
+        <details>
+            <summary><h3 style="margin: 0;">💰 What is DenialScope?</h3></summary>
+            <div class="collapsible-content">
+                <p><strong>DenialScope detects sudden spikes in denial dollars that signal payer policy changes or systemic issues.</strong></p>
+                <p>It analyzes your denial patterns by payer and reason code to catch expensive problems early.</p>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h4>What "denial_dollars_spike" means</h4>
+                        <p>A sharp increase in total dollars denied by a specific payer or for a specific reason code. This is different from denial <em>rate</em>—it's about total financial impact.</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>What you'll see here</h4>
+                        <p><strong>Total Denials</strong>: Count of all denied claims in the last 30 days<br>
+                        <strong>Top Payer</strong>: Which payer is denying the most claims<br>
+                        <strong>Top Reason</strong>: Most common denial reason code</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>Understanding signals</h4>
+                        <p><strong>High/Critical</strong>: Large dollar spike, investigate immediately<br>
+                        <strong>Medium</strong>: Notable increase, review this week<br>
+                        <strong>Low</strong>: Small variance, monitor for trend</p>
+                    </div>
+                    <div class="info-card">
+                        <h4>When to care</h4>
+                        <p><strong>Act now</strong>: New spike in top payer or unfamiliar denial code<br>
+                        <strong>Monitor</strong>: Known issues or seasonal patterns<br>
+                        <strong>Note for later</strong>: Low-dollar variances</p>
+                    </div>
+                </div>
             </div>
-            <div class="info-card">
-                <h4>What you'll see here</h4>
-                <p><strong>Total Denials</strong>: Count of all denied claims in the last 30 days<br>
-                <strong>Top Payer</strong>: Which payer is denying the most claims<br>
-                <strong>Top Reason</strong>: Most common denial reason code</p>
-            </div>
-            <div class="info-card">
-                <h4>Understanding signals</h4>
-                <p><strong>High/Critical</strong>: Large dollar spike, investigate immediately<br>
-                <strong>Medium</strong>: Notable increase, review this week<br>
-                <strong>Low</strong>: Small variance, monitor for trend</p>
-            </div>
-            <div class="info-card">
-                <h4>When to care</h4>
-                <p><strong>Act now</strong>: New spike in top payer or unfamiliar denial code<br>
-                <strong>Monitor</strong>: Known issues or seasonal patterns<br>
-                <strong>Note for later</strong>: Low-dollar variances</p>
-            </div>
-        </div>
+        </details>
     </div>
 
     <div class="data-header">
@@ -75,41 +79,47 @@
     </div>
 
     <div class="section">
-        <h3>Evidence</h3>
-        <div class="evidence-summary">
-            <p><strong>Signal:</strong> {{ evidence_payload.signal_type }}</p>
-            <p><strong>Entity:</strong> {{ evidence_payload.entity_label }}</p>
-            <p><strong>Date range:</strong> {{ evidence_payload.date_range }}</p>
-            <p><strong>Explanation:</strong> {{ evidence_payload.one_sentence_explanation }}</p>
-        </div>
+        <details open>
+            <summary><h3 style="margin: 0;">Evidence</h3></summary>
+            <div class="evidence-summary collapsible-content">
+                <p><strong>Signal:</strong> {{ evidence_payload.signal_type }}</p>
+                <p><strong>Entity:</strong> {{ evidence_payload.entity_label }}</p>
+                <p><strong>Date range:</strong> {{ evidence_payload.date_range }}</p>
+                <p><strong>Explanation:</strong> {{ evidence_payload.one_sentence_explanation }}</p>
+            </div>
+        </details>
     </div>
 
     <div class="section">
-        <h3>Top denial reasons by payer</h3>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Payer</th>
-                    <th>Denial Reason</th>
-                    <th>Denied Count</th>
-                    <th>Denial Rate</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in evidence_payload.evidence_rows %}
-                <tr>
-                    <td>{{ row.payer }}</td>
-                    <td>{{ row.denial_reason }}</td>
-                    <td>{{ row.denied_count }}</td>
-                    <td>{{ row.denial_rate_percent|floatformat:1 }}%</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="empty">No denial aggregates yet. Run the DenialScope compute command.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <details open>
+            <summary><h3 style="margin: 0;">Top denial reasons by payer</h3></summary>
+            <div class="collapsible-content">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Payer</th>
+                            <th>Denial Reason</th>
+                            <th>Denied Count</th>
+                            <th>Denial Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in evidence_payload.evidence_rows %}
+                        <tr>
+                            <td>{{ row.payer }}</td>
+                            <td>{{ row.denial_reason }}</td>
+                            <td>{{ row.denied_count }}</td>
+                            <td>{{ row.denial_rate_percent|floatformat:1 }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="empty">No denial aggregates yet. Run the DenialScope compute command.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
     </div>
 
     <div class="section">

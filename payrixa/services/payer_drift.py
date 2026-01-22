@@ -1,10 +1,17 @@
+from typing import Optional, Dict, List, Tuple, Any
+from datetime import date, timedelta
 from django.db import transaction
 from django.utils import timezone
-from payrixa.models import ClaimRecord, ReportRun, DriftEvent
-from datetime import timedelta
+from payrixa.models import ClaimRecord, ReportRun, DriftEvent, Customer
 import statistics
 
-def compute_weekly_payer_drift(customer, baseline_days=90, current_days=14, min_volume=30, as_of_date=None):
+def compute_weekly_payer_drift(
+    customer: Customer,
+    baseline_days: int = 90,
+    current_days: int = 14,
+    min_volume: int = 30,
+    as_of_date: Optional[date] = None
+) -> ReportRun:
     """
     Compute payer drift metrics and create DriftEvent records.
 

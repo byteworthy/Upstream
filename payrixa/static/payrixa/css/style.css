@@ -11,13 +11,21 @@
     --danger-color: #e74c3c;
     --border-radius: 4px;
     --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    /* Phase 1: Depth + Motion System */
+    --elevation-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.12);
+    --elevation-2: 0 3px 6px rgba(0,0,0,0.08), 0 3px 6px rgba(0,0,0,0.15);
+    --elevation-3: 0 10px 20px rgba(0,0,0,0.10), 0 6px 6px rgba(0,0,0,0.15);
+    --spring-easing: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --spring-duration: 0.3s;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: var(--light-gray);
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    background-attachment: fixed;
     color: var(--secondary-color);
     line-height: 1.6;
 }
@@ -29,10 +37,39 @@ body {
     padding: 0 1rem;
 }
 
+/* Phase 1: Elevation System Classes */
+.elevation-1 {
+    box-shadow: var(--elevation-1);
+}
+
+.elevation-2 {
+    box-shadow: var(--elevation-2);
+}
+
+.elevation-3 {
+    box-shadow: var(--elevation-3);
+}
+
+/* Card interactive states */
+.card, .event-card {
+    transition: all var(--spring-duration) var(--spring-easing);
+    cursor: pointer;
+}
+
+.card:hover, .event-card:hover {
+    box-shadow: var(--elevation-3);
+    transform: translateY(-3px);
+}
+
+.card:active, .event-card:active {
+    transform: scale(0.98);
+    box-shadow: var(--elevation-1);
+}
+
 /* Header Styles */
 .header {
     background-color: white;
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--elevation-2);
     padding: 1rem 0;
     position: sticky;
     top: 0;
@@ -65,16 +102,22 @@ body {
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--border-radius);
-    transition: all 0.2s;
+    transition: all var(--spring-duration) var(--spring-easing);
 }
 
 .nav-link:hover {
     background-color: var(--light-color);
+    transform: translateY(-1px);
 }
 
 .nav-link.active {
     background-color: var(--primary-color);
     color: white;
+    box-shadow: var(--elevation-1);
+}
+
+.nav-link:active {
+    transform: translateY(0);
 }
 
 .logout-link {
@@ -90,6 +133,7 @@ body {
 .main-content {
     padding: 2rem 0;
     min-height: calc(100vh - 120px);
+    position: relative;
 }
 
 .page-header {
@@ -130,7 +174,8 @@ body {
     border-radius: var(--border-radius);
     font-size: 1rem;
     box-sizing: border-box;
-    transition: border-color 0.2s;
+    transition: all var(--spring-duration) var(--spring-easing);
+    background-color: white;
 }
 
 .form-group input:focus,
@@ -138,7 +183,8 @@ body {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15), var(--elevation-1);
+    transform: translateY(-1px);
 }
 
 .checkbox-group {
@@ -166,10 +212,21 @@ body {
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--spring-duration) var(--spring-easing);
     text-decoration: none;
     display: inline-block;
     text-align: center;
+    box-shadow: var(--elevation-1);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elevation-2);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn-primary {
@@ -193,6 +250,8 @@ body {
 .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: var(--elevation-1);
 }
 
 /* Table Styles */
@@ -215,8 +274,14 @@ body {
     color: var(--secondary-color);
 }
 
+.table tr {
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
 .table tr:hover {
     background-color: rgba(52, 152, 219, 0.05);
+    transform: scale(1.005);
+    box-shadow: var(--elevation-1);
 }
 
 .empty-state {
@@ -233,8 +298,19 @@ body {
     background-color: white;
     padding: 2rem;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--elevation-2);
     margin-bottom: 2rem;
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+.upload-card:hover {
+    box-shadow: var(--elevation-3);
+    transform: translateY(-2px);
+}
+
+.upload-card:active {
+    transform: scale(0.98);
+    box-shadow: var(--elevation-1);
 }
 
 .upload-card h3 {
@@ -262,6 +338,13 @@ body {
     font-size: 0.8rem;
     font-weight: 500;
     display: inline-block;
+    transition: all var(--spring-duration) var(--spring-easing);
+    box-shadow: var(--elevation-1);
+}
+
+.status-badge:hover {
+    transform: scale(1.05);
+    box-shadow: var(--elevation-2);
 }
 
 .status-processing {
@@ -302,7 +385,13 @@ body {
     background-color: white;
     padding: 1.5rem;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--elevation-2);
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+.mapping-section:hover {
+    box-shadow: var(--elevation-3);
+    transform: translateY(-2px);
 }
 
 .mapping-form {
@@ -328,8 +417,14 @@ body {
     background-color: white;
     padding: 1.5rem;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--elevation-2);
     margin-top: 1rem;
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+.help-section:hover {
+    box-shadow: var(--elevation-3);
+    transform: translateY(-2px);
 }
 
 .help-section h4 {
@@ -343,6 +438,220 @@ body {
 
 .help-section li {
     margin-bottom: 0.5rem;
+}
+
+/* Phase 2: Micro-interactions */
+
+/* Pulse animation for high-urgency items */
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(231, 76, 60, 0);
+    }
+}
+
+.status-failed,
+.urgency-badge.high,
+.urgency-badge.critical {
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Enhanced table row micro-interactions */
+.table tbody tr {
+    position: relative;
+}
+
+.table tbody tr::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--primary-color);
+    transform: scaleY(0);
+    transition: transform var(--spring-duration) var(--spring-easing);
+}
+
+.table tbody tr:hover::before {
+    transform: scaleY(1);
+}
+
+/* Empty state micro-interaction */
+.empty-state {
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+.empty-state:hover {
+    background-color: #fafbfc;
+    border-color: var(--primary-color);
+    transform: scale(1.01);
+}
+
+/* Logo pulse on hover */
+.logo {
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+.logo:hover {
+    transform: scale(1.05);
+    color: var(--primary-dark);
+}
+
+/* Phase 3: Color Behavior */
+
+/* Alert card severity color shifts */
+.signal-card {
+    border-left: 4px solid transparent;
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+.signal-card:has(.urgency-badge.critical) {
+    border-left-color: #b71c1c;
+    background: linear-gradient(to right, rgba(183, 28, 28, 0.02), white);
+}
+
+.signal-card:has(.urgency-badge.high) {
+    border-left-color: #c62828;
+    background: linear-gradient(to right, rgba(198, 40, 40, 0.02), white);
+}
+
+.signal-card:has(.urgency-badge.medium) {
+    border-left-color: #ef6c00;
+    background: linear-gradient(to right, rgba(239, 108, 0, 0.02), white);
+}
+
+.signal-card:has(.urgency-badge.low) {
+    border-left-color: #1565c0;
+    background: linear-gradient(to right, rgba(21, 101, 192, 0.02), white);
+}
+
+/* Success state color transition */
+.status-success {
+    position: relative;
+    overflow: hidden;
+}
+
+.status-success::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.status-success:hover::after {
+    left: 100%;
+}
+
+/* Warning state subtle pulse */
+.status-processing {
+    animation: warning-pulse 3s ease-in-out infinite;
+}
+
+@keyframes warning-pulse {
+    0%, 100% {
+        background-color: #f39c12;
+    }
+    50% {
+        background-color: #e67e22;
+    }
+}
+
+/* Phase 4: Progressive Disclosure */
+
+/* Accordion for alert cards */
+details {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+details[open] {
+    box-shadow: var(--elevation-3);
+}
+
+summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all var(--spring-duration) var(--spring-easing);
+    padding: 0.5rem 0;
+}
+
+summary::-webkit-details-marker {
+    display: none;
+}
+
+summary::after {
+    content: '▼';
+    font-size: 0.8em;
+    transition: transform var(--spring-duration) var(--spring-easing);
+    color: var(--dark-gray);
+}
+
+details[open] summary::after {
+    transform: rotate(180deg);
+}
+
+summary:hover {
+    color: var(--primary-color);
+}
+
+/* Collapsible content animation */
+details .collapsible-content {
+    animation: slideDown var(--spring-duration) var(--spring-easing);
+    overflow: hidden;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Evidence section as collapsible */
+.evidence-summary {
+    transition: all var(--spring-duration) var(--spring-easing);
+}
+
+/* Help section progressive disclosure */
+.help-section details {
+    margin-top: 1rem;
+}
+
+.help-section summary {
+    font-weight: 600;
+    color: var(--secondary-color);
+    padding: 0.8rem;
+    background-color: var(--light-color);
+    border-radius: var(--border-radius);
+}
+
+.help-section summary:hover {
+    background-color: #d5dbdb;
+}
+
+.help-section details[open] summary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.help-section details[open] summary::after {
+    color: white;
 }
 
 /* Responsive */

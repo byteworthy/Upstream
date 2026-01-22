@@ -1,4 +1,5 @@
 """Webhook services for signed delivery and retry logic."""
+from typing import Union, Dict, List, Optional, Any
 import hashlib
 import hmac
 import json
@@ -7,10 +8,11 @@ import uuid
 import requests
 from django.utils import timezone
 from .models import WebhookEndpoint, WebhookDelivery
+from payrixa.models import Customer
 
 logger = logging.getLogger(__name__)
 
-def generate_signature(payload, secret):
+def generate_signature(payload: Union[Dict[str, Any], str, bytes], secret: Union[str, bytes]) -> str:
     """Generate HMAC-SHA256 signature for webhook payload."""
     if isinstance(payload, dict):
         payload = json.dumps(payload, separators=(',', ':'), sort_keys=True)
@@ -20,12 +22,12 @@ def generate_signature(payload, secret):
         secret = secret.encode('utf-8')
     return hmac.new(secret, payload, hashlib.sha256).hexdigest()
 
-def verify_signature(payload, secret, signature):
+def verify_signature(payload: Union[Dict[str, Any], str, bytes], secret: Union[str, bytes], signature: str) -> bool:
     """Verify HMAC-SHA256 signature for webhook payload."""
     expected_signature = generate_signature(payload, secret)
     return hmac.compare_digest(expected_signature, signature)
 
-def create_webhook_delivery(endpoint, event_type, payload):
+def create_webhook_delivery(endpoint: WebhookEndpoint, event_type: str, payload: Dict[str, Any]) -> Optional[WebhookDelivery]:
     """Create a webhook delivery record."""
     if endpoint.event_types and event_type not in endpoint.event_types:
         return None
@@ -33,7 +35,7 @@ def create_webhook_delivery(endpoint, event_type, payload):
         return None
     return WebhookDelivery.objects.create(endpoint=endpoint, event_type=event_type, payload=payload, status='pending')
 
-def deliver_webhook(delivery):
+def deliver_webhook(delivery: WebhookDelivery) -> bool:
     """Attempt to deliver a webhook."""
     from payrixa.core.services import create_audit_event
     from payrixa.middleware import get_request_id
@@ -138,7 +140,7 @@ def deliver_webhook(delivery):
             )
         return False
 
-def dispatch_event(customer, event_type, payload):
+def dispatch_event(customer: Customer, event_type: str, payload: Dict[str, Any]) -> List[WebhookDelivery]:
     """Dispatch an event to all active webhook endpoints for a customer."""
     endpoints = WebhookEndpoint.objects.filter(customer=customer, active=True)
     deliveries = []
@@ -149,7 +151,7 @@ def dispatch_event(customer, event_type, payload):
             deliver_webhook(delivery)
     return deliveries
 
-def process_pending_deliveries():
+def process_pending_deliveries() -> Dict[str, int]:
     """Process all pending and retrying webhook deliveries."""
     now = timezone.now()
     pending = WebhookDelivery.objects.filter(status__in=['pending', 'retrying'], next_attempt_at__lte=now) | WebhookDelivery.objects.filter(status='pending', next_attempt_at__isnull=True)

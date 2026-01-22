@@ -1,4 +1,8 @@
-def get_current_customer(request):
+from django.http import HttpRequest
+from payrixa.models import Customer
+
+
+def get_current_customer(request: HttpRequest) -> Customer:
     """
     Get the current customer associated with the logged-in user.
 
