@@ -81,10 +81,11 @@
 - ✅ Alert status updates (noise→resolved, real→acknowledged)
 - ✅ Comprehensive test suite (8 tests, all passing)
 
-**Deferred to Future:**
+**Phase 1b Extensions (1dda079):**
 
-- 🔲 Suppression logic (future alerts similarity matching) - deferred to Phase 1b
-- 🔲 "Previously confirmed" badges on similar alerts - deferred to Phase 1b
+- ✅ Suppression context: Similar alert detection and context badges
+- ✅ SystemEvent audit logging for all operator feedback actions
+- ✅ Enhanced error handling in alert deep dive views
 
 ---
 
@@ -164,10 +165,10 @@ Before building, verify:
 
 ---
 
-### **🟡 PHASE 4: Basic Enforcement Actions (MOSTLY COMPLETE)**
+### **✅ PHASE 4: Basic Enforcement Actions (COMPLETE)**
 
 **Goal:** Replace "Coming Soon" modals with real operator actions
-**Status:** 🟡 PARTIAL - Deep Dive page complete (b66ea9f), recovery ledger pending
+**Status:** ✅ COMPLETE - All core deliverables shipped
 
 #### Completed Items
 
@@ -186,14 +187,13 @@ Before building, verify:
    - Added to `OperatorJudgment`: `recovered_amount`, `recovered_date`
    - Can be submitted via API with feedback
 
-#### Remaining Items
-
-1. **🔲 Recovery Ledger Dashboard Card** (deferred)
+4. **✅ Recovery Ledger Dashboard Card** (Phase 4 - 1dda079)
    - Dashboard summary card: "Total Recovered This Month"
-   - Aggregate recovery stats across all judgments
-   - Estimated effort: 30 minutes
+   - Aggregate recovery stats (this month, last 30 days, all-time)
+   - Recent recoveries list with payer details
+   - Beautiful green gradient design with expandable breakdown
 
-**Actual Effort:** ~2 hours (Deep Dive page)
+**Actual Effort:** ~3 hours total (Deep Dive page + Recovery Ledger + enhancements)
 **Risk:** Low (builds on Phase 1, no complex logic)
 
 **Defer to Phase 5:** Full Enforcement Engine (ClaimSet, EvidenceArtifact versioning, ActionPlan, PayerCase, RegressionWatch, AuditVault) - that's a separate 8-10 hour sprint.
@@ -204,15 +204,15 @@ Before building, verify:
 
 | Phase | Feature | Status | Actual Effort | Risk |
 |-------|---------|--------|---------------|------|
-| **1** | Operator Memory Loop | ✅ Complete | ~3h | Low |
+| **1** | Operator Memory Loop | ✅ Complete | ~4h (+ Phase 1b) | Low |
 | **2** | UI/UX Motion & Depth | ✅ Complete | ~2h | Very Low |
 | **3** | Client/Operator Login | 🟡 Partial | ~1h | Medium |
-| **4** | Basic Enforcement Actions | 🟡 Partial | ~2h | Low |
+| **4** | Basic Enforcement Actions | ✅ Complete | ~3h | Low |
 | **5** | Full Enforcement Engine | ⏳ Not Started | 8-10h (est) | High |
 
-**Total Progress:** ~8 hours invested, Phases 1-4 substantially complete
+**Total Progress:** ~10 hours invested, Phases 1-4 complete
 
-**Remaining for MVP:** ~1-2 hours (Phase 3 login flow documentation, Phase 4 recovery ledger)
+**Remaining for Production MVP:** ~1 hour (Phase 3 login flow documentation)
 
 ---
 
@@ -264,51 +264,64 @@ These are explicitly deferred or out of scope:
 
 ---
 
-## 🎉 Progress Summary (2026-01-22)
+## 🎉 Progress Summary (2026-01-22 - Updated)
 
 ### What's Been Delivered
 
-**Phase 1: Operator Memory Loop** ✅ COMPLETE
-- Operators can now mark alerts as noise/real/needs-follow-up
+**Phase 1: Operator Memory Loop** ✅ COMPLETE (ec7d8b7 + 1dda079)
+- Operators can mark alerts as noise/real/needs-follow-up
 - System remembers judgments and displays badges on future alerts
-- API endpoint for feedback submission working
+- API endpoint for feedback submission with full audit logging
+- Similar alert detection shows suppression context
+- SystemEvent logging for all operator actions
 - 8 comprehensive tests passing
 
-**Phase 2: UI/UX Motion & Depth** ✅ COMPLETE
+**Phase 2: UI/UX Motion & Depth** ✅ COMPLETE (02789b3)
 - Spring-based animations and micro-interactions
 - 3-tier elevation system with responsive depth
 - Card press feedback and button interactions
 - Background gradient animations
 
-**Phase 3: User Context Indicator** 🟡 PARTIAL
+**Phase 3: User Context Indicator** 🟡 PARTIAL (b972a50)
 - Header badges showing operator vs customer context
 - Role indicators for all user types
 - Custom logout page showing account details
 - Login flow documentation pending
 
-**Phase 4: Alert Deep Dive** 🟡 PARTIAL
-- Comprehensive alert detail page with full evidence
+**Phase 4: Basic Enforcement Actions** ✅ COMPLETE (b66ea9f + 1dda079)
+- Comprehensive alert deep dive page with full evidence
 - Operator interpretation with urgency levels
 - Sample claims and judgment history
-- Recovery ledger dashboard card pending
+- Recovery ledger dashboard card with beautiful UI
+- Enhanced error handling and graceful degradation
+- Complete audit trail via SystemEvent logging
 
-### Next Lowest Hanging Fruit Options
+### What Got Completed This Session
 
-1. **Recovery Ledger Dashboard Card** (~30 min)
-   - Add summary card showing "Total Recovered This Month"
-   - Quick win, high visibility for operators
+1. ✅ **Recovery Ledger Dashboard Card** (~1 hour)
+   - Added summary card showing "Total Recovered This Month"
+   - Includes last 30 days and all-time stats
+   - Recent recoveries list with expandable details
 
-2. **Phase 3 Login Flow Documentation** (~1 hour)
-   - Document existing login/tenant separation
-   - Add "Operator Portal" vs "Client Portal" entry points if needed
+2. ✅ **Alert Suppression Context** (~1 hour)
+   - Similar alert detection with context badges
+   - Shows when similar alerts were previously judged
+   - Helps operators avoid duplicate reviews
 
-3. **Alert Suppression Logic** (~2 hours)
-   - Extend Phase 1 to suppress similar "noise" alerts for 14 days
-   - Add "Previously confirmed" badges on similar real alerts
+3. ✅ **Enhanced Error Handling & Audit Logging** (~1 hour)
+   - Comprehensive error handling in alert views
+   - SystemEvent logging for all operator actions
+   - Complete audit trail for compliance
 
-### Recommendation
+### Next Steps
 
-Continue with **Recovery Ledger Dashboard Card** - smallest investment, immediate operator value, completes Phase 4 core deliverables.
+**Phase 3 Login Flow Documentation** (~1 hour)
+
+- Document existing login/tenant separation architecture
+- Create authentication guide (AUTHENTICATION_GUIDE.md already started)
+- Add "Operator Portal" vs "Client Portal" clarity if needed
+
+**After that, ready for production pilot!**
 
 ---
 
