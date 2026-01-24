@@ -308,6 +308,9 @@ class ClaimRecord(models.Model):
             models.Index(fields=['customer', 'validation_passed', 'processed_at'],
                         name='claim_validation_idx'),
             models.Index(fields=['customer', 'payment_date'], name='claim_payment_date_idx'),
+            # QW-2: Performance indexes for common query patterns
+            models.Index(fields=['customer', 'payer', 'cpt_group'], name='claim_drift_detect_idx'),
+            models.Index(fields=['customer', 'submitted_date', 'decided_date'], name='claim_lag_analysis_idx'),
         ]
 
     def __str__(self):
@@ -468,6 +471,9 @@ class DriftEvent(models.Model):
                         name='drift_trend_sev_idx'),
             models.Index(fields=['customer', 'suppressed', '-created_at'],
                         name='drift_suppressed_idx'),
+            # QW-2: Performance indexes for dashboard and filtering
+            models.Index(fields=['customer', 'report_run', '-severity'], name='drift_report_sev_idx'),
+            models.Index(fields=['payer', 'cpt_group', '-created_at'], name='drift_hist_trend_idx'),
         ]
 
     def __str__(self):

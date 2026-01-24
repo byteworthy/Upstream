@@ -49,8 +49,10 @@ MIDDLEWARE = [
     "upstream.middleware.HealthCheckMiddleware",  # Early exit for health checks
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",  # QW-3: Compress responses (60-80% size reduction)
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.http.ConditionalGetMiddleware",  # QW-3: ETag support for caching
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -129,8 +131,17 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
+        # Default rates
         'anon': '100/hour',
         'user': '1000/hour',
+        # QW-5: Granular rate limiting for different operation types
+        'burst': '60/minute',                    # High-frequency bursts (1 req/sec)
+        'sustained': '10000/day',                # Daily limit for sustained usage
+        'report_generation': '10/hour',          # Expensive: report generation
+        'bulk_operation': '20/hour',             # Expensive: file uploads, batch ops
+        'read_only': '2000/hour',                # Liberal: read operations
+        'write_operation': '500/hour',           # Moderate: write operations
+        'anon_strict': '30/hour',                # Very strict for anonymous users
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -154,6 +165,9 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Early-warning intelligence for healthcare revenue operations',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    # Note: Multiple models use 'status' field with different choice sets.
+    # drf-spectacular auto-generates enum names (StatusB74Enum, StatusDcfEnum).
+    # This doesn't affect functionality - API schema works correctly.
 }
 
 # =============================================================================

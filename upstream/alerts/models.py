@@ -123,6 +123,8 @@ class AlertEvent(BaseModel):
             models.Index(fields=['customer', 'status', '-triggered_at'], name='alertevt_cust_status_idx'),
             models.Index(fields=['customer', '-notification_sent_at'], name='alertevt_cust_sent_idx'),
             models.Index(fields=['alert_rule', '-triggered_at'], name='alertevt_rule_trig_idx'),
+            # QW-2: Performance index for alert dashboard filtering
+            models.Index(fields=['customer', 'alert_rule', 'status'], name='alertevt_rule_status_idx'),
         ]
 
 

@@ -155,17 +155,102 @@ def send_scheduled_report_task(customer_id: int, report_type: str = 'weekly_drif
     """
     from upstream.reporting.services import generate_and_send_weekly_report
     from upstream.models import Customer
-    
+
     logger.info(f"Starting scheduled report generation for customer {customer_id}, type {report_type}")
-    
+
     try:
         customer = Customer.objects.get(id=customer_id)
         result = generate_and_send_weekly_report(customer)
-        
+
         logger.info(f"Completed scheduled report for customer {customer_id}")
         return result
     except Exception as e:
         logger.error(f"Error in scheduled report for customer {customer_id}: {str(e)}")
+        raise
+
+
+@shared_task(name='upstream.tasks.compute_report_drift')
+def compute_report_drift_task(report_run_id: int) -> Dict[str, Any]:
+    """
+    Async task for computing drift for a specific report run.
+
+    Args:
+        report_run_id: The report run to compute drift for
+
+    Returns:
+        dict: Drift computation result
+    """
+    from upstream.models import ReportRun
+    from upstream.services.payer_drift import compute_weekly_payer_drift
+
+    logger.info(f"Starting drift computation for report run {report_run_id}")
+
+    try:
+        report_run = ReportRun.objects.get(id=report_run_id)
+
+        # Compute drift for this report run
+        drift_events = compute_weekly_payer_drift(report_run.customer, report_run)
+
+        # Update report run status
+        report_run.status = 'completed'
+        report_run.save()
+
+        logger.info(f"Completed drift computation for report run {report_run_id}: {len(drift_events)} events")
+        return {
+            'report_run_id': report_run_id,
+            'events_detected': len(drift_events),
+            'status': 'success'
+        }
+    except Exception as e:
+        logger.error(f"Error computing drift for report run {report_run_id}: {str(e)}")
+        # Mark report as failed
+        try:
+            report_run = ReportRun.objects.get(id=report_run_id)
+            report_run.status = 'failed'
+            report_run.save()
+        except Exception:
+            pass
+        raise
+
+
+@shared_task(name='upstream.tasks.process_ingestion')
+def process_ingestion_task(ingestion_id: int) -> Dict[str, Any]:
+    """
+    Async task for processing an ingestion record.
+
+    Args:
+        ingestion_id: The ingestion record to process
+
+    Returns:
+        dict: Processing result
+    """
+    from upstream.ingestion.models import Ingestion
+    from upstream.ingestion.services import process_ingestion_record
+
+    logger.info(f"Starting ingestion processing for record {ingestion_id}")
+
+    try:
+        ingestion = Ingestion.objects.get(id=ingestion_id)
+
+        # Process the ingestion
+        result = process_ingestion_record(ingestion)
+
+        logger.info(f"Completed ingestion processing for record {ingestion_id}")
+        return {
+            'ingestion_id': ingestion_id,
+            'status': 'success',
+            'result': result
+        }
+    except Exception as e:
+        logger.error(f"Error processing ingestion {ingestion_id}: {str(e)}")
+        # Mark ingestion as failed
+        try:
+            ingestion = Ingestion.objects.get(id=ingestion_id)
+            ingestion.status = 'failed'
+            ingestion.error_message = str(e)
+            ingestion.save()
+        except Exception:
+            pass
         raise
 
 

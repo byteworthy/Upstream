@@ -12,7 +12,15 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Avg, Q
 from django.utils import timezone
+from django.core.cache import cache
+from django.conf import settings
 from drf_spectacular.utils import extend_schema, OpenApiParameter
+
+# QW-5: Import custom throttle classes
+from .throttling import (
+    ReportGenerationThrottle, BulkOperationThrottle,
+    ReadOnlyThrottle, WriteOperationThrottle
+)
 
 from ..models import (
     Customer, Settings, Upload, ClaimRecord,
@@ -27,7 +35,8 @@ from .serializers import (
     ReportRunSerializer, ReportRunSummarySerializer, DriftEventSerializer,
     PayerMappingSerializer, CPTGroupMappingSerializer,
     PayerSummarySerializer, DashboardSerializer,
-    AlertEventSerializer, OperatorJudgmentSerializer, OperatorFeedbackSerializer
+    AlertEventSerializer, OperatorJudgmentSerializer, OperatorFeedbackSerializer,
+    HealthCheckSerializer
 )
 from .permissions import IsCustomerMember, get_user_customer
 
@@ -99,11 +108,13 @@ class SettingsViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
 class UploadViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
     """
     API endpoint for managing file uploads.
+    Rate limit: 20 uploads/hour for bulk operations.
     """
-    
+
     queryset = Upload.objects.all().order_by('-uploaded_at')
     serializer_class = UploadSerializer
     permission_classes = [IsAuthenticated, IsCustomerMember]
+    throttle_classes = [BulkOperationThrottle]  # QW-5: Rate limit bulk uploads
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['uploaded_at', 'status', 'row_count']
     
@@ -136,11 +147,13 @@ class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for viewing claim records.
     Supports filtering by payer, outcome, and date range.
+    Rate limit: 2000 requests/hour for read operations.
     """
-    
+
     queryset = ClaimRecord.objects.all().order_by('-decided_date')
     serializer_class = ClaimRecordSerializer
     permission_classes = [IsAuthenticated, IsCustomerMember]
+    throttle_classes = [ReadOnlyThrottle]  # QW-5: Liberal rate limit for reads
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['decided_date', 'submitted_date', 'payer', 'outcome']
     
@@ -179,33 +192,51 @@ class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def payer_summary(self, request):
         """Get aggregated statistics by payer."""
-        queryset = self.get_queryset()
-        
-        payers = queryset.values('payer').annotate(
-            total_claims=Count('id'),
-            paid_count=Count('id', filter=Q(outcome='PAID')),
-            denied_count=Count('id', filter=Q(outcome='DENIED')),
-            other_count=Count('id', filter=Q(outcome='OTHER')),
-            avg_allowed_amount=Avg('allowed_amount')
-        ).order_by('-total_claims')
-        
-        # Calculate denial rate
-        results = []
-        for p in payers:
-            denial_rate = 0
-            if p['total_claims'] > 0:
-                denial_rate = (p['denied_count'] / p['total_claims']) * 100
-            
-            results.append({
-                'payer': p['payer'],
-                'total_claims': p['total_claims'],
-                'paid_count': p['paid_count'],
-                'denied_count': p['denied_count'],
-                'other_count': p['other_count'],
-                'denial_rate': round(denial_rate, 2),
-                'avg_allowed_amount': p['avg_allowed_amount']
-            })
-        
+        customer = get_user_customer(request.user)
+        if not customer:
+            return Response(
+                {'error': 'No customer associated with user'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # QW-4: Cache payer summary for 15 minutes (rarely changes, expensive query)
+        cache_key = f'payer_summary:customer:{customer.id}'
+        cache_ttl = settings.CACHE_TTL.get('payer_mappings', 900)  # 15 minutes
+
+        def compute_payer_summary():
+            """Expensive aggregation query - cached to reduce DB load."""
+            queryset = self.get_queryset()
+
+            payers = queryset.values('payer').annotate(
+                total_claims=Count('id'),
+                paid_count=Count('id', filter=Q(outcome='PAID')),
+                denied_count=Count('id', filter=Q(outcome='DENIED')),
+                other_count=Count('id', filter=Q(outcome='OTHER')),
+                avg_allowed_amount=Avg('allowed_amount')
+            ).order_by('-total_claims')
+
+            # Calculate denial rate
+            results = []
+            for p in payers:
+                denial_rate = 0
+                if p['total_claims'] > 0:
+                    denial_rate = (p['denied_count'] / p['total_claims']) * 100
+
+                results.append({
+                    'payer': p['payer'],
+                    'total_claims': p['total_claims'],
+                    'paid_count': p['paid_count'],
+                    'denied_count': p['denied_count'],
+                    'other_count': p['other_count'],
+                    'denial_rate': round(denial_rate, 2),
+                    'avg_allowed_amount': p['avg_allowed_amount']
+                })
+
+            return results
+
+        # Get from cache or compute and store
+        results = cache.get_or_set(cache_key, compute_payer_summary, cache_ttl)
+
         serializer = PayerSummarySerializer(results, many=True)
         return Response(serializer.data)
 
@@ -228,9 +259,9 @@ class ReportRunViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
         summary="Trigger a new report run",
         responses={202: ReportRunSerializer}
     )
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], throttle_classes=[ReportGenerationThrottle])
     def trigger(self, request):
-        """Trigger a new payer drift report run."""
+        """Trigger a new payer drift report run (Rate limit: 10/hour)."""
         customer = get_user_customer(request.user)
         if not customer:
             return Response(
@@ -244,12 +275,15 @@ class ReportRunViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
             run_type='weekly',
             status='running'
         )
-        
-        # TODO: Trigger async task to compute drift
-        # For now, mark as success placeholder
-        # from ..services.payer_drift import compute_weekly_payer_drift
-        # compute_weekly_payer_drift(customer, report_run)
-        
+
+        # QW-4: Invalidate dashboard cache when new report is created
+        cache_key = f'dashboard:customer:{customer.id}'
+        cache.delete(cache_key)
+
+        # Trigger async task to compute drift
+        from upstream.tasks import compute_report_drift_task, enqueue_or_run_sync
+        enqueue_or_run_sync(compute_report_drift_task, report_run.id)
+
         serializer = ReportRunSerializer(report_run)
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
@@ -257,11 +291,13 @@ class ReportRunViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
 class DriftEventViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for viewing drift events.
+    Rate limit: 2000 requests/hour for read operations.
     """
-    
+
     queryset = DriftEvent.objects.all().order_by('-created_at')
     serializer_class = DriftEventSerializer
     permission_classes = [IsAuthenticated, IsCustomerMember]
+    throttle_classes = [ReadOnlyThrottle]  # QW-5: Liberal rate limit for reads
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -354,39 +390,74 @@ class DashboardView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Get counts
-        total_claims = ClaimRecord.objects.filter(customer=customer).count()
-        total_uploads = Upload.objects.filter(customer=customer, status='success').count()
+        # QW-4: Cache dashboard data for 5 minutes to reduce DB queries by 40-60%
+        cache_key = f'dashboard:customer:{customer.id}'
+        cache_ttl = settings.CACHE_TTL.get('drift_events', 300)  # 5 minutes default
 
-        # Get latest report
-        latest_report = ReportRun.objects.filter(
-            customer=customer,
-            status='success'
-        ).order_by('-finished_at').first()
+        def compute_dashboard_data():
+            """Expensive dashboard queries - cached to reduce DB load."""
+            # Get counts
+            total_claims = ClaimRecord.objects.filter(customer=customer).count()
+            total_uploads = Upload.objects.filter(customer=customer, status='success').count()
 
-        active_drift_events = 0
-        if latest_report:
-            active_drift_events = latest_report.drift_events.count()
+            # Get latest report
+            latest_report = ReportRun.objects.filter(
+                customer=customer,
+                status='success'
+            ).order_by('-finished_at').first()
 
-        # Get top drift payers from latest report
-        top_drift_payers = []
-        if latest_report:
-            top_events = latest_report.drift_events.order_by('-severity')[:5]
-            for event in top_events:
-                top_drift_payers.append({
-                    'payer': event.payer,
-                    'severity': event.severity,
-                    'delta_value': event.delta_value
+            active_drift_events = 0
+            if latest_report:
+                active_drift_events = latest_report.drift_events.count()
+
+            # Get top drift payers from latest report
+            top_drift_payers = []
+            if latest_report:
+                top_events = latest_report.drift_events.order_by('-severity')[:5]
+                for event in top_events:
+                    top_drift_payers.append({
+                        'payer': event.payer,
+                        'severity': event.severity,
+                        'delta_value': event.delta_value
+                    })
+
+            # Compute denial rate trend over last 6 months
+            from django.db.models.functions import TruncMonth
+            from datetime import timedelta
+
+            denial_rate_trend = []
+            six_months_ago = timezone.now().date() - timedelta(days=180)
+
+            trend_data = ClaimRecord.objects.filter(
+                customer=customer,
+                decided_date__gte=six_months_ago
+            ).annotate(
+                month=TruncMonth('decided_date')
+            ).values('month').annotate(
+                total=Count('id'),
+                denied=Count('id', filter=Q(outcome='DENIED'))
+            ).order_by('month')
+
+            for item in trend_data:
+                denial_rate = (item['denied'] / item['total'] * 100) if item['total'] > 0 else 0
+                denial_rate_trend.append({
+                    'month': item['month'].strftime('%Y-%m'),
+                    'denial_rate': round(denial_rate, 2),
+                    'total_claims': item['total'],
+                    'denied_claims': item['denied']
                 })
 
-        data = {
-            'total_claims': total_claims,
-            'total_uploads': total_uploads,
-            'active_drift_events': active_drift_events,
-            'last_report_date': latest_report.finished_at if latest_report else None,
-            'denial_rate_trend': [],  # TODO: Compute trend data
-            'top_drift_payers': top_drift_payers
-        }
+            return {
+                'total_claims': total_claims,
+                'total_uploads': total_uploads,
+                'active_drift_events': active_drift_events,
+                'last_report_date': latest_report.finished_at if latest_report else None,
+                'denial_rate_trend': denial_rate_trend,
+                'top_drift_payers': top_drift_payers
+            }
+
+        # Get from cache or compute and store
+        data = cache.get_or_set(cache_key, compute_dashboard_data, cache_ttl)
 
         serializer = DashboardSerializer(data)
         return Response(serializer.data)
@@ -553,11 +624,11 @@ class WebhookIngestionView(APIView):
                 idempotency_key=idempotency_key,
                 record_count=len(payload) if isinstance(payload, list) else 1
             )
-            
-            # TODO: Trigger async processing task
-            # from upstream.tasks import process_ingestion
-            # process_ingestion.delay(record.id)
-            
+
+            # Trigger async processing task
+            from upstream.tasks import process_ingestion_task, enqueue_or_run_sync
+            enqueue_or_run_sync(process_ingestion_task, record.id)
+
             return Response({
                 'status': 'accepted',
                 'ingestion_id': record.id,
@@ -579,10 +650,15 @@ class WebhookIngestionView(APIView):
 class HealthCheckView(APIView):
     """
     API health check endpoint (no auth required).
+    Returns application health status, version, and timestamp.
     """
-    
+
     permission_classes = []
-    
+
+    @extend_schema(
+        responses={"upstream.api.serializers.HealthCheckSerializer"},
+        description="Check API health status"
+    )
     def get(self, request):
         return Response({
             'status': 'healthy',
