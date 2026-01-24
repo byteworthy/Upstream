@@ -121,3 +121,7 @@ class DenialSignal(BaseModel):
     
     def __str__(self):
         return f"{self.customer.name} - {self.signal_type} - {self.payer} - {self.severity}"
+
+
+# Import advanced ML models
+from payrixa.products.denialscope.advanced_models import *  # noqa: F401, F403, E402

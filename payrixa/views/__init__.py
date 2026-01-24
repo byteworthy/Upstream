@@ -7,10 +7,102 @@ from django.contrib import messages
 from django.db import transaction
 import csv
 import io
+import re
+import logging
 from datetime import datetime
-from .models import Settings, Upload, ClaimRecord, PayerMapping, CPTGroupMapping
-from .utils import get_current_customer
-from .permissions import PermissionRequiredMixin
+from payrixa.models import Settings, Upload, ClaimRecord, PayerMapping, CPTGroupMapping, DataQualityReport
+from payrixa.utils import get_current_customer
+from payrixa.permissions import PermissionRequiredMixin
+from payrixa.cache import cache_result, invalidate_cache_pattern, get_cache_key, CACHE_KEYS
+from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# CACHED DATA ACCESSORS
+# =============================================================================
+
+@cache_result(CACHE_KEYS['PAYER_MAPPINGS'], ttl=900)  # 15 minutes
+def get_payer_mappings_cached(customer):
+    """
+    Get payer mappings for customer with caching.
+
+    Returns:
+        dict: Mapping of raw_name (lowercase) -> normalized_name
+    """
+    # Use all_objects to bypass CustomerScopedManager (we're filtering by customer explicitly)
+    mappings = PayerMapping.all_objects.filter(customer=customer).values_list('raw_name', 'normalized_name')
+    # Convert to dict with lowercase keys for case-insensitive lookup
+    return {raw_name.lower(): normalized_name for raw_name, normalized_name in mappings}
+
+
+@cache_result(CACHE_KEYS['CPT_MAPPINGS'], ttl=900)  # 15 minutes
+def get_cpt_mappings_cached(customer):
+    """
+    Get CPT group mappings for customer with caching.
+
+    Returns:
+        dict: Mapping of cpt_code -> cpt_group
+    """
+    # Use all_objects to bypass CustomerScopedManager (we're filtering by customer explicitly)
+    mappings = CPTGroupMapping.all_objects.filter(customer=customer).values_list('cpt_code', 'cpt_group')
+    return dict(mappings)
+
+
+# =============================================================================
+# PHI VALIDATION
+# =============================================================================
+
+# Common first and last names for PHI detection (subset for validation)
+COMMON_FIRST_NAMES = {
+    'james', 'john', 'robert', 'michael', 'william', 'david', 'richard', 'joseph', 'thomas', 'charles',
+    'mary', 'patricia', 'jennifer', 'linda', 'barbara', 'elizabeth', 'susan', 'jessica', 'sarah', 'karen',
+    'christopher', 'daniel', 'matthew', 'anthony', 'mark', 'donald', 'steven', 'paul', 'andrew', 'joshua',
+    'nancy', 'betty', 'margaret', 'sandra', 'ashley', 'kimberly', 'emily', 'donna', 'michelle', 'dorothy'
+}
+
+def validate_not_phi(value, field_name='payer'):
+    """
+    Validate that a field value doesn't look like PHI (patient name).
+
+    Raises ValueError if the value appears to be a patient name.
+
+    Rules:
+    - Title Case with 2-3 words (e.g., "John Smith")
+    - First word matches common first names
+    - Only letters, spaces, hyphens (no numbers or special chars)
+
+    Args:
+        value: The value to validate
+        field_name: Name of the field being validated (for error messages)
+
+    Raises:
+        ValueError: If value looks like PHI
+    """
+    if not value:
+        return
+
+    value_stripped = value.strip()
+
+    # Check if it's Title Case with 2-3 words
+    words = value_stripped.split()
+    if 2 <= len(words) <= 3:
+        # Check if all words are title case and alphabetic
+        if all(word.istitle() and word.replace('-', '').isalpha() for word in words):
+            # Check if first word is a common first name
+            first_word = words[0].lower()
+            if first_word in COMMON_FIRST_NAMES:
+                # Log PHI detection attempt (value redacted for security)
+                logger.warning(
+                    f"PHI_DETECTION: Rejected {field_name} field containing patient-like name. "
+                    f"First word: {first_word}, Word count: {len(words)}"
+                )
+                raise ValueError(
+                    f"PRIVACY ALERT: {field_name} value '{value_stripped}' looks like a patient name. "
+                    f"Please use payer organization names only (e.g., 'Blue Cross Blue Shield', 'Medicare', 'Aetna'). "
+                    f"NEVER include patient names, DOB, SSN, or addresses in uploads."
+                )
 
 class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
     template_name = "payrixa/uploads.html"
@@ -53,12 +145,39 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     self.process_csv_upload(upload, csv_file)
                     upload.status = 'success'
                     upload.save()
-                    messages.success(request, f"Successfully uploaded {csv_file.name} with {upload.row_count} records")
+
+                    # Show quality information if there were any rejections
+                    if hasattr(upload, 'quality_report') and upload.quality_report.has_issues:
+                        qr = upload.quality_report
+                        quality_pct = qr.quality_score * 100
+                        messages.warning(
+                            request,
+                            f"Uploaded {csv_file.name}: {qr.accepted_rows} of {qr.total_rows} rows accepted ({quality_pct:.1f}%). "
+                            f"{qr.rejected_rows} rows were rejected. See quality report below for details."
+                        )
+                    else:
+                        messages.success(request, f"Successfully uploaded {csv_file.name} with {upload.row_count} records")
 
             except Exception as e:
                 upload.status = 'failed'
                 upload.error_message = str(e)
                 upload.save()
+
+                # Log security event if PHI was detected
+                if "PRIVACY ALERT" in str(e):
+                    from payrixa.core.services import create_audit_event
+                    create_audit_event(
+                        action='phi_detection_in_upload',
+                        entity_type='Upload',
+                        entity_id=upload.id,
+                        customer=customer,
+                        metadata={
+                            'filename': csv_file.name,
+                            'error': 'PHI-like data detected and rejected',
+                            'user': request.user.username if request.user.is_authenticated else 'anonymous'
+                        }
+                    )
+
                 messages.error(request, f"Upload failed: {str(e)}")
 
             return redirect('uploads')
@@ -68,25 +187,47 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
             return redirect('portal_root')
 
     def process_csv_upload(self, upload, csv_file):
-        """Process CSV file and create ClaimRecord entries."""
+        """
+        Process CSV file and create ClaimRecord entries.
+
+        Creates a DataQualityReport tracking accepted and rejected rows.
+        Allows partial success - accepts valid rows and reports invalid ones.
+        """
         # Read CSV file
         csv_data = csv_file.read().decode('utf-8')
         csv_reader = csv.DictReader(io.StringIO(csv_data))
 
-        # Validate required columns
+        # Validate required columns (structural validation - must fail fast)
         required_columns = ['payer', 'cpt', 'submitted_date', 'decided_date', 'outcome']
         for col in required_columns:
             if col not in csv_reader.fieldnames:
                 raise ValueError(f"Missing required column: {col}")
 
-        # Check for row limit
-        row_count = 0
+        # Load mappings once with caching (avoids N queries)
+        payer_mappings = get_payer_mappings_cached(upload.customer)
+        cpt_mappings = get_cpt_mappings_cached(upload.customer)
+
+        logger.info(f"Loaded {len(payer_mappings)} payer mappings and {len(cpt_mappings)} CPT mappings from cache")
+
+        # Track validation results
         claim_records = []
         dates = []
+        rejection_details = {}  # {row_num: reason}
+        warnings = []  # [{row: int, message: str}]
+
+        # Error category counters
+        phi_detections = 0
+        missing_fields = 0
+        invalid_dates = 0
+        invalid_values = 0
+
+        total_rows = 0
 
         for row_num, row in enumerate(csv_reader, start=2):  # start=2 because row 1 is header
+            total_rows += 1
+
             # Check row limit
-            if row_count >= self.MAX_ROWS:
+            if total_rows > self.MAX_ROWS:
                 raise ValueError(f"Maximum row limit exceeded: {self.MAX_ROWS} rows")
 
             try:
@@ -96,25 +237,27 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 # Validate required fields exist in filtered data
                 for required_col in required_columns:
                     if required_col not in filtered_row or not filtered_row[required_col]:
-                        raise ValueError(f"Missing required field '{required_col}' in row {row_num}")
+                        rejection_details[row_num] = f"Missing required field: {required_col}"
+                        missing_fields += 1
+                        raise ValueError("Skip to next row")
 
                 # Normalize data
                 raw_payer = filtered_row['payer'].strip()
                 cpt_code = filtered_row['cpt'].strip()
 
-                # Apply payer mapping (case-insensitive exact match)
-                payer_mapping = PayerMapping.objects.filter(
-                    customer=upload.customer,
-                    raw_name__iexact=raw_payer
-                ).first()
-                payer = payer_mapping.normalized_name if payer_mapping else raw_payer
+                # PHI Protection: Validate payer field doesn't contain patient names
+                try:
+                    validate_not_phi(raw_payer, field_name='payer')
+                except ValueError as phi_error:
+                    rejection_details[row_num] = f"PHI detected: {str(phi_error)[:100]}"
+                    phi_detections += 1
+                    raise ValueError("Skip to next row")
 
-                # Apply CPT group mapping
-                cpt_mapping = CPTGroupMapping.objects.filter(
-                    customer=upload.customer,
-                    cpt_code=cpt_code
-                ).first()
-                cpt_group = cpt_mapping.cpt_group if cpt_mapping else "OTHER"
+                # Apply payer mapping (case-insensitive lookup from cached dict)
+                payer = payer_mappings.get(raw_payer.lower(), raw_payer)
+
+                # Apply CPT group mapping (lookup from cached dict)
+                cpt_group = cpt_mappings.get(cpt_code, "OTHER")
 
                 # Normalize outcome
                 outcome_raw = filtered_row['outcome'].strip().upper()
@@ -124,10 +267,20 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     outcome = 'DENIED'
                 else:
                     outcome = 'OTHER'
+                    # Add warning for unusual outcome value
+                    warnings.append({
+                        'row': row_num,
+                        'message': f"Unusual outcome value '{outcome_raw}' mapped to OTHER"
+                    })
 
                 # Parse dates - decided_date is required for MVP
-                submitted_date = self.parse_date(filtered_row['submitted_date'], row_num, 'submitted_date')
-                decided_date = self.parse_date(filtered_row['decided_date'], row_num, 'decided_date')
+                try:
+                    submitted_date = self.parse_date(filtered_row['submitted_date'], row_num, 'submitted_date')
+                    decided_date = self.parse_date(filtered_row['decided_date'], row_num, 'decided_date')
+                except ValueError as date_error:
+                    rejection_details[row_num] = str(date_error)
+                    invalid_dates += 1
+                    raise ValueError("Skip to next row")
 
                 # Create claim record
                 claim_record = ClaimRecord(
@@ -146,10 +299,23 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
                 claim_records.append(claim_record)
                 dates.extend([submitted_date, decided_date])
-                row_count += 1
 
-            except Exception as e:
-                raise ValueError(f"Error processing row {row_num}: {str(e)}")
+            except ValueError as e:
+                # Skip row - already logged in rejection_details
+                if str(e) != "Skip to next row":
+                    # Unexpected error - log it
+                    rejection_details[row_num] = str(e)[:200]
+                    invalid_values += 1
+                continue
+
+        # Check if we have ANY valid rows
+        if len(claim_records) == 0:
+            raise ValueError(
+                f"All {total_rows} rows were rejected. "
+                f"PHI detected: {phi_detections}, Missing fields: {missing_fields}, "
+                f"Invalid dates: {invalid_dates}, Invalid values: {invalid_values}. "
+                f"Please fix the data and try again."
+            )
 
         # Bulk create claim records
         ClaimRecord.objects.bulk_create(claim_records)
@@ -159,6 +325,29 @@ class UploadsView(LoginRequiredMixin, PermissionRequiredMixin, View):
         if dates:
             upload.date_min = min(dates)
             upload.date_max = max(dates)
+
+        # Create DataQualityReport
+        quality_report = DataQualityReport.objects.create(
+            upload=upload,
+            customer=upload.customer,
+            total_rows=total_rows,
+            accepted_rows=len(claim_records),
+            rejected_rows=len(rejection_details),
+            rejection_details=rejection_details,
+            warnings=warnings,
+            phi_detections=phi_detections,
+            missing_fields=missing_fields,
+            invalid_dates=invalid_dates,
+            invalid_values=invalid_values,
+        )
+
+        # Log quality report in console for operator visibility
+        logger.info(
+            f"Upload {upload.id} quality: {quality_report.accepted_rows}/{quality_report.total_rows} rows accepted "
+            f"({quality_report.quality_score:.1%}). "
+            f"Rejections - PHI: {phi_detections}, Missing: {missing_fields}, "
+            f"Invalid dates: {invalid_dates}, Invalid values: {invalid_values}"
+        )
 
     def parse_date(self, date_str, row_num, field_name):
         """Parse date from various formats."""
@@ -320,6 +509,12 @@ class MappingsView(LoginRequiredMixin, PermissionRequiredMixin, View):
             raw_name=raw_name,
             normalized_name=normalized_name
         )
+
+        # Invalidate cache for this customer's payer mappings
+        cache_key = get_cache_key(CACHE_KEYS['PAYER_MAPPINGS'], customer)
+        cache.delete(cache_key)
+        logger.info(f"Cache invalidated for payer mappings: customer {customer.id}")
+
         messages.success(request, "Payer mapping added successfully")
         return redirect('mappings')
 
@@ -329,6 +524,12 @@ class MappingsView(LoginRequiredMixin, PermissionRequiredMixin, View):
             try:
                 mapping = PayerMapping.objects.get(id=mapping_id, customer=customer)
                 mapping.delete()
+
+                # Invalidate cache for this customer's payer mappings
+                cache_key = get_cache_key(CACHE_KEYS['PAYER_MAPPINGS'], customer)
+                cache.delete(cache_key)
+                logger.info(f"Cache invalidated for payer mappings: customer {customer.id}")
+
                 messages.success(request, "Payer mapping deleted successfully")
             except PayerMapping.DoesNotExist:
                 messages.error(request, "Payer mapping not found")
@@ -352,6 +553,12 @@ class MappingsView(LoginRequiredMixin, PermissionRequiredMixin, View):
             cpt_code=cpt_code,
             cpt_group=cpt_group
         )
+
+        # Invalidate cache for this customer's CPT mappings
+        cache_key = get_cache_key(CACHE_KEYS['CPT_MAPPINGS'], customer)
+        cache.delete(cache_key)
+        logger.info(f"Cache invalidated for CPT mappings: customer {customer.id}")
+
         messages.success(request, "CPT group mapping added successfully")
         return redirect('mappings')
 
@@ -361,6 +568,12 @@ class MappingsView(LoginRequiredMixin, PermissionRequiredMixin, View):
             try:
                 mapping = CPTGroupMapping.objects.get(id=mapping_id, customer=customer)
                 mapping.delete()
+
+                # Invalidate cache for this customer's CPT mappings
+                cache_key = get_cache_key(CACHE_KEYS['CPT_MAPPINGS'], customer)
+                cache.delete(cache_key)
+                logger.info(f"Cache invalidated for CPT mappings: customer {customer.id}")
+
                 messages.success(request, "CPT group mapping deleted successfully")
             except CPTGroupMapping.DoesNotExist:
                 messages.error(request, "CPT group mapping not found")

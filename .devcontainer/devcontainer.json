@@ -17,7 +17,8 @@
     },
     "vscode": {
       "extensions": [
-        "ms-python.python"
+        "ms-python.python",
+        "saoudrizwan.claude-dev"
       ]
     }
   },

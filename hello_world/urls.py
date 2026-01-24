@@ -27,6 +27,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("portal/", include("payrixa.urls")),
     path("api/v1/", include("payrixa.api.urls")),
+    path("", include("payrixa.urls_data_quality")),  # Data Quality dashboards
     path("__reload__/", include("django_browser_reload.urls")),
     path("", include("django_prometheus.urls")),  # Metrics endpoint at /metrics
 ]

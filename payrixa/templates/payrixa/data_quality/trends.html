@@ -1,0 +1,255 @@
+{% extends "hello_world/base.html" %}
+{% load static %}
+{% load quality_filters %}
+
+{% block title %}{{ page_title }} - Payrixa{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <a href="{% url 'data_quality_dashboard' %}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <h2>
+                <i class="bi bi-graph-up"></i> Quality Trends
+            </h2>
+            <p class="text-muted">Track data quality over time</p>
+        </div>
+    </div>
+
+    <!-- Time Period Selector -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="btn-group" role="group">
+                <a href="?days=7" class="btn btn-outline-primary {% if days == 7 %}active{% endif %}">7 Days</a>
+                <a href="?days=30" class="btn btn-outline-primary {% if days == 30 %}active{% endif %}">30 Days</a>
+                <a href="?days=60" class="btn btn-outline-primary {% if days == 60 %}active{% endif %}">60 Days</a>
+                <a href="?days=90" class="btn btn-outline-primary {% if days == 90 %}active{% endif %}">90 Days</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trend Summary -->
+    {% if trend_report.trends %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="alert alert-{{ trend_report.trends.trend|yesno:'success,danger,info' }}">
+                <h5>
+                    <i class="bi bi-trending-{{ trend_report.trends.trend|yesno:'up,down,flat' }}"></i>
+                    {{ trend_report.trends.description }}
+                </h5>
+                <p class="mb-0">
+                    Recent average: {{ trend_report.trends.recent_average|percentage }}<br>
+                    Previous average: {{ trend_report.trends.previous_average|percentage }}<br>
+                    Change: {{ trend_report.trends.change_percentage|floatformat:1 }}%
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <!-- Quality Score Trend -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quality Score Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="qualityScoreTrendChart" height="60"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics by Type -->
+    <div class="row mb-4">
+        {% for metric_type, metric_data in metrics_by_type.items %}
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ metric_type|title }} Trend</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="metric{{ forloop.counter }}Chart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Validation Failures Trend -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Validation Failures by Rule Type</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="validationFailuresChart" height="60"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Failure Report Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table"></i> Top Validation Failures
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rule</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Failures</th>
+                                    <th>Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for failure in failure_report.top_failing_rules %}
+                                <tr>
+                                    <td><code>{{ failure.validation_rule__code }}</code></td>
+                                    <td>{{ failure.validation_rule__name }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ failure.validation_rule__rule_type }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ failure.failure_count }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ failure.severity|severity_badge_class }}">
+                                            {{ failure.severity|upper }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        No validation failures in this period
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quality Score Trend Chart
+    const qualityData = {{ trend_report.daily_quality|safe }};
+    const qualityCtx = document.getElementById('qualityScoreTrendChart').getContext('2d');
+
+    new Chart(qualityCtx, {
+        type: 'line',
+        data: {
+            labels: qualityData.map(d => d.date),
+            datasets: [{
+                label: 'Quality Score',
+                data: qualityData.map(d => d.quality_score * 100),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Quality Score (%)'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const item = qualityData[context.dataIndex];
+                            return `File: ${item.filename}\nTotal: ${item.total_rows} rows\nRejected: ${item.rejected_rows}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Metrics by Type Charts
+    {% for metric_type, metric_data in metrics_by_type.items %}
+    const metric{{ forloop.counter }}Ctx = document.getElementById('metric{{ forloop.counter }}Chart').getContext('2d');
+    const metric{{ forloop.counter }}Data = {{ metric_data|safe }};
+
+    new Chart(metric{{ forloop.counter }}Ctx, {
+        type: 'line',
+        data: {
+            labels: metric{{ forloop.counter }}Data.map(d => d.date),
+            datasets: [{
+                label: '{{ metric_type|title }}',
+                data: metric{{ forloop.counter }}Data.map(d => d.score * 100),
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+    {% endfor %}
+
+    // Validation Failures Chart
+    const failuresCtx = document.getElementById('validationFailuresChart').getContext('2d');
+    const severityBreakdown = {{ failure_report.severity_breakdown|safe }};
+
+    new Chart(failuresCtx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(severityBreakdown),
+            datasets: [{
+                label: 'Failures',
+                data: Object.values(severityBreakdown),
+                backgroundColor: [
+                    'rgba(220, 53, 69, 0.7)',  // error
+                    'rgba(255, 193, 7, 0.7)',   // warning
+                    'rgba(13, 202, 240, 0.7)'   // info
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

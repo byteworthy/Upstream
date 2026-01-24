@@ -1,216 +1,493 @@
-# Payrixa Deployment Guide
+# Payrixa Production Deployment Guide
 
-MVP1 deployment path covering one production-like workflow.
+**Version:** 1.0  
+**Last Updated:** 2026-01-24  
+**Target Audience:** DevOps engineers, System administrators
+
+---
+
+## Quick Start
+
+For experienced DevOps teams, here's the 10-minute deployment:
+
+```bash
+# 1. Install dependencies
+sudo apt install -y python3.12 postgresql-14 redis nginx certbot
+
+# 2. Create database
+sudo -u postgres createuser payrixa_user --pwprompt
+sudo -u postgres createdb payrixa_prod --owner=payrixa_user
+
+# 3. Clone and configure
+git clone https://github.com/your-org/payrixa.git /opt/payrixa
+cd /opt/payrixa
+python3.12 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt gunicorn
+
+# 4. Configure environment (see .env.production template below)
+cp .env.example .env.production
+nano .env.production
+
+# 5. Run migrations and collect static
+python manage.py migrate
+python manage.py collectstatic --noinput
+
+# 6. Start with Gunicorn (systemd service recommended - see below)
+gunicorn hello_world.wsgi:application --bind unix:/run/payrixa.sock --workers 4
+```
+
+---
+
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [Environment Configuration](#environment-configuration)
+3. [Database Setup](#database-setup)
+4. [Application Deployment](#application-deployment)
+5. [Web Server (Nginx)](#web-server-nginx)
+6. [SSL Certificate](#ssl-certificate)
+7. [Background Workers (Celery)](#background-workers-celery)
+8. [Monitoring](#monitoring)
+9. [Backups](#backups)
+10. [Verification & Testing](#verification--testing)
+11. [Troubleshooting](#troubleshooting)
+
+---
 
 ## Prerequisites
 
-- Python 3.12+
-- PostgreSQL 13+
-- Docker & Docker Compose (for local Postgres)
+### Server Requirements
 
-## Required Environment Variables (Minimal MVP)
+**Minimum:**
+- OS: Ubuntu 22.04 LTS
+- CPU: 4 cores
+- RAM: 8GB
+- Storage: 100GB SSD
+- Ports: 80, 443, 22
+
+**Recommended for Production:**
+- CPU: 8 cores
+- RAM: 16GB
+- Storage: 250GB SSD
+
+### Install System Dependencies
 
 ```bash
-# Security (required)
-SECRET_KEY=your-production-secret-key  # Generate with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-PORTAL_BASE_URL=https://yourdomain.com
-
-# Database (required for production)
-DATABASE_URL=postgresql://user:pass@host:5432/payrixa?sslmode=require
+sudo apt update
+sudo apt install -y \
+    python3.12 python3.12-venv python3-pip \
+    postgresql-14 postgresql-contrib \
+    redis-server \
+    nginx \
+    git \
+    certbot python3-certbot-nginx \
+    supervisor
 ```
 
-With only these vars, production boots successfully. Emails print to console (stdout).
+---
 
-## Optional: Enable Email Delivery (Mailgun)
+## Environment Configuration
 
-Add these to enable real email sending:
+### Required Environment Variables
+
+Create `/opt/payrixa/.env.production`:
 
 ```bash
+# Django Core
+SECRET_KEY=generate-with-python-manage-py-shell-get-random-secret-key
+DJANGO_SETTINGS_MODULE=payrixa.settings.prod
+DEBUG=False
+ALLOWED_HOSTS=payrixa.com,www.payrixa.com
+
+# Database
+DATABASE_URL=postgresql://payrixa_user:SECURE_PASSWORD@localhost:5432/payrixa_prod
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Security
+SECURE_SSL_REDIRECT=True
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+
+# Application
+PORTAL_BASE_URL=https://payrixa.com
+
+# Email (Mailgun example)
 EMAIL_BACKEND=anymail.backends.mailgun.EmailBackend
-MAILGUN_API_KEY=key-xxxxx
-MAILGUN_DOMAIN=mg.yourdomain.com
-DEFAULT_FROM_EMAIL=alerts@yourdomain.com
-```
+MAILGUN_API_KEY=your-mailgun-api-key
+MAILGUN_DOMAIN=mg.payrixa.com
+DEFAULT_FROM_EMAIL=alerts@payrixa.com
 
-## Optional: Enable CSRF Trusted Origins
-
-For production behind proxies or custom domains:
-
-```bash
-CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-```
-
-## Optional: Enable Real Data Mode (PHI Protection)
-
-When handling real patient data, enable encryption:
-
-```bash
+# PHI Encryption (REQUIRED)
+# Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+FIELD_ENCRYPTION_KEY=your-fernet-key-here
 REAL_DATA_MODE=True
-FIELD_ENCRYPTION_KEY=your-fernet-key  # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# Monitoring (optional)
+SENTRY_DSN=https://your-sentry-dsn
 ```
 
-When `REAL_DATA_MODE=True`, the app will fail to start without a valid encryption key.
-
-## Gate B: Postgres Workflow Verification
-
-Run this sequence to prove the full value chain on Postgres:
-
-### 1. Start Postgres
+### Secure the Environment File
 
 ```bash
-docker-compose up -d db
+sudo chmod 600 /opt/payrixa/.env.production
+sudo chown payrixa:payrixa /opt/payrixa/.env.production
 ```
 
-### 2. Set Environment
+---
+
+## Database Setup
+
+### Create PostgreSQL Database
 
 ```bash
-export DATABASE_URL="postgresql://payrixa:payrixa_dev_password@localhost:5432/payrixa?sslmode=disable"
-export DJANGO_SETTINGS_MODULE=payrixa.settings.prod
-export SECRET_KEY="dev-secret-key-change-in-prod"
-export ALLOWED_HOSTS="localhost,127.0.0.1"
-export MAILGUN_API_KEY="test"
-export MAILGUN_DOMAIN="test"
-export SECURE_SSL_REDIRECT=False
-```
+# Create database user
+sudo -u postgres createuser payrixa_user --no-superuser --no-createdb --no-createrole --pwprompt
 
-### 3. Migrate Database
+# Create database
+sudo -u postgres createdb payrixa_prod --owner=payrixa_user
 
-```bash
-python manage.py migrate --settings=payrixa.settings.prod
-```
-
-### 4. Load Demo Data and Run Pipelines
-
-```bash
-# Load fixtures
-python manage.py loaddata payrixa/fixtures/demo_data.json --settings=payrixa.settings.prod
-
-# Generate DenialScope test data
-python manage.py generate_denialscope_test_data --customer 1 --settings=payrixa.settings.prod
-
-# Compute DenialScope signals
-python manage.py compute_denialscope --customer 1 --settings=payrixa.settings.prod
-
-# Generate DriftWatch demo events
-python manage.py generate_driftwatch_demo --customer 1 --settings=payrixa.settings.prod
-```
-
-### 5. Verify Dashboards
-
-```bash
-python manage.py runserver --insecure --settings=payrixa.settings.prod
-```
-
-Open in browser:
-- http://127.0.0.1:8000/portal/products/denialscope/
-- http://127.0.0.1:8000/portal/products/driftwatch/
-
-Verify both render with non-empty data tables.
-
-## Gate A: Production Static Files
-
-### Install WhiteNoise
-
-WhiteNoise is already in requirements.txt and configured in prod settings.
-
-```bash
-pip install -r requirements.txt
-python manage.py collectstatic --noinput
-```
-
-Verify static files load:
-```bash
-DJANGO_SETTINGS_MODULE=payrixa.settings.prod python manage.py runserver --insecure
-# Open http://127.0.0.1:8000/ and verify CSS loads
-```
-
-## Gate C: Product Enablement Verification
-
-```bash
-python manage.py test payrixa.tests_product_enablement -v2
-```
-
-Expected: All tests pass, including:
-- `test_driftwatch_accessible_when_enabled`
-- `test_driftwatch_forbidden_when_disabled`
-- `test_denialscope_forbidden_when_disabled`
-
-## Gate D: Alert Pipeline Verification
-
-```bash
-python manage.py test payrixa.tests_delivery.AlertDeliveryTests.test_suppression_window_prevents_duplicate_sends -v2
-```
-
-Expected: Test passes, proving suppression works.
-
-## Production Deployment Steps
-
-### 1. Validate Environment
-
-```bash
-python -m payrixa.check_env
-```
-
-### 2. Run Migrations
-
-```bash
+# Run migrations
+cd /opt/payrixa
+source venv/bin/activate
+export $(cat .env.production | xargs)
 python manage.py migrate
+
+# Create superuser
+python manage.py createsuperuser
 ```
 
-### 3. Collect Static Files
+---
+
+## Application Deployment
+
+### Gunicorn Systemd Service
+
+Create `/etc/systemd/system/payrixa.service`:
+
+```ini
+[Unit]
+Description=Payrixa Gunicorn
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=notify
+User=payrixa
+Group=payrixa
+WorkingDirectory=/opt/payrixa
+EnvironmentFile=/opt/payrixa/.env.production
+ExecStart=/opt/payrixa/venv/bin/gunicorn \
+    --workers 4 \
+    --timeout 120 \
+    --bind unix:/run/payrixa.sock \
+    hello_world.wsgi:application
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Start the service:
 
 ```bash
-python manage.py collectstatic --noinput
+sudo systemctl enable payrixa.service
+sudo systemctl start payrixa.service
+sudo systemctl status payrixa.service
 ```
 
-### 4. Start Gunicorn
+---
+
+## Web Server (Nginx)
+
+Create `/etc/nginx/sites-available/payrixa`:
+
+```nginx
+upstream payrixa_app {
+    server unix:/run/payrixa.sock fail_timeout=0;
+}
+
+server {
+    listen 80;
+    server_name payrixa.com www.payrixa.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name payrixa.com www.payrixa.com;
+
+    ssl_certificate /etc/letsencrypt/live/payrixa.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/payrixa.com/privkey.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 50M;
+
+    location /static/ {
+        alias /opt/payrixa/hello_world/staticfiles/;
+        expires 30d;
+    }
+
+    location /media/ {
+        alias /opt/payrixa/hello_world/media/;
+    }
+
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://payrixa_app;
+    }
+}
+```
+
+Enable and restart:
 
 ```bash
-gunicorn hello_world.wsgi:application --bind 0.0.0.0:8000 --workers 2
+sudo ln -s /etc/nginx/sites-available/payrixa /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
 ```
 
-### 5. Verify Health
+---
+
+## SSL Certificate
 
 ```bash
-curl http://localhost:8000/api/v1/health/
-# Expected: {"status": "healthy", ...}
+sudo certbot --nginx -d payrixa.com -d www.payrixa.com
+sudo certbot renew --dry-run  # Test auto-renewal
 ```
 
-## Rollback Procedure
+---
 
-1. Revert to previous migration:
-   ```bash
-   python manage.py migrate payrixa <previous_migration_number>
-   ```
+## Background Workers (Celery)
 
-2. Deploy previous code version
+### Celery Beat Service
 
-3. Restart gunicorn
+Create `/etc/systemd/system/payrixa-beat.service`:
 
-## Docker Deployment
+```ini
+[Unit]
+Description=Payrixa Celery Beat
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=payrixa
+WorkingDirectory=/opt/payrixa
+EnvironmentFile=/opt/payrixa/.env.production
+ExecStart=/opt/payrixa/venv/bin/celery -A hello_world beat --loglevel=info
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Celery Worker Service
+
+Create `/etc/systemd/system/payrixa-worker.service`:
+
+```ini
+[Unit]
+Description=Payrixa Celery Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=payrixa
+WorkingDirectory=/opt/payrixa
+EnvironmentFile=/opt/payrixa/.env.production
+ExecStart=/opt/payrixa/venv/bin/celery -A hello_world worker --loglevel=info --concurrency=2
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Start services:
 
 ```bash
-# Build
-docker build --target production -t payrixa:latest .
-
-# Run with env file
-docker run --env-file .env.prod -p 8000:8000 payrixa:latest
+sudo systemctl enable payrixa-beat.service payrixa-worker.service
+sudo systemctl start payrixa-beat.service payrixa-worker.service
 ```
+
+---
+
+## Monitoring
+
+### Error Tracking (Sentry)
+
+**Recommended for production to catch and track errors.**
+
+1. Create Sentry account at https://sentry.io
+2. Create new project (select "Django" as platform)
+3. Copy the DSN from project settings
+
+Add to `.env.production`:
+
+```bash
+# Error tracking
+SENTRY_DSN=https://your-key@o123456.ingest.sentry.io/789012
+ENVIRONMENT=production
+SENTRY_RELEASE=v1.0.0  # Optional: track which version is deployed
+```
+
+**PHI Protection:** Sentry is configured to automatically scrub PHI before sending error reports. This includes:
+- Request bodies (CSV uploads)
+- Cookies and session data
+- Query parameters
+- User email addresses
+- Exception messages containing patient-like names
+
+Test PHI filtering:
+```bash
+cd /opt/payrixa
+python test_sentry_phi_filtering.py
+```
+
+### Performance Monitoring (Prometheus & Grafana)
+
+Install Prometheus and Grafana (optional):
+
+```bash
+# See MONITORING.md for detailed setup
+```
+
+---
+
+## Backups
+
+Create `/usr/local/bin/payrixa-backup.sh`:
+
+```bash
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/var/backups/payrixa"
+DB_NAME="payrixa_prod"
+DB_USER="payrixa_user"
+
+mkdir -p "$BACKUP_DIR"
+pg_dump -U "$DB_USER" -Fc "$DB_NAME" > "$BACKUP_DIR/payrixa_$DATE.dump"
+
+# Compress old backups (>7 days)
+find "$BACKUP_DIR" -name "*.dump" -mtime +7 -exec gzip {} \;
+
+# Delete old backups (>30 days)
+find "$BACKUP_DIR" -name "*.dump.gz" -mtime +30 -delete
+
+echo "Backup completed: payrixa_$DATE.dump"
+```
+
+Schedule daily backups:
+
+```bash
+sudo chmod +x /usr/local/bin/payrixa-backup.sh
+sudo crontab -e
+
+# Add:
+0 2 * * * /usr/local/bin/payrixa-backup.sh >> /var/log/payrixa_backup.log 2>&1
+```
+
+---
+
+## Verification & Testing
+
+### Smoke Tests
+
+```bash
+# Health check
+curl -I https://payrixa.com/api/v1/health/
+
+# Login page
+curl https://payrixa.com/login/ | grep "Payrixa"
+
+# Static files
+curl -I https://payrixa.com/static/payrixa/css/style.css
+```
+
+### Service Status
+
+```bash
+sudo systemctl status payrixa.service
+sudo systemctl status payrixa-beat.service
+sudo systemctl status payrixa-worker.service
+sudo systemctl status nginx
+sudo systemctl status postgresql
+sudo systemctl status redis
+```
+
+---
 
 ## Troubleshooting
 
-### Static files 404
-- Verify `collectstatic` ran successfully
-- Check `STATIC_ROOT` permissions
-- Ensure WhiteNoise middleware is in position after SecurityMiddleware
+### Gunicorn Won't Start
 
-### Database connection errors
-- Verify `DATABASE_URL` format
-- Check PostgreSQL is running: `docker-compose ps`
-- Test connection: `python manage.py dbshell`
+```bash
+# Check logs
+sudo journalctl -u payrixa.service -n 100
 
-### Email not sending
-- Verify Mailgun credentials
-- Check domain is verified in Mailgun dashboard
-- Test with console backend first: `EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend`
+# Test manually
+cd /opt/payrixa
+source venv/bin/activate
+export $(cat .env.production | xargs)
+gunicorn hello_world.wsgi:application --bind 0.0.0.0:8000
+```
+
+### 502 Bad Gateway
+
+- Check Gunicorn is running: `sudo systemctl status payrixa.service`
+- Check socket exists: `ls -la /run/payrixa.sock`
+- Check Nginx config: `sudo nginx -t`
+
+### Database Connection Errors
+
+```bash
+# Test connection
+psql -U payrixa_user -d payrixa_prod -h localhost
+
+# Check DATABASE_URL in .env.production
+cat /opt/payrixa/.env.production | grep DATABASE_URL
+```
+
+---
+
+## Security Checklist
+
+- [ ] SECRET_KEY is unique and secure
+- [ ] DEBUG=False in production
+- [ ] ALLOWED_HOSTS configured
+- [ ] SSL certificate installed
+- [ ] Firewall configured (only 80, 443, 22 open)
+- [ ] .env.production has 600 permissions
+- [ ] FIELD_ENCRYPTION_KEY set
+- [ ] Backups automated and tested
+- [ ] Session timeout set (30 minutes)
+- [ ] Security headers configured
+
+---
+
+## Maintenance
+
+```bash
+# Restart application
+sudo systemctl restart payrixa.service
+
+# View logs
+sudo journalctl -u payrixa.service -f
+
+# Manual backup
+sudo /usr/local/bin/payrixa-backup.sh
+
+# Clear cache
+cd /opt/payrixa
+source venv/bin/activate
+python manage.py shell -c "from django.core.cache import cache; cache.clear()"
+```
+
+---
+
+**For support:** devops@payrixa.com

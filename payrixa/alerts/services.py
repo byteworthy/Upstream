@@ -1,4 +1,4 @@
-"""Alert services for evaluating drift events and sending notifications."""
+"""Alert services for evaluating drift events, delay signals, and sending notifications."""
 from typing import List, Dict, Optional, Union, Any
 import logging
 import os
@@ -9,6 +9,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from .models import AlertRule, AlertEvent, NotificationChannel
 from payrixa.models import DriftEvent, Customer
+from payrixa.products.delayguard.models import PaymentDelaySignal
 from payrixa.services.evidence_payload import build_driftwatch_evidence_payload, get_alert_interpretation
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,96 @@ def evaluate_drift_event(drift_event):
                 }
             )
     return alert_events
+
+
+def evaluate_payment_delay_signal(payment_delay_signal):
+    """
+    Evaluate a payment delay signal against alert rules for the customer.
+
+    Creates AlertEvent instances for DelayGuard signals similar to how
+    evaluate_drift_event handles DriftWatch signals.
+    """
+    from payrixa.core.services import create_audit_event
+
+    alert_events = []
+
+    # For now, use a simplified rule evaluation
+    # DelayGuard signals are self-contained with severity/confidence scoring
+    # We create an alert for any signal that meets minimum thresholds
+
+    # Skip low-severity signals with low confidence
+    if payment_delay_signal.severity == 'low' and payment_delay_signal.confidence < 0.5:
+        logger.info(f"Skipping low-severity, low-confidence signal for {payment_delay_signal.payer}")
+        return alert_events
+
+    # Check for duplicate alert event
+    existing = AlertEvent.objects.filter(
+        payment_delay_signal=payment_delay_signal
+    ).first()
+
+    if existing:
+        logger.info(f"Alert event already exists for payment delay signal {payment_delay_signal.id}")
+        alert_events.append(existing)
+        return alert_events
+
+    # Find a matching alert rule (or use default)
+    # For now, we'll use a simple rule match based on severity
+    alert_rule = AlertRule.objects.filter(
+        customer=payment_delay_signal.customer,
+        enabled=True
+    ).first()
+
+    if not alert_rule:
+        logger.warning(f"No enabled alert rules found for customer {payment_delay_signal.customer}")
+        return alert_events
+
+    # Build payload
+    payload = {
+        'product_name': 'DelayGuard',
+        'signal_type': 'payment_delay_drift',
+        'entity_label': payment_delay_signal.payer,
+        'payer': payment_delay_signal.payer,
+        'baseline_avg_days': payment_delay_signal.baseline_avg_days,
+        'current_avg_days': payment_delay_signal.current_avg_days,
+        'delta_days': payment_delay_signal.delta_days,
+        'delta_percent': payment_delay_signal.delta_percent,
+        'severity': payment_delay_signal.severity,
+        'confidence': payment_delay_signal.confidence,
+        'estimated_dollars_at_risk': str(payment_delay_signal.estimated_dollars_at_risk),
+        'rule_name': alert_rule.name,
+    }
+
+    # Create alert event
+    alert_event = AlertEvent.objects.create(
+        customer=payment_delay_signal.customer,
+        alert_rule=alert_rule,
+        payment_delay_signal=payment_delay_signal,
+        triggered_at=timezone.now(),
+        status='pending',
+        payload=payload
+    )
+    alert_events.append(alert_event)
+
+    logger.info(f"DelayGuard alert created for {payment_delay_signal.payer}: +{payment_delay_signal.delta_days:.1f} days")
+
+    # Create audit event
+    create_audit_event(
+        action='alert_event_created',
+        entity_type='AlertEvent',
+        entity_id=alert_event.id,
+        customer=alert_event.customer,
+        metadata={
+            'product': 'DelayGuard',
+            'alert_rule': alert_rule.name,
+            'payment_delay_signal_id': payment_delay_signal.id,
+            'payer': payment_delay_signal.payer,
+            'severity': payment_delay_signal.severity,
+            'delta_days': payment_delay_signal.delta_days,
+        }
+    )
+
+    return alert_events
+
 
 def send_alert_notification(alert_event):
     """Send notification for an alert event via configured channels (idempotent)."""
@@ -287,17 +378,61 @@ def _severity_label(severity_value):
 
 
 def _is_suppressed(customer, evidence_payload):
+    """
+    Check if an alert should be suppressed based on:
+    1. Time-based cooldown (4 hours)
+    2. Operator judgments (marked as "noise")
+    """
+    from payrixa.alerts.models import OperatorJudgment
+
     if not evidence_payload:
         return False
+
+    product_name = evidence_payload.get('product_name')
+    signal_type = evidence_payload.get('signal_type')
+    entity_label = evidence_payload.get('entity_label')
+
+    # Check 1: Time-based cooldown suppression (existing logic)
     window_start = timezone.now() - ALERT_SUPPRESSION_COOLDOWN
-    return AlertEvent.objects.filter(
+    recent_alert = AlertEvent.objects.filter(
         customer=customer,
         status='sent',
         notification_sent_at__gte=window_start,
-        payload__product_name=evidence_payload.get('product_name'),
-        payload__signal_type=evidence_payload.get('signal_type'),
-        payload__entity_label=evidence_payload.get('entity_label'),
+        payload__product_name=product_name,
+        payload__signal_type=signal_type,
+        payload__entity_label=entity_label,
     ).exists()
+
+    if recent_alert:
+        logger.info(f"Alert suppressed: cooldown window (entity={entity_label}, signal={signal_type})")
+        return True
+
+    # Check 2: Operator noise judgment suppression
+    # Look for similar alerts marked as "noise" in the last 30 days
+    # IMPORTANT: Filter by judgment creation date, not alert creation date
+    noise_window_start = timezone.now() - timezone.timedelta(days=30)
+    similar_noise_alerts = AlertEvent.objects.filter(
+        customer=customer,
+        payload__product_name=product_name,
+        payload__signal_type=signal_type,
+        payload__entity_label=entity_label,
+        operator_judgments__verdict='noise',
+        operator_judgments__created_at__gte=noise_window_start,
+    ).distinct()
+
+    if similar_noise_alerts.exists():
+        # Count how many times this pattern was marked noise
+        noise_count = similar_noise_alerts.count()
+
+        # If marked as noise 2+ times in 30 days, suppress it
+        if noise_count >= 2:
+            logger.info(
+                f"Alert suppressed: operator noise pattern "
+                f"(entity={entity_label}, signal={signal_type}, noise_count={noise_count})"
+            )
+            return True
+
+    return False
 
 def send_slack_notification(alert_event, channel):
     """Send Slack notification via webhook."""
@@ -432,6 +567,68 @@ def send_slack_notification(alert_event, channel):
     except Exception as e:
         logger.error(f"Failed to send Slack notification: {str(e)}")
         return False
+
+def get_suppression_context(alert_event):
+    """
+    Get context about similar alerts and operator judgments.
+    Used to display badges showing operator memory.
+    """
+    from payrixa.alerts.models import OperatorJudgment
+
+    if not alert_event.drift_event:
+        return None
+
+    customer = alert_event.customer
+    drift_event = alert_event.drift_event
+
+    # Look for similar alerts in the last 60 days
+    similar_window = timezone.now() - timezone.timedelta(days=60)
+    similar_alerts = AlertEvent.objects.filter(
+        customer=customer,
+        created_at__gte=similar_window,
+        payload__entity_label=drift_event.payer,
+        payload__signal_type=drift_event.drift_type,
+    ).exclude(id=alert_event.id).prefetch_related('operator_judgments')
+
+    if not similar_alerts.exists():
+        return None
+
+    # Count judgments by verdict
+    noise_count = 0
+    real_count = 0
+    followup_count = 0
+
+    for similar_alert in similar_alerts:
+        for judgment in similar_alert.operator_judgments.all():
+            if judgment.verdict == 'noise':
+                noise_count += 1
+            elif judgment.verdict == 'real':
+                real_count += 1
+            elif judgment.verdict == 'needs_followup':
+                followup_count += 1
+
+    # Determine dominant pattern
+    if noise_count >= 2:
+        return {
+            'type': 'noise',
+            'count': noise_count,
+            'message': f'Similar alerts marked as noise {noise_count} times in last 60 days'
+        }
+    elif real_count >= 1:
+        return {
+            'type': 'confirmed',
+            'count': real_count,
+            'message': f'Similar alerts confirmed real {real_count} times in last 60 days'
+        }
+    elif followup_count >= 1:
+        return {
+            'type': 'pending',
+            'count': followup_count,
+            'message': f'Similar alerts need follow-up {followup_count} times in last 60 days'
+        }
+
+    return None
+
 
 def process_pending_alerts():
     """Process all pending alert events and send notifications."""

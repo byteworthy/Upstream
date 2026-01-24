@@ -7,7 +7,7 @@
 <div class="axis-container">
     <div class="axis-header">
         <h1>Axis</h1>
-        <p class="subtitle">Revenue Intelligence Hub — Choose your product</p>
+        <p class="subtitle">Early Warning System — Choose your signal detector</p>
     </div>
 
     <div class="product-tiles">
@@ -15,7 +15,7 @@
             <div class="tile-icon">📊</div>
             <h2>DenialScope</h2>
             <p class="tile-description">
-                Denial pattern intelligence and trend detection. Track denial rates, 
+                Denial pattern detection and early warning. Track denial rates,
                 identify denial dollars spikes, and surface new denial reasons across payers.
             </p>
             <p class="tile-signal"><strong>V1 Signal:</strong> Denial dollars spike</p>
@@ -26,17 +26,28 @@
             <div class="tile-icon">🔍</div>
             <h2>DriftWatch</h2>
             <p class="tile-description">
-                Volume and decision time drift signals. Detect when payer behavior 
+                Volume and decision time drift signals. Detect when payer behavior
                 deviates from historical baselines across denial rates and processing times.
             </p>
             <p class="tile-signal"><strong>V1 Signal:</strong> Denial rate drift</p>
             <a href="{% url 'driftwatch_dashboard' %}" class="tile-button">Open DriftWatch →</a>
         </div>
+
+        <div class="product-tile">
+            <div class="tile-icon">⏰</div>
+            <h2>DelayGuard</h2>
+            <p class="tile-description">
+                Payment delay detection and cash flow protection. Monitor payer payment timing
+                and identify when claims are taking longer to process than baseline.
+            </p>
+            <p class="tile-signal"><strong>V1 Signal:</strong> Payment delay drift</p>
+            <a href="{% url 'delayguard_dashboard' %}" class="tile-button">Open DelayGuard →</a>
+        </div>
     </div>
 
     <div class="axis-footer">
         <p class="hub-info">
-            Hub v1 provides two products with focused signals. 
+            Hub v1 provides three products with focused signals.
             Email alerts notify you when thresholds are exceeded.
         </p>
     </div>

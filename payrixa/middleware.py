@@ -5,10 +5,14 @@ from typing import Optional, Union
 import uuid
 import threading
 import time
+import logging
 from collections import defaultdict
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
+from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 # Thread-local storage for request_id
 _request_id_storage = threading.local()
@@ -151,3 +155,143 @@ class ProductEnablementMiddleware(MiddlewareMixin):
         enabled_configs = all_configs.filter(enabled=True)
         request.enabled_products = {config.product_slug for config in enabled_configs}
         return None
+
+
+class RequestTimingMiddleware(MiddlewareMixin):
+    """
+    Middleware to track request timing and log slow requests.
+
+    Logs:
+    - All requests with timing information
+    - Slow requests (>2 seconds) as warnings
+    - Very slow requests (>5 seconds) as errors
+    """
+
+    def process_request(self, request: HttpRequest) -> None:
+        """Start timer when request begins."""
+        request._request_start_time = time.time()
+        return None
+
+    def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
+        """Log timing when request completes."""
+        if hasattr(request, '_request_start_time'):
+            duration = time.time() - request._request_start_time
+            duration_ms = duration * 1000
+
+            # Build log message
+            method = request.method
+            path = request.path
+            status = response.status_code
+            user = request.user.username if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous'
+
+            # Log with appropriate level based on duration
+            if duration > 5.0:
+                logger.error(f"VERY SLOW REQUEST: {method} {path} - {status} - {duration_ms:.0f}ms - user={user}")
+            elif duration > 2.0:
+                logger.warning(f"SLOW REQUEST: {method} {path} - {status} - {duration_ms:.0f}ms - user={user}")
+            else:
+                logger.debug(f"REQUEST: {method} {path} - {status} - {duration_ms:.0f}ms - user={user}")
+
+            # Add timing header to response
+            response['X-Request-Duration-Ms'] = f"{duration_ms:.2f}"
+
+            # Store metrics in cache for dashboard (keep last 100 requests)
+            try:
+                metrics_key = 'metrics:recent_requests'
+                recent_requests = cache.get(metrics_key, [])
+
+                # Add this request
+                recent_requests.append({
+                    'timestamp': time.time(),
+                    'method': method,
+                    'path': path,
+                    'status': status,
+                    'duration_ms': duration_ms,
+                    'user': user,
+                })
+
+                # Keep only last 100
+                recent_requests = recent_requests[-100:]
+
+                # Store back in cache (5 minute TTL)
+                cache.set(metrics_key, recent_requests, 300)
+            except Exception as e:
+                logger.debug(f"Failed to store request metrics: {str(e)}")
+
+        return response
+
+
+class HealthCheckMiddleware(MiddlewareMixin):
+    """
+    Middleware to handle health check requests efficiently.
+
+    Returns 200 OK for /health/ and /healthz/ without hitting the database.
+    Critical for load balancers and container orchestration.
+    """
+
+    def process_request(self, request: HttpRequest) -> Optional[HttpResponse]:
+        """Return early for health check endpoints."""
+        if request.path in ['/health/', '/healthz/', '/ping/']:
+            return JsonResponse({
+                'status': 'healthy',
+                'timestamp': time.time(),
+            })
+        return None
+
+
+class MetricsCollectionMiddleware(MiddlewareMixin):
+    """
+    Middleware to collect application metrics for monitoring.
+
+    Tracks:
+    - Request counts by endpoint
+    - Error rates by endpoint
+    - Active users (last 5 minutes)
+    """
+
+    def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
+        """Collect metrics on response."""
+        try:
+            # Increment request counter
+            path = self._normalize_path(request.path)
+            counter_key = f'metrics:request_count:{path}'
+
+            # Use cache.incr with default if key doesn't exist
+            try:
+                cache.incr(counter_key, delta=1)
+            except ValueError:
+                # Key doesn't exist, set it
+                cache.set(counter_key, 1, 3600)  # 1 hour TTL
+
+            # Track errors
+            if response.status_code >= 400:
+                error_key = f'metrics:error_count:{path}'
+                try:
+                    cache.incr(error_key, delta=1)
+                except ValueError:
+                    cache.set(error_key, 1, 3600)
+
+            # Track active users (last 5 minutes)
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                active_users_key = 'metrics:active_users'
+                active_users = cache.get(active_users_key, set())
+                active_users.add(request.user.id)
+                cache.set(active_users_key, active_users, 300)  # 5 minute TTL
+
+        except Exception as e:
+            logger.debug(f"Failed to collect metrics: {str(e)}")
+
+        return response
+
+    def _normalize_path(self, path: str) -> str:
+        """
+        Normalize path to avoid high cardinality metrics.
+
+        Examples:
+        - /uploads/123/details/ -> /uploads/{id}/details/
+        - /api/v1/customers/456/ -> /api/v1/customers/{id}/
+        """
+        import re
+        # Replace numeric IDs with {id}
+        normalized = re.sub(r'/\d+/', '/{id}/', path)
+        return normalized

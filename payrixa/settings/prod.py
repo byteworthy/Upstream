@@ -153,3 +153,83 @@ else:
     pass
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='alerts@payrixa.com')
+
+# =============================================================================
+# ERROR TRACKING (Sentry)
+# =============================================================================
+
+SENTRY_DSN = config('SENTRY_DSN', default=None)
+
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.redis import RedisIntegration
+
+    def filter_phi_from_errors(event, hint):
+        """
+        Remove potential PHI from error reports before sending to Sentry.
+
+        CRITICAL: Ensures HIPAA compliance by scrubbing sensitive data.
+        """
+        # Remove request body (may contain uploaded CSV with PHI)
+        if 'request' in event:
+            if 'data' in event['request']:
+                event['request']['data'] = '[REDACTED FOR HIPAA COMPLIANCE]'
+
+            # Remove cookies (may contain session data)
+            if 'cookies' in event['request']:
+                event['request']['cookies'] = '[REDACTED]'
+
+            # Scrub query parameters that might contain PHI
+            if 'query_string' in event['request']:
+                event['request']['query_string'] = '[REDACTED]'
+
+        # Remove user email (PII)
+        if 'user' in event:
+            if 'email' in event['user']:
+                event['user']['email'] = '[REDACTED]'
+
+        # Scrub exception values that might contain PHI
+        if 'exception' in event:
+            for exc in event['exception'].get('values', []):
+                if 'value' in exc:
+                    # Redact common PHI patterns in error messages
+                    exc_value = str(exc['value'])
+                    # Look for patient name patterns (Title Case 2-3 words)
+                    if any(word.istitle() for word in exc_value.split()):
+                        exc['value'] = '[ERROR MESSAGE REDACTED - MAY CONTAIN PHI]'
+
+        return event
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+            RedisIntegration(),
+        ],
+        environment=config('ENVIRONMENT', default='production'),
+
+        # Performance monitoring (10% of transactions)
+        traces_sample_rate=0.1,
+
+        # Send only errors and warnings (not info/debug)
+        # This reduces noise and focuses on actionable issues
+        # Note: Django DEBUG=False already filters debug logs
+
+        # HIPAA Compliance: Scrub PHI before sending
+        before_send=filter_phi_from_errors,
+
+        # Never send PII
+        send_default_pii=False,
+
+        # Release tracking for deployment correlation
+        release=config('SENTRY_RELEASE', default=None),
+
+        # Attach server name for multi-server deployments
+        server_name=config('SERVER_NAME', default=None),
+    )
+else:
+    # Sentry not configured - errors will only appear in logs
+    pass

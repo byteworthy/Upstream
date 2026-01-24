@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from payrixa.core.models import BaseModel
+from payrixa.core.tenant import CustomerScopedManager
 
 class AlertRule(BaseModel):
     """Alert rules and conditions for drift event monitoring."""
@@ -34,6 +35,10 @@ class AlertRule(BaseModel):
                                              help_text='Specific channels to route this alert to. If empty, uses all enabled channels.')
     routing_priority = models.IntegerField(default=0, help_text='Priority for rule evaluation order (higher = earlier)')
     routing_tags = models.JSONField(default=list, blank=True, help_text='Tags for categorizing and routing alerts')
+
+    # Tenant isolation
+    objects = CustomerScopedManager()
+    all_objects = models.Manager()  # Unfiltered access for superusers
 
     class Meta:
         verbose_name = 'Alert Rule'
@@ -81,6 +86,10 @@ class NotificationChannel(BaseModel):
     config = models.JSONField(default=dict, help_text='Channel-specific configuration')
     enabled = models.BooleanField(default=True)
 
+    # Tenant isolation
+    objects = CustomerScopedManager()
+    all_objects = models.Manager()  # Unfiltered access for superusers
+
     class Meta:
         verbose_name = 'Notification Channel'
         verbose_name_plural = 'Notification Channels'
@@ -88,10 +97,11 @@ class NotificationChannel(BaseModel):
 
 
 class AlertEvent(BaseModel):
-    """Alert events triggered by drift events."""
+    """Alert events triggered by drift events or delay signals."""
     customer = models.ForeignKey('payrixa.Customer', on_delete=models.CASCADE, related_name='alert_events')
     alert_rule = models.ForeignKey(AlertRule, on_delete=models.CASCADE, related_name='events')
     drift_event = models.ForeignKey('payrixa.DriftEvent', on_delete=models.CASCADE, related_name='alert_events', null=True, blank=True)
+    payment_delay_signal = models.ForeignKey('payrixa.PaymentDelaySignal', on_delete=models.CASCADE, related_name='alert_events', null=True, blank=True)
     report_run = models.ForeignKey('payrixa.ReportRun', on_delete=models.CASCADE, related_name='alert_events', null=True, blank=True)
     triggered_at = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=20, choices=[
@@ -101,10 +111,19 @@ class AlertEvent(BaseModel):
     notification_sent_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True, null=True)
 
+    # Tenant isolation
+    objects = CustomerScopedManager()
+    all_objects = models.Manager()  # Unfiltered access for superusers
+
     class Meta:
         verbose_name = 'Alert Event'
         verbose_name_plural = 'Alert Events'
         ordering = ['-triggered_at']
+        indexes = [
+            models.Index(fields=['customer', 'status', '-triggered_at'], name='alertevt_cust_status_idx'),
+            models.Index(fields=['customer', '-notification_sent_at'], name='alertevt_cust_sent_idx'),
+            models.Index(fields=['alert_rule', '-triggered_at'], name='alertevt_rule_trig_idx'),
+        ]
 
 
 class Alert(BaseModel):
@@ -167,6 +186,10 @@ class OperatorJudgment(BaseModel):
         related_name='operator_judgments',
         help_text='Operator who made the judgment'
     )
+
+    # Tenant isolation
+    objects = CustomerScopedManager()
+    all_objects = models.Manager()  # Unfiltered access for superusers
 
     class Meta:
         verbose_name = 'Operator Judgment'

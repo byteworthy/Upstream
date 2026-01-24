@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "payrixa.middleware.HealthCheckMiddleware",  # Early exit for health checks
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -56,6 +57,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "payrixa.middleware.RequestIdMiddleware",
+    "payrixa.middleware.RequestTimingMiddleware",  # Track request timing
+    "payrixa.middleware.MetricsCollectionMiddleware",  # Collect metrics
     "payrixa.middleware.ProductEnablementMiddleware",
     "auditlog.middleware.AuditlogMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
@@ -249,12 +252,65 @@ LOGGING = {
 (BASE_DIR / 'logs').mkdir(exist_ok=True)
 
 # =============================================================================
+# CACHE SETTINGS
+# =============================================================================
+
+# Cache Configuration
+# Production: Use Redis for high-performance distributed caching
+# Development/Testing: Falls back to local memory cache if Redis unavailable
+REDIS_URL = config('REDIS_URL', default='redis://localhost:6379')
+
+# Try Redis first, fall back to local memory cache if unavailable
+import redis
+try:
+    # Test Redis connection
+    r = redis.Redis.from_url(f"{REDIS_URL}/1", socket_connect_timeout=1)
+    r.ping()
+    r.close()
+
+    # Redis available - use it
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': f"{REDIS_URL}/1",  # Use database 1 for cache
+            'KEY_PREFIX': 'payrixa',
+            'TIMEOUT': 300,  # 5 minutes default
+        }
+    }
+    print("✓ Using Redis cache")
+
+except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError, Exception):
+    # Redis not available - fall back to local memory cache
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'payrixa-cache',
+            'OPTIONS': {
+                'MAX_ENTRIES': 10000,
+            },
+            'TIMEOUT': 300,  # 5 minutes default
+        }
+    }
+    print("⚠ Redis unavailable - using local memory cache (development only)")
+
+# Cache timeouts for different data types
+CACHE_TTL = {
+    'payer_mappings': 60 * 15,  # 15 minutes (frequently accessed, rarely changes)
+    'cpt_mappings': 60 * 15,    # 15 minutes (frequently accessed, rarely changes)
+    'drift_events': 60 * 5,      # 5 minutes (real-time data, update frequently)
+    'alert_events': 60 * 5,      # 5 minutes (real-time data, update frequently)
+    'report_runs': 60 * 10,      # 10 minutes (moderate update frequency)
+    'quality_reports': 60 * 30,  # 30 minutes (historical data, rarely changes)
+    'user_profile': 60 * 60,     # 1 hour (rarely changes during session)
+}
+
+# =============================================================================
 # CELERY SETTINGS
 # =============================================================================
 
 # Celery Configuration
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_URL}/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_URL}/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -305,10 +361,15 @@ PORTAL_BASE_URL = os.environ.get(
 # Field-level encryption key for PHI data (generate with: Fernet.generate_key())
 FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default='')
 
-# Session security
-SESSION_COOKIE_AGE = 3600  # 1 hour - healthcare standard
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_SAVE_EVERY_REQUEST = True
+# Session security - HIPAA-conscious configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'  # Use Redis for session storage
+SESSION_CACHE_ALIAS = 'default'  # Use default cache (Redis)
+SESSION_COOKIE_AGE = 1800  # 30 minutes idle timeout (healthcare standard)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Close browser = logout
+SESSION_SAVE_EVERY_REQUEST = True  # Refresh timeout on each request
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection (Lax allows normal navigation)
+# SESSION_COOKIE_SECURE set in prod.py (requires HTTPS)
 
 # Codespaces configuration
 if 'CODESPACE_NAME' in os.environ:

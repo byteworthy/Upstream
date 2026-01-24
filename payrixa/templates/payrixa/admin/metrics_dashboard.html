@@ -1,0 +1,313 @@
+{% extends "payrixa/base.html" %}
+
+{% block title %}Metrics Dashboard{% endblock %}
+
+{% block content %}
+<style>
+.metrics-dashboard {
+    padding: 2rem 0;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.metric-card h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-size: 1rem;
+    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 0.5rem;
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #3498db;
+    margin: 1rem 0;
+}
+
+.metric-label {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.metrics-table th,
+.metrics-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.metrics-table th {
+    background: #f5f7fa;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.metrics-table tr:hover {
+    background: #f9fafb;
+}
+
+.status-healthy {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+.status-warning {
+    color: #f39c12;
+    font-weight: 600;
+}
+
+.status-error {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.refresh-notice {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: #1976d2;
+}
+
+.slow-request {
+    color: #e74c3c;
+    font-weight: 600;
+}
+</style>
+
+<div class="metrics-dashboard">
+    <div class="page-header">
+        <h2>📊 Metrics Dashboard</h2>
+        <p>System health and performance monitoring (Staff Only)</p>
+    </div>
+
+    <div class="refresh-notice">
+        ⏱️ Metrics refresh every 5 minutes. Last updated: {{ "now"|date:"Y-m-d H:i:s" }}
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        ⚠️ Error loading metrics: {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Key Metrics -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <h3>Average Response Time</h3>
+            <div class="metric-value">{{ avg_response_time }}ms</div>
+            <div class="metric-label">Last 100 requests</div>
+        </div>
+
+        <div class="metric-card">
+            <h3>Active Users</h3>
+            <div class="metric-value">{{ active_user_count }}</div>
+            <div class="metric-label">Last 5 minutes</div>
+        </div>
+
+        <div class="metric-card">
+            <h3>Recent Requests</h3>
+            <div class="metric-value">{{ recent_requests|length }}</div>
+            <div class="metric-label">In cache buffer</div>
+        </div>
+
+        {% if cache_stats.hit_rate %}
+        <div class="metric-card">
+            <h3>Cache Hit Rate</h3>
+            <div class="metric-value">{{ cache_stats.hit_rate|floatformat:1 }}%</div>
+            <div class="metric-label">Memory: {{ cache_stats.used_memory_human }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recent Requests -->
+    <div class="metric-card" style="margin-bottom: 2rem;">
+        <h3>Recent Requests (Last 20)</h3>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Method</th>
+                    <th>Path</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>User</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in recent_requests %}
+                <tr>
+                    <td>{{ request.timestamp|floatformat:0|date:"H:i:s" }}</td>
+                    <td><strong>{{ request.method }}</strong></td>
+                    <td>{{ request.path }}</td>
+                    <td>
+                        {% if request.status >= 500 %}
+                            <span class="status-error">{{ request.status }}</span>
+                        {% elif request.status >= 400 %}
+                            <span class="status-warning">{{ request.status }}</span>
+                        {% else %}
+                            <span class="status-healthy">{{ request.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if request.duration_ms > 2000 %}
+                            <span class="slow-request">{{ request.duration_ms|floatformat:0 }}ms</span>
+                        {% else %}
+                            {{ request.duration_ms|floatformat:0 }}ms
+                        {% endif %}
+                    </td>
+                    <td>{{ request.user }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #7f8c8d;">No recent requests</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slow Requests -->
+    {% if slow_requests %}
+    <div class="metric-card" style="margin-bottom: 2rem;">
+        <h3>⚠️ Slow Requests (>2s)</h3>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Path</th>
+                    <th>Method</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in slow_requests %}
+                <tr>
+                    <td>{{ request.path }}</td>
+                    <td>{{ request.method }}</td>
+                    <td class="slow-request">{{ request.duration_ms|floatformat:0 }}ms</td>
+                    <td>{{ request.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Request Counts -->
+    <div class="metric-card" style="margin-bottom: 2rem;">
+        <h3>Request Counts by Endpoint</h3>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Endpoint</th>
+                    <th>Requests</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for endpoint, count in request_counts %}
+                <tr>
+                    <td>{{ endpoint }}</td>
+                    <td><strong>{{ count }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" style="text-align: center; color: #7f8c8d;">No request data available</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Error Counts -->
+    {% if error_counts %}
+    <div class="metric-card" style="margin-bottom: 2rem;">
+        <h3>❌ Error Counts by Endpoint</h3>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Endpoint</th>
+                    <th>Errors</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for endpoint, count in error_counts %}
+                <tr>
+                    <td>{{ endpoint }}</td>
+                    <td class="status-error">{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- System Info -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <h3>Database</h3>
+            <div style="margin-top: 1rem;">
+                <div><strong>Vendor:</strong> {{ db_vendor }}</div>
+                <div><strong>Engine:</strong> {{ db_settings.ENGINE|slice:":30" }}</div>
+                <div><strong>Name:</strong> {{ db_settings.NAME }}</div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <h3>Software Versions</h3>
+            <div style="margin-top: 1rem;">
+                <div><strong>Python:</strong> {{ python_version }}</div>
+                <div><strong>Django:</strong> {{ django_version }}</div>
+                {% if cache_stats %}
+                <div><strong>Cache:</strong> Redis</div>
+                {% else %}
+                <div><strong>Cache:</strong> Local Memory</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if cache_stats %}
+        <div class="metric-card">
+            <h3>Cache Statistics</h3>
+            <div style="margin-top: 1rem;">
+                <div><strong>Hits:</strong> {{ cache_stats.keyspace_hits|default:"N/A" }}</div>
+                <div><strong>Misses:</strong> {{ cache_stats.keyspace_misses|default:"N/A" }}</div>
+                <div><strong>Clients:</strong> {{ cache_stats.connected_clients|default:"N/A" }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="margin-top: 2rem; padding: 1rem; background: #f5f7fa; border-radius: 4px; font-size: 0.9rem; color: #7f8c8d;">
+        <p><strong>Note:</strong> This is an internal metrics dashboard for staff members only. For production monitoring, integrate with Prometheus and Grafana for real-time alerts and historical trending.</p>
+        <p style="margin-bottom: 0;"><strong>Prometheus Metrics:</strong> Available at <code>/metrics</code> endpoint (requires django-prometheus)</p>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 30 seconds
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}
