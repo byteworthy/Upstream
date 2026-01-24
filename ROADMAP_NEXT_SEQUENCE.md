@@ -1,4 +1,4 @@
-# Payrixa: Next Moves & Sequence Roadmap
+# Upstream: Next Moves & Sequence Roadmap
 
 **Generated:** 2026-01-22  
 **Context:** Post Hub v1 delivery - planning for production readiness and UX maturity
@@ -62,12 +62,12 @@
    - Test tenant isolation on judgments
 
 **Files to Touch:**
-- `payrixa/models.py` (add OperatorJudgment)
-- `payrixa/alerts/services.py` (extend suppression logic)
-- `payrixa/api/views.py` (new feedback endpoint)
-- `payrixa/templates/payrixa/products/driftwatch_dashboard.html` (wire buttons)
-- `payrixa/templates/payrixa/products/denialscope_dashboard.html` (wire buttons)
-- `payrixa/tests.py` (add operator memory tests)
+- `upstream/models.py` (add OperatorJudgment)
+- `upstream/alerts/services.py` (extend suppression logic)
+- `upstream/api/views.py` (new feedback endpoint)
+- `upstream/templates/upstream/products/driftwatch_dashboard.html` (wire buttons)
+- `upstream/templates/upstream/products/denialscope_dashboard.html` (wire buttons)
+- `upstream/tests.py` (add operator memory tests)
 
 **Actual Effort:** ~3 hours
 **Risk:** Low (additive only, no existing code refactored)
@@ -119,8 +119,8 @@
 - CSS-only accordions (no JavaScript)
 
 **Files to Touch:**
-- `payrixa/static/payrixa/css/style.css` (all changes)
-- `payrixa/templates/payrixa/base.html` (add gradient background wrapper)
+- `upstream/static/upstream/css/style.css` (all changes)
+- `upstream/templates/upstream/base.html` (add gradient background wrapper)
 - Dashboard templates (optional: add collapse/expand structure)
 
 **Effort:** 2 hours total (30-45 min per sub-phase)  
@@ -153,10 +153,10 @@ Before building, verify:
 - Add login page with role selection
 
 **Files to Touch (if Scenario B):**
-- `payrixa/models.py` (verify/add User→Customer relationship)
-- `payrixa/middleware.py` (add tenant enforcement)
-- `payrixa/views.py` (add role-aware dashboards)
-- `payrixa/templates/payrixa/login.html` (create if missing)
+- `upstream/models.py` (verify/add User→Customer relationship)
+- `upstream/middleware.py` (add tenant enforcement)
+- `upstream/views.py` (add role-aware dashboards)
+- `upstream/templates/upstream/login.html` (create if missing)
 
 **Effort:** 1-2 hours (Scenario A), 3-4 hours (Scenario B)  
 **Risk:** Medium (touches auth, requires careful tenant isolation testing)

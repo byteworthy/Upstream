@@ -52,7 +52,7 @@ This comprehensive commit includes Phase 2 production readiness fixes and DelayG
 
 **Example - Good Error Handling:**
 ```python
-# payrixa/products/delayguard/services.py:97
+# upstream/products/delayguard/services.py:97
 try:
     with transaction.atomic():
         aggregates = self._compute_daily_aggregates(baseline_start, current_end)
@@ -82,10 +82,10 @@ except Exception as e:
 
 **Example - Proper Authentication:**
 ```python
-# payrixa/products/delayguard/views.py:21
+# upstream/products/delayguard/views.py:21
 class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateView):
     """Requires authentication AND product enablement."""
-    template_name = 'payrixa/products/delayguard_dashboard.html'
+    template_name = 'upstream/products/delayguard_dashboard.html'
     product_slug = 'delayguard'
 ```
 
@@ -98,7 +98,7 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
 
 **Example - Secret Management:**
 ```python
-# payrixa/settings/prod.py:28
+# upstream/settings/prod.py:28
 SECRET_KEY = config("SECRET_KEY")  # Required in production, no default
 DEBUG = False  # Always False in production
 ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS').split(',') if h.strip()]
@@ -118,7 +118,7 @@ ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS').split(',') if h.stri
 
 **Example - Proper Tenant Scoping:**
 ```python
-# payrixa/products/delayguard/views.py:39
+# upstream/products/delayguard/views.py:39
 base_queryset = PaymentDelaySignal.objects.filter(
     customer=customer,  # Always filter by customer
     signal_type='payment_delay_drift'
@@ -137,7 +137,7 @@ base_queryset = PaymentDelaySignal.objects.filter(
 
 **Example - Bulk Operations:**
 ```python
-# payrixa/products/delayguard/services.py:173
+# upstream/products/delayguard/services.py:173
 PaymentDelayAggregate.objects.bulk_create(aggregates, batch_size=500)
 ```
 
@@ -159,7 +159,7 @@ PaymentDelayAggregate.objects.bulk_create(aggregates, batch_size=500)
 
 **Example - Performance Monitoring:**
 ```python
-# payrixa/middleware.py:188-189
+# upstream/middleware.py:188-189
 if duration > 5.0:
     logger.error(f"VERY SLOW REQUEST: {method} {path} - {status} - {duration_ms:.0f}ms")
 elif duration > 2.0:
@@ -186,7 +186,7 @@ elif duration > 2.0:
 
 **Example - Well-Structured Service:**
 ```python
-# payrixa/products/delayguard/services.py:61
+# upstream/products/delayguard/services.py:61
 class DelayGuardComputationService:
     """Service with clear separation of concerns."""
 
@@ -283,13 +283,13 @@ def test_database_indexes():
 
 **Example - Safe Migration:**
 ```python
-# payrixa/migrations/0018_alertevent_payment_delay_signal.py
+# upstream/migrations/0018_alertevent_payment_delay_signal.py
 field=models.ForeignKey(
     null=True,  # Safe - allows existing rows
     blank=True,
     on_delete=django.db.models.deletion.CASCADE,
     related_name='alert_events',
-    to='payrixa.paymentdelaysignal'
+    to='upstream.paymentdelaysignal'
 )
 ```
 
@@ -384,7 +384,7 @@ def test_database_indexes():
 
 **Current:**
 ```python
-# payrixa/cache.py:54
+# upstream/cache.py:54
 hash_suffix = hashlib.md5(cache_key.encode()).hexdigest()[:8]
 ```
 
@@ -396,7 +396,7 @@ hash_suffix = hashlib.sha256(cache_key.encode()).hexdigest()[:16]
 
 **Impact:** Low - Cache keys aren't security-critical, but best practice
 **Effort:** Trivial - Change one line
-**Files Affected:** `payrixa/cache.py:54`
+**Files Affected:** `upstream/cache.py:54`
 
 ---
 
@@ -416,7 +416,7 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
 
 **Impact:** Low - Staff-only endpoint, but good security practice
 **Effort:** Low - Add decorator
-**Files Affected:** `payrixa/products/delayguard/views.py`
+**Files Affected:** `upstream/products/delayguard/views.py`
 
 ---
 

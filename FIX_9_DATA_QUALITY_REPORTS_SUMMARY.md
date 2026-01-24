@@ -21,7 +21,7 @@ This created a poor user experience where operators had to fix one error at a ti
 
 ### 1. Created DataQualityReport Model
 
-**File:** `payrixa/models.py`
+**File:** `upstream/models.py`
 
 ```python
 class DataQualityReport(models.Model):
@@ -63,7 +63,7 @@ class DataQualityReport(models.Model):
 
 ### 2. Refactored CSV Upload Processing
 
-**File:** `payrixa/views.py` - `process_csv_upload()` method
+**File:** `upstream/views.py` - `process_csv_upload()` method
 
 **Before:** Fail on first error
 ```python
@@ -133,7 +133,7 @@ DataQualityReport.objects.create(
 
 ### 3. Enhanced UI with Quality Report Display
 
-**File:** `payrixa/templates/payrixa/uploads.html`
+**File:** `upstream/templates/upstream/uploads.html`
 
 Added quality indicators and expandable details:
 
@@ -172,7 +172,7 @@ Added quality indicators and expandable details:
 
 ### 4. Updated Success Messages
 
-**File:** `payrixa/views.py` - `UploadsView.post()` method
+**File:** `upstream/views.py` - `UploadsView.post()` method
 
 Now shows quality information when there are rejections:
 
@@ -191,7 +191,7 @@ else:
 
 ### 5. Added CSS Styling
 
-**File:** `payrixa/static/payrixa/css/style.css`
+**File:** `upstream/static/upstream/css/style.css`
 
 Added 150+ lines of styling for:
 - Quality badges (excellent/good/poor)
@@ -242,11 +242,11 @@ Rejection Details:
 
 ## Database Migration
 
-**File:** `payrixa/migrations/0015_dataqualityreport.py`
+**File:** `upstream/migrations/0015_dataqualityreport.py`
 
 Migration successfully applied:
 ```bash
-$ python manage.py migrate payrixa
+$ python manage.py migrate upstream
 Applying payrixa.0015_dataqualityreport... OK
 ```
 
@@ -282,23 +282,23 @@ Applying payrixa.0015_dataqualityreport... OK
 
 ## Files Changed
 
-1. **payrixa/models.py**
+1. **upstream/models.py**
    - Added DataQualityReport model (60 lines)
 
-2. **payrixa/views.py**
+2. **upstream/views.py**
    - Imported DataQualityReport
    - Refactored process_csv_upload() method (140 lines)
    - Updated success message logic (10 lines)
 
-3. **payrixa/templates/payrixa/uploads.html**
+3. **upstream/templates/upstream/uploads.html**
    - Added Quality column to table
    - Added quality badge display
    - Added expandable quality report panel (80 lines)
 
-4. **payrixa/static/payrixa/css/style.css**
+4. **upstream/static/upstream/css/style.css**
    - Added quality report styling (150 lines)
 
-5. **payrixa/migrations/0015_dataqualityreport.py**
+5. **upstream/migrations/0015_dataqualityreport.py**
    - Database migration (110 lines)
 
 6. **test_quality_report.py** (NEW)

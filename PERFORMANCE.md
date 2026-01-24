@@ -1,10 +1,10 @@
 # Performance & Load Testing Guide
 
-This document describes the performance testing tools and procedures for Payrixa.
+This document describes the performance testing tools and procedures for Upstream.
 
 ## Overview
 
-Payrixa includes comprehensive performance testing tools:
+Upstream includes comprehensive performance testing tools:
 1. **Synthetic Data Generation** - Create large datasets for testing
 2. **Drift Detection Benchmarking** - Measure drift algorithm performance
 3. **API Load Testing** - Test API endpoints under load with Locust

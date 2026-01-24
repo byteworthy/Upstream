@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Notes
 - DenialScope now has real analytics (not a stub)
-- Payrixa Core logic remains in place (no refactor)
+- Upstream Core logic remains in place (no refactor)
 
 ## [0.4.0] - 2026-01-19
 
@@ -29,7 +29,7 @@ All notable changes to this project will be documented in this file.
 
 ### Notes
 - Scaffolding only; no new product analytics implemented
-- Payrixa Core logic remains in place (no refactor)
+- Upstream Core logic remains in place (no refactor)
 
 ## [0.3.0] - 2026-01-17
 
@@ -108,7 +108,7 @@ All notable changes to this project will be documented in this file.
   - Email configuration via Anymail
 
 ### Changed
-- Renamed project from 'DriftWatch' to 'Payrixa' across codebase
+- Renamed project from 'DriftWatch' to 'Upstream' across codebase
 - Reorganized settings.py with clear section headers
 - README polished with brand voice, tech stack rationale, and roadmap
 - Minimum password length increased to 12 characters

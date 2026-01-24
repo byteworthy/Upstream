@@ -1,12 +1,12 @@
-# 📡 Payrixa
+# 📡 Upstream
 
 **Early-warning intelligence for healthcare revenue operations.**
 
-## What Payrixa Does
+## What Upstream Does
 
-Payrixa is an **early-warning intelligence system** for healthcare revenue operations. It detects when payers change their behavior—denying more claims, changing policies, or creating new revenue risks—usually 30-60 days before traditional monthly reporting would catch it.
+Upstream is an **early-warning intelligence system** for healthcare revenue operations. It detects when payers change their behavior—denying more claims, changing policies, or creating new revenue risks—usually 30-60 days before traditional monthly reporting would catch it.
 
-**For Operators**: Think of Payrixa as a smoke detector for your revenue cycle. It doesn't fight the fire for you, but it tells you early when something's wrong so you can act before it becomes expensive.
+**For Operators**: Think of Upstream as a smoke detector for your revenue cycle. It doesn't fight the fire for you, but it tells you early when something's wrong so you can act before it becomes expensive.
 
 ### Core Features
 
@@ -16,7 +16,7 @@ Payrixa is an **early-warning intelligence system** for healthcare revenue opera
 - ⚠️ **Smart Alerting** — Statistical thresholds flag significant changes, not noise. Email alerts with evidence and context.
 - 📈 **Weekly Analysis** — Runs automatically. You get early signals, not month-end surprises.
 
-### Who Should Use Payrixa
+### Who Should Use Upstream
 
 **Primary Users**:
 - Revenue Cycle Directors who need early visibility into payer behavior changes
@@ -95,7 +95,7 @@ open http://localhost:8000/api/v1/docs/
 ## Project Structure
 
 ```
-payrixa/
+upstream/
 ├── models.py              # Customer, ClaimRecord, DriftEvent, etc.
 ├── views.py               # Web portal views
 ├── api/

@@ -13,12 +13,12 @@ from io import BytesIO
 
 # Setup Django
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'payrixa.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'upstream.settings.dev')
 django.setup()
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from payrixa.models import Customer, Upload, DataQualityReport
-from payrixa.views import UploadsView
+from upstream.models import Customer, Upload, DataQualityReport
+from upstream.views import UploadsView
 
 def test_quality_report():
     """Test quality report creation with mixed valid/invalid data."""

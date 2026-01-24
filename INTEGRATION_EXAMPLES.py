@@ -3,7 +3,7 @@ Integration Examples for Data Quality & Amplified Models.
 
 This file demonstrates how to integrate the new data quality,
 validation, DriftWatch, and DenialScope features into your
-existing Payrixa workflows.
+existing Upstream workflows.
 """
 
 from datetime import date, timedelta
@@ -11,11 +11,11 @@ from django.db import transaction
 from django.utils import timezone
 
 # Import services
-from payrixa.core.data_quality_service import DataQualityService
-from payrixa.core.quality_reporting_service import DataQualityReportingService
-from payrixa.core.default_validation_rules import create_default_rules_for_customer
-from payrixa.products.driftwatch.services import DriftWatchSignalService
-from payrixa.products.denialscope.ml_services import (
+from upstream.core.data_quality_service import DataQualityService
+from upstream.core.quality_reporting_service import DataQualityReportingService
+from upstream.core.default_validation_rules import create_default_rules_for_customer
+from upstream.products.driftwatch.services import DriftWatchSignalService
+from upstream.products.denialscope.ml_services import (
     DenialClusteringService,
     CascadeDetectionService,
     PreDenialWarningService,
@@ -23,7 +23,7 @@ from payrixa.products.denialscope.ml_services import (
 )
 
 # Import models
-from payrixa.models import Customer, Upload, ClaimRecord, ReportRun
+from upstream.models import Customer, Upload, ClaimRecord, ReportRun
 
 
 # ============================================================================
@@ -172,7 +172,7 @@ def run_weekly_drift_detection(customer: Customer):
             print(f"    - {signal_type}: {count}")
 
         # Step 3: Check for high-value underpayment signals
-        from payrixa.models import DriftEvent
+        from upstream.models import DriftEvent
 
         underpayments = DriftEvent.objects.filter(
             customer=customer,

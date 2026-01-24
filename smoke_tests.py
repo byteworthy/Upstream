@@ -25,7 +25,7 @@ from datetime import datetime
 
 # Django setup for database tests
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'payrixa.settings.prod')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'upstream.settings.prod')
 
 import django
 django.setup()
@@ -164,7 +164,7 @@ class SmokeTestRunner:
         print("\n[TEST] Static files...")
         try:
             # Try to access common static file
-            response = requests.get(f"{self.base_url}/static/payrixa/css/style.css", timeout=5)
+            response = requests.get(f"{self.base_url}/static/upstream/css/style.css", timeout=5)
 
             if response.status_code == 200:
                 self.pass_test("Static files accessible")
@@ -318,9 +318,9 @@ def main():
     elif args.env == 'local':
         base_url = 'http://localhost:8000'
     elif args.env == 'staging':
-        base_url = os.getenv('STAGING_URL', 'https://staging.payrixa.com')
+        base_url = os.getenv('STAGING_URL', 'https://staging.upstream.cx')
     elif args.env == 'production':
-        base_url = os.getenv('PRODUCTION_URL', 'https://payrixa.com')
+        base_url = os.getenv('PRODUCTION_URL', 'https://upstream.cx')
     else:
         print("Error: Could not determine base URL")
         sys.exit(1)

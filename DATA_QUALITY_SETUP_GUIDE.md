@@ -9,7 +9,7 @@ Complete setup guide for the new data quality, validation, and amplified model f
 - Python 3.12+
 - Django 5.x
 - PostgreSQL database
-- Existing Payrixa installation
+- Existing Upstream installation
 
 ---
 
@@ -54,7 +54,7 @@ urlpatterns = [
     # ... existing patterns ...
 
     # Data Quality URLs
-    path('', include('payrixa.urls_data_quality')),
+    path('', include('upstream.urls_data_quality')),
 ]
 ```
 
@@ -83,7 +83,7 @@ Ensure template tags are loaded. Add to `settings.py` if not already present:
         # ... existing processors ...
     ],
     'libraries': {
-        'quality_filters': 'payrixa.templatetags.quality_filters',
+        'quality_filters': 'upstream.templatetags.quality_filters',
     }
 }
 ```
@@ -153,7 +153,7 @@ Monitor data anomalies:
 In your upload processing code, add validation:
 
 ```python
-from payrixa.core.data_quality_service import DataQualityService
+from upstream.core.data_quality_service import DataQualityService
 
 # During upload processing
 service = DataQualityService(customer)
@@ -176,7 +176,7 @@ if validation_result['anomalies']:
 Schedule periodic quality metric calculation:
 
 ```python
-from payrixa.core.data_quality_service import DataQualityService
+from upstream.core.data_quality_service import DataQualityService
 from datetime import date, timedelta
 
 service = DataQualityService(customer)
@@ -191,7 +191,7 @@ metrics = service.calculate_quality_metrics(start_date, end_date)
 ### Generate Quality Reports
 
 ```python
-from payrixa.core.quality_reporting_service import DataQualityReportingService
+from upstream.core.quality_reporting_service import DataQualityReportingService
 
 reporting = DataQualityReportingService(customer)
 
@@ -212,8 +212,8 @@ summary = reporting.generate_upload_quality_summary(upload)
 ### Enable Advanced Drift Detection
 
 ```python
-from payrixa.products.driftwatch.services import DriftWatchSignalService
-from payrixa.models import ReportRun
+from upstream.products.driftwatch.services import DriftWatchSignalService
+from upstream.models import ReportRun
 
 # Create report run
 report_run = ReportRun.objects.create(
@@ -245,7 +245,7 @@ print(f"By type: {results['by_type']}")
 ### Run Denial Clustering
 
 ```python
-from payrixa.products.denialscope.ml_services import DenialClusteringService
+from upstream.products.denialscope.ml_services import DenialClusteringService
 
 service = DenialClusteringService(customer)
 
@@ -262,7 +262,7 @@ for cluster in clusters:
 ### Detect Denial Cascades
 
 ```python
-from payrixa.products.denialscope.ml_services import CascadeDetectionService
+from upstream.products.denialscope.ml_services import CascadeDetectionService
 
 service = CascadeDetectionService(customer)
 
@@ -278,7 +278,7 @@ for cascade in cascades:
 ### Generate Pre-Denial Warnings
 
 ```python
-from payrixa.products.denialscope.ml_services import PreDenialWarningService
+from upstream.products.denialscope.ml_services import PreDenialWarningService
 
 service = PreDenialWarningService(customer)
 
@@ -294,7 +294,7 @@ for warning in warnings:
 ### Auto-Generate Appeals
 
 ```python
-from payrixa.products.denialscope.ml_services import AppealGenerationService
+from upstream.products.denialscope.ml_services import AppealGenerationService
 
 service = AppealGenerationService(customer)
 
@@ -313,7 +313,7 @@ print(f"Required docs: {appeal.required_documentation}")
 ### Create Custom Rule
 
 ```python
-from payrixa.core.validation_models import ValidationRule
+from upstream.core.validation_models import ValidationRule
 
 rule = ValidationRule.objects.create(
     customer=customer,
@@ -342,7 +342,7 @@ rule = ValidationRule.objects.create(
 Create alerts based on quality scores:
 
 ```python
-from payrixa.core.validation_models import DataQualityMetric
+from upstream.core.validation_models import DataQualityMetric
 
 # Check recent quality
 recent_metrics = DataQualityMetric.objects.filter(
@@ -359,7 +359,7 @@ if recent_metrics and recent_metrics.score < 0.90:
 ### Monitor Anomalies
 
 ```python
-from payrixa.core.validation_models import DataAnomalyDetection
+from upstream.core.validation_models import DataAnomalyDetection
 
 # Check unacknowledged critical anomalies
 critical = DataAnomalyDetection.objects.filter(
@@ -417,8 +417,8 @@ Content-Type: application/json
 Complete example from upload to quality reporting:
 
 ```python
-from payrixa.core.data_quality_service import DataQualityService
-from payrixa.core.quality_reporting_service import DataQualityReportingService
+from upstream.core.data_quality_service import DataQualityService
+from upstream.core.quality_reporting_service import DataQualityReportingService
 
 # 1. Validate upload
 quality_service = DataQualityService(customer)
@@ -451,11 +451,11 @@ print(f"Recommendations: {summary['recommendations']}")
 
 ```bash
 # Reset migrations (DEV ONLY)
-python manage.py migrate payrixa zero
-python manage.py migrate payrixa
+python manage.py migrate upstream zero
+python manage.py migrate upstream
 
 # Or manually create
-python manage.py makemigrations payrixa --name amplified_models
+python manage.py makemigrations upstream --name amplified_models
 python manage.py migrate
 ```
 
@@ -484,7 +484,7 @@ python manage.py init_data_quality --all
 
 For issues or questions:
 - Check MODEL_AMPLIFICATION_SUMMARY.md
-- Review test files in payrixa/tests_*
+- Review test files in upstream/tests_*
 - Check Django admin for model data
 
 ---

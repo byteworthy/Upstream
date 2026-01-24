@@ -1277,7 +1277,7 @@ Based on client value, implementation complexity, and ROI:
 
 ### Client Value Proposition
 
-"Payrixa delivers 90+ intelligent alert systems across 6 modules, providing comprehensive revenue cycle intelligence. Clients typically recover $550k-1.45M annually through:
+"Upstream delivers 90+ intelligent alert systems across 6 modules, providing comprehensive revenue cycle intelligence. Clients typically recover $550k-1.45M annually through:
 - Payer drift detection and enforcement
 - Denial prevention and recovery
 - Authorization optimization

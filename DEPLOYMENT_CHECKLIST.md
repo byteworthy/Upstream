@@ -1,4 +1,4 @@
-# Payrixa Production Deployment Checklist
+# Upstream Production Deployment Checklist
 
 **Version:** 1.0.0
 **Date:** 2026-01-24
@@ -46,8 +46,8 @@
 - [ ] Virtual environment created
 - [ ] Dependencies installed: `pip install -r requirements.txt`
 - [ ] Environment variables loaded
-- [ ] Static files directory created: `/var/www/payrixa/static/`
-- [ ] Media files directory created: `/var/www/payrixa/media/`
+- [ ] Static files directory created: `/var/www/upstream/static/`
+- [ ] Media files directory created: `/var/www/upstream/media/`
 
 ---
 
@@ -56,7 +56,7 @@
 ### Step 1: Database Migration
 ```bash
 # Set Django settings
-export DJANGO_SETTINGS_MODULE=payrixa.settings.production
+export DJANGO_SETTINGS_MODULE=upstream.settings.production
 
 # Run migrations
 python manage.py migrate
@@ -78,7 +78,7 @@ python manage.py showmigrations
 python manage.py collectstatic --noinput
 
 # Verify static files
-ls -la /var/www/payrixa/static/
+ls -la /var/www/upstream/static/
 ```
 **Expected:** CSS, JS, and image files present
 
@@ -121,22 +121,22 @@ sudo nano /etc/systemd/system/gunicorn.service
 
 ```ini
 [Unit]
-Description=Gunicorn daemon for Payrixa
+Description=Gunicorn daemon for Upstream
 After=network.target
 
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/payrixa
-Environment="DJANGO_SETTINGS_MODULE=payrixa.settings.production"
-EnvironmentFile=/var/www/payrixa/.env.production
-ExecStart=/var/www/payrixa/venv/bin/gunicorn \
+WorkingDirectory=/var/www/upstream
+Environment="DJANGO_SETTINGS_MODULE=upstream.settings.production"
+EnvironmentFile=/var/www/upstream/.env.production
+ExecStart=/var/www/upstream/venv/bin/gunicorn \
     --workers 4 \
     --bind unix:/run/gunicorn.sock \
     --timeout 60 \
-    --access-logfile /var/log/payrixa/access.log \
-    --error-logfile /var/log/payrixa/error.log \
-    payrixa.wsgi:application
+    --access-logfile /var/log/upstream/access.log \
+    --error-logfile /var/log/upstream/error.log \
+    upstream.wsgi:application
 
 [Install]
 WantedBy=multi-user.target
@@ -144,8 +144,8 @@ WantedBy=multi-user.target
 
 ```bash
 # Create log directory
-sudo mkdir -p /var/log/payrixa
-sudo chown www-data:www-data /var/log/payrixa
+sudo mkdir -p /var/log/upstream
+sudo chown www-data:www-data /var/log/upstream
 
 # Enable and start Gunicorn
 sudo systemctl enable gunicorn
@@ -159,11 +159,11 @@ sudo systemctl status gunicorn
 ### Step 6: Configure Nginx
 ```bash
 # Create Nginx site config
-sudo nano /etc/nginx/sites-available/payrixa
+sudo nano /etc/nginx/sites-available/upstream
 ```
 
 ```nginx
-upstream payrixa {
+upstream upstream {
     server unix:/run/gunicorn.sock fail_timeout=0;
 }
 
@@ -183,18 +183,18 @@ server {
     client_max_body_size 50M;
 
     location /static/ {
-        alias /var/www/payrixa/static/;
+        alias /var/www/upstream/static/;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
 
     location /media/ {
-        alias /var/www/payrixa/media/;
+        alias /var/www/upstream/media/;
         expires 7d;
     }
 
     location / {
-        proxy_pass http://payrixa;
+        proxy_pass http://upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -207,7 +207,7 @@ server {
 
 ```bash
 # Enable site
-sudo ln -s /etc/nginx/sites-available/payrixa /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/upstream /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -305,7 +305,7 @@ curl -I https://yourdomain.com/portal/axis/
 sudo systemctl stop gunicorn
 
 # Revert code to previous version
-cd /var/www/payrixa
+cd /var/www/upstream
 git checkout [previous-release-tag]
 
 # Restart Gunicorn
@@ -319,7 +319,7 @@ sudo systemctl start gunicorn
 python manage.py migrate [app_name] [previous_migration_number]
 
 # Example:
-python manage.py migrate payrixa 0011
+python manage.py migrate upstream 0011
 ```
 **Warning:** Only rollback if new migration breaks functionality
 
@@ -329,10 +329,10 @@ python manage.py migrate payrixa 0011
 sudo systemctl stop gunicorn
 
 # Restore database
-pg_restore -d payrixa /backups/payrixa_backup_[timestamp].dump
+pg_restore -d upstream /backups/upstream_backup_[timestamp].dump
 
 # Revert code
-cd /var/www/payrixa
+cd /var/www/upstream
 git checkout [previous-release-tag]
 
 # Start application
@@ -347,19 +347,19 @@ sudo systemctl start gunicorn
 ### Database Backup Test
 ```bash
 # Create test backup
-pg_dump payrixa > /tmp/test_backup.sql
+pg_dump upstream > /tmp/test_backup.sql
 
 # Verify backup size
 ls -lh /tmp/test_backup.sql
 # Expected: >1MB (depends on data)
 
 # Test restore (to test database)
-createdb payrixa_test
-psql payrixa_test < /tmp/test_backup.sql
+createdb upstream_test
+psql upstream_test < /tmp/test_backup.sql
 # Expected: No errors
 
 # Cleanup
-dropdb payrixa_test
+dropdb upstream_test
 rm /tmp/test_backup.sql
 ```
 
@@ -376,9 +376,9 @@ crontab -e
 # backup-payrixa.sh:
 #!/bin/bash
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-pg_dump payrixa | gzip > /backups/payrixa_$TIMESTAMP.sql.gz
+pg_dump upstream | gzip > /backups/upstream_$TIMESTAMP.sql.gz
 # Keep last 30 days
-find /backups -name "payrixa_*.sql.gz" -mtime +30 -delete
+find /backups -name "upstream_*.sql.gz" -mtime +30 -delete
 ```
 
 ---

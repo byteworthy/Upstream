@@ -5,15 +5,15 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: ${DB_NAME:-payrixa}
-      POSTGRES_USER: ${DB_USER:-payrixa}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-payrixa_dev_password}
+      POSTGRES_DB: ${DB_NAME:-upstream}
+      POSTGRES_USER: ${DB_USER:-upstream}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-upstream_dev_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-payrixa}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-upstream}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,9 +46,9 @@ services:
     environment:
       - DEBUG=${DEBUG:-True}
       - SECRET_KEY=${SECRET_KEY:-django-insecure-docker-dev-key}
-      - DB_NAME=${DB_NAME:-payrixa}
-      - DB_USER=${DB_USER:-payrixa}
-      - DB_PASSWORD=${DB_PASSWORD:-payrixa_dev_password}
+      - DB_NAME=${DB_NAME:-upstream}
+      - DB_USER=${DB_USER:-upstream}
+      - DB_PASSWORD=${DB_PASSWORD:-upstream_dev_password}
       - DB_HOST=db
       - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -67,15 +67,15 @@ services:
     build:
       context: .
       target: development
-    command: celery -A payrixa worker --loglevel=info
+    command: celery -A upstream worker --loglevel=info
     volumes:
       - .:/app
     environment:
       - DEBUG=${DEBUG:-True}
       - SECRET_KEY=${SECRET_KEY:-django-insecure-docker-dev-key}
-      - DB_NAME=${DB_NAME:-payrixa}
-      - DB_USER=${DB_USER:-payrixa}
-      - DB_PASSWORD=${DB_PASSWORD:-payrixa_dev_password}
+      - DB_NAME=${DB_NAME:-upstream}
+      - DB_USER=${DB_USER:-upstream}
+      - DB_PASSWORD=${DB_PASSWORD:-upstream_dev_password}
       - DB_HOST=db
       - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -93,15 +93,15 @@ services:
     build:
       context: .
       target: development
-    command: celery -A payrixa beat --loglevel=info
+    command: celery -A upstream beat --loglevel=info
     volumes:
       - .:/app
     environment:
       - DEBUG=${DEBUG:-True}
       - SECRET_KEY=${SECRET_KEY:-django-insecure-docker-dev-key}
-      - DB_NAME=${DB_NAME:-payrixa}
-      - DB_USER=${DB_USER:-payrixa}
-      - DB_PASSWORD=${DB_PASSWORD:-payrixa_dev_password}
+      - DB_NAME=${DB_NAME:-upstream}
+      - DB_USER=${DB_USER:-upstream}
+      - DB_PASSWORD=${DB_PASSWORD:-upstream_dev_password}
       - DB_HOST=db
       - DB_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0

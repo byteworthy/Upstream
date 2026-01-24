@@ -76,7 +76,7 @@ python manage.py collectstatic --no-input
 sudo systemctl restart gunicorn  # or your service manager
 ```
 
-**Staging URL:** https://staging.payrixa.com (update as needed)
+**Staging URL:** https://staging.upstream.cx (update as needed)
 
 ---
 
@@ -152,7 +152,7 @@ python smoke_tests.py --env staging
 # Monitor application metrics
 python manage.py shell
 >>> from django.core.cache import cache
->>> from payrixa.cache import get_cache_stats
+>>> from upstream.cache import get_cache_stats
 >>> get_cache_stats()
 
 # Expected:
@@ -171,7 +171,7 @@ python manage.py showmigrations
 
 # Check new models exist
 python manage.py shell
->>> from payrixa.products.delayguard.models import PaymentDelaySignal
+>>> from upstream.products.delayguard.models import PaymentDelaySignal
 >>> PaymentDelaySignal.objects.count()  # Should be 0 initially
 
 # Verify indexes created (PostgreSQL only)
@@ -218,7 +218,7 @@ postgres=# \di+ *_idx
 # (Configure based on your setup)
 
 # 2. Backup production database
-pg_dump -U postgres payrixa_prod > backup_prod_$(date +%Y%m%d_%H%M%S).sql
+pg_dump -U postgres upstream_prod > backup_prod_$(date +%Y%m%d_%H%M%S).sql
 
 # 3. Deploy code
 git pull origin main
@@ -263,13 +263,13 @@ git log --oneline -5  # Find previous commit hash
 git reset --hard <previous-commit-hash>
 
 # 3. Rollback migrations
-python manage.py migrate payrixa 0013  # Before Phase 2 migrations
+python manage.py migrate upstream 0013  # Before Phase 2 migrations
 
 # 4. Restart services
 sudo systemctl restart gunicorn
 
 # 5. Restore database if needed
-psql -U postgres payrixa_prod < backup_prod_TIMESTAMP.sql
+psql -U postgres upstream_prod < backup_prod_TIMESTAMP.sql
 
 # 6. Disable maintenance mode
 
@@ -363,10 +363,10 @@ python manage.py showmigrations
 python manage.py migrate --verbosity 3
 
 # If stuck, fake the migration (dangerous!)
-# python manage.py migrate --fake payrixa 0018
+# python manage.py migrate --fake upstream 0018
 
 # Rollback to safe point
-python manage.py migrate payrixa 0013
+python manage.py migrate upstream 0013
 ```
 
 ### Issue: Redis Connection Errors
@@ -455,7 +455,7 @@ sudo systemctl restart gunicorn
 - CTO: [Email]
 
 **Support:**
-- Sentry: https://sentry.io/payrixa
+- Sentry: https://sentry.io/upstream
 - Monitoring: [Grafana/DataDog URL]
 - Logs: [CloudWatch/Splunk URL]
 
@@ -476,17 +476,17 @@ sudo systemctl restart gunicorn
 **Files Changed:** 85 files (+31,609 lines, -186 lines)
 
 **New Product Files (DelayGuard):**
-- payrixa/products/delayguard/models.py
-- payrixa/products/delayguard/services.py
-- payrixa/products/delayguard/views.py
-- payrixa/templates/payrixa/products/delayguard_dashboard.html
-- payrixa/management/commands/compute_delayguard.py
+- upstream/products/delayguard/models.py
+- upstream/products/delayguard/services.py
+- upstream/products/delayguard/views.py
+- upstream/templates/upstream/products/delayguard_dashboard.html
+- upstream/management/commands/compute_delayguard.py
 
 **New Infrastructure:**
-- payrixa/cache.py
-- payrixa/middleware.py (enhanced)
-- payrixa/views/metrics.py
-- payrixa/core/data_quality_service.py
+- upstream/cache.py
+- upstream/middleware.py (enhanced)
+- upstream/views/metrics.py
+- upstream/core/data_quality_service.py
 
 **New Migrations:**
 - 0014_alertevent_indexes.py

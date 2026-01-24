@@ -1,10 +1,10 @@
 # Google Cloud Platform Deployment Guide
 
-**Complete guide to deploying Payrixa on Google Cloud Platform**
+**Complete guide to deploying Upstream on Google Cloud Platform**
 
 ## Overview
 
-This guide walks you through deploying Payrixa to GCP using:
+This guide walks you through deploying Upstream to GCP using:
 
 - **Cloud Run** - Containerized Django application
 - **Cloud SQL** - PostgreSQL database (managed)
@@ -88,7 +88,7 @@ export GCP_PROJECT_ID="your-project-id"
 ./deploy_gcp.sh status
 
 # 5. Run smoke tests
-SERVICE_URL=$(gcloud run services describe payrixa-staging \
+SERVICE_URL=$(gcloud run services describe upstream-staging \
     --region=us-central1 \
     --format="get(status.url)")
 python smoke_tests.py --url $SERVICE_URL --critical-only
@@ -103,8 +103,8 @@ python smoke_tests.py --url $SERVICE_URL --critical-only
 The `deploy_gcp.sh setup` command creates:
 
 1. **Cloud SQL PostgreSQL Instance**
-   - Database: `payrixa`
-   - User: `payrixa`
+   - Database: `upstream`
+   - User: `upstream`
    - Version: PostgreSQL 15
    - Tier: db-f1-micro (1 vCPU, 0.6GB RAM)
    - Region: us-central1
@@ -112,13 +112,13 @@ The `deploy_gcp.sh setup` command creates:
    - Automated backups (3AM daily)
 
 2. **Memorystore Redis Instance**
-   - Name: `payrixa-redis`
+   - Name: `upstream-redis`
    - Version: Redis 6.x
    - Tier: Basic (1GB)
    - Region: us-central1
 
 3. **Cloud Storage Bucket**
-   - Name: `{project-id}-payrixa-static`
+   - Name: `{project-id}-upstream-static`
    - Location: us-central1
    - Public read access (for static files)
 
@@ -155,9 +155,9 @@ GCP Infrastructure Summary
 =========================================
 Project ID: your-project-id
 Region: us-central1
-Cloud SQL: payrixa-db
-Redis: payrixa-redis
-Storage: gs://your-project-id-payrixa-static
+Cloud SQL: upstream-db
+Redis: upstream-redis
+Storage: gs://your-project-id-upstream-static
 =========================================
 ```
 
@@ -196,11 +196,11 @@ Cloud Build Steps:
 [SUCCESS] Deployment complete!
 
 =========================================
-Service URL: https://payrixa-staging-xxxxx-uc.a.run.app
+Service URL: https://upstream-staging-xxxxx-uc.a.run.app
 =========================================
 
 Next steps:
-  1. Visit: https://payrixa-staging-xxxxx-uc.a.run.app/health/
+  1. Visit: https://upstream-staging-xxxxx-uc.a.run.app/health/
   2. Run smoke tests: python smoke_tests.py --url https://...
   3. Check logs: ./deploy_gcp.sh logs
 ```
@@ -219,17 +219,17 @@ Next steps:
 
 ```
 URL                                              LATEST REVISION              READY
-https://payrixa-staging-xxxxx-uc.a.run.app      payrixa-staging-00001-abc   True
+https://upstream-staging-xxxxx-uc.a.run.app      upstream-staging-00001-abc   True
 
 Recent revisions:
 NAME                        ACTIVE  SERVICE           DEPLOYED
-payrixa-staging-00001-abc   yes     payrixa-staging   2026-01-24T08:30:00Z
+upstream-staging-00001-abc   yes     upstream-staging   2026-01-24T08:30:00Z
 ```
 
 #### Test Health Endpoint:
 
 ```bash
-SERVICE_URL=$(gcloud run services describe payrixa-staging \
+SERVICE_URL=$(gcloud run services describe upstream-staging \
     --region=us-central1 \
     --format="get(status.url)")
 
@@ -254,7 +254,7 @@ python smoke_tests.py --url $SERVICE_URL --critical-only
 **Expected:**
 
 ```
-🔥 SMOKE TESTS - https://payrixa-staging-xxxxx-uc.a.run.app
+🔥 SMOKE TESTS - https://upstream-staging-xxxxx-uc.a.run.app
 Started: 2026-01-24 08:30:00
 ======================================================================
 
@@ -296,14 +296,14 @@ Total Tests: 5
 echo $SERVICE_URL
 
 # Visit in browser:
-# https://payrixa-staging-xxxxx-uc.a.run.app
+# https://upstream-staging-xxxxx-uc.a.run.app
 ```
 
 #### Create Superuser:
 
 ```bash
 # Run Django command via Cloud Run
-gcloud run services update payrixa-staging \
+gcloud run services update upstream-staging \
     --region=us-central1 \
     --execute-command=/bin/bash
 
@@ -319,10 +319,10 @@ curl -o cloud_sql_proxy https://dl.google.com/cloudsql/cloud_sql_proxy.darwin.am
 chmod +x cloud_sql_proxy
 
 # Start proxy
-./cloud_sql_proxy -instances=your-project-id:us-central1:payrixa-db=tcp:5432
+./cloud_sql_proxy -instances=your-project-id:us-central1:upstream-db=tcp:5432
 
 # In another terminal, connect
-psql "host=127.0.0.1 port=5432 dbname=payrixa user=payrixa"
+psql "host=127.0.0.1 port=5432 dbname=upstream user=upstream"
 ```
 
 #### Test DelayGuard:
@@ -330,9 +330,9 @@ psql "host=127.0.0.1 port=5432 dbname=payrixa user=payrixa"
 ```bash
 # Run DelayGuard computation
 gcloud run jobs create compute-delayguard \
-    --image gcr.io/$GCP_PROJECT_ID/payrixa:latest \
+    --image gcr.io/$PROJECT_ID/upstream:latest \
     --region $GCP_REGION \
-    --set-cloudsql-instances $GCP_PROJECT_ID:$GCP_REGION:payrixa-db \
+    --set-cloudsql-instances $GCP_PROJECT_ID:$GCP_REGION:upstream-db \
     --set-secrets DATABASE_URL=database-url:latest \
     --execute-now \
     --args="python,manage.py,compute_delayguard,--all"
@@ -349,12 +349,12 @@ Cloud Run automatically injects these:
 ```bash
 # Managed by Cloud Run
 PORT=8080
-K_SERVICE=payrixa-staging
-K_REVISION=payrixa-staging-00001
-K_CONFIGURATION=payrixa-staging
+K_SERVICE=upstream-staging
+K_REVISION=upstream-staging-00001
+K_CONFIGURATION=upstream-staging
 
 # Set in cloudbuild.yaml
-DJANGO_SETTINGS_MODULE=payrixa.settings.prod
+DJANGO_SETTINGS_MODULE=upstream.settings.prod
 
 # From Secret Manager
 SECRET_KEY=<from secret>
@@ -398,11 +398,11 @@ Edit `cloudbuild.yaml`:
 ./deploy_gcp.sh logs
 
 # Or using gcloud directly
-gcloud logging tail "resource.type=cloud_run_revision AND resource.labels.service_name=payrixa-staging"
+gcloud logging tail "resource.type=cloud_run_revision AND resource.labels.service_name=upstream-staging"
 
 # Last 100 logs
 gcloud logging read \
-    "resource.type=cloud_run_revision AND resource.labels.service_name=payrixa-staging" \
+    "resource.type=cloud_run_revision AND resource.labels.service_name=upstream-staging" \
     --limit=100 \
     --format=json
 ```
@@ -410,7 +410,7 @@ gcloud logging read \
 ### Cloud Console:
 
 1. Visit: https://console.cloud.google.com/run
-2. Click `payrixa-staging`
+2. Click `upstream-staging`
 3. Click "LOGS" tab
 
 ### Metrics:
@@ -429,7 +429,7 @@ gcloud monitoring dashboards list
 # Create alert for error rate
 gcloud alpha monitoring policies create \
     --notification-channels=YOUR_CHANNEL \
-    --display-name="Payrixa High Error Rate" \
+    --display-name="Upstream High Error Rate" \
     --condition-display-name="Error rate > 5%" \
     --condition-threshold-value=5 \
     --condition-threshold-duration=60s
@@ -468,13 +468,13 @@ gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
 **Check Cloud SQL status:**
 
 ```bash
-gcloud sql instances describe payrixa-db
+gcloud sql instances describe upstream-db
 ```
 
 **Test connection:**
 
 ```bash
-gcloud sql connect payrixa-db --user=payrixa
+gcloud sql connect upstream-db --user=upstream
 # Enter password when prompted
 ```
 
@@ -489,13 +489,13 @@ gcloud secrets versions access latest --secret=database-url
 **Check Memorystore status:**
 
 ```bash
-gcloud redis instances describe payrixa-redis --region=us-central1
+gcloud redis instances describe upstream-redis --region=us-central1
 ```
 
 **Get connection info:**
 
 ```bash
-gcloud redis instances describe payrixa-redis \
+gcloud redis instances describe upstream-redis \
     --region=us-central1 \
     --format="get(host,port)"
 ```
@@ -509,17 +509,17 @@ gcloud redis instances describe payrixa-redis \
 python manage.py collectstatic --no-input
 
 # Upload to GCS
-gsutil -m rsync -r staticfiles/ gs://$GCP_PROJECT_ID-payrixa-static/static/
+gsutil -m rsync -r staticfiles/ gs://$GCP_PROJECT_ID-upstream-static/static/
 
 # Make public
-gsutil -m acl ch -r -u AllUsers:R gs://$GCP_PROJECT_ID-payrixa-static/static/
+gsutil -m acl ch -r -u AllUsers:R gs://$GCP_PROJECT_ID-upstream-static/static/
 ```
 
 **Update Django settings:**
 
 ```python
-# payrixa/settings/prod.py
-STATIC_URL = f'https://storage.googleapis.com/{PROJECT_ID}-payrixa-static/static/'
+# upstream/settings/prod.py
+STATIC_URL = f'https://storage.googleapis.com/{PROJECT_ID}-upstream-static/static/'
 ```
 
 ### Issue: Service Timeout
@@ -534,7 +534,7 @@ STATIC_URL = f'https://storage.googleapis.com/{PROJECT_ID}-payrixa-static/static
 
 ```bash
 # Enable Cloud SQL query insights
-gcloud sql instances patch payrixa-db \
+gcloud sql instances patch upstream-db \
     --database-flags=cloudsql.enable_query_insights=on
 ```
 
@@ -552,24 +552,24 @@ gcloud sql instances patch payrixa-db \
 
 ```bash
 # List revisions
-gcloud run revisions list --service=payrixa-staging --region=us-central1
+gcloud run revisions list --service=upstream-staging --region=us-central1
 
 # Rollback to specific revision
-gcloud run services update-traffic payrixa-staging \
+gcloud run services update-traffic upstream-staging \
     --region=us-central1 \
-    --to-revisions=payrixa-staging-00001-abc=100
+    --to-revisions=upstream-staging-00001-abc=100
 ```
 
 ### Database Rollback:
 
 ```bash
 # List backups
-gcloud sql backups list --instance=payrixa-db
+gcloud sql backups list --instance=upstream-db
 
 # Restore from backup
 gcloud sql backups restore BACKUP_ID \
-    --backup-instance=payrixa-db \
-    --backup-instance=payrixa-db
+    --backup-instance=upstream-db \
+    --backup-instance=upstream-db
 ```
 
 ---
@@ -594,11 +594,11 @@ gcloud sql backups restore BACKUP_ID \
 --min-instances: '0'  # Scale to zero
 
 # Use smaller database tier
-gcloud sql instances patch payrixa-db \
+gcloud sql instances patch upstream-db \
     --tier=db-g1-small
 
 # Use smaller Redis
-gcloud redis instances update payrixa-redis \
+gcloud redis instances update upstream-redis \
     --size=1 \
     --region=us-central1
 ```
@@ -633,7 +633,7 @@ gcloud redis instances update payrixa-redis \
 
 ```bash
 # Set production project
-export GCP_PROJECT_ID="payrixa-production"
+export GCP_PROJECT_ID="upstream-production"
 
 # Setup infrastructure
 ./deploy_gcp.sh setup
@@ -655,7 +655,7 @@ python smoke_tests.py --url $SERVICE_URL
 ```bash
 # Create trigger that deploys on push to main
 gcloud builds triggers create github \
-    --repo-name=Payrixa \
+    --repo-name=Upstream \
     --repo-owner=byteworthy \
     --branch-pattern=^main$ \
     --build-config=cloudbuild.yaml \
@@ -685,7 +685,7 @@ Now every push to `main` branch automatically deploys to Cloud Run!
 - Cloud SQL: https://cloud.google.com/sql/docs
 - Memorystore: https://cloud.google.com/memorystore/docs
 
-**Payrixa Documentation:**
+**Upstream Documentation:**
 - Deployment Runbook: `DEPLOYMENT_RUNBOOK.md`
 - Code Review: `CODE_REVIEW_REPORT.md`
 - Phase 2 Report: `PHASE_2_COMPLETION_REPORT.md`

@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upstream Portal - {% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'upstream/css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-left">
+                <h1 class="logo">Upstream</h1>
+                {% if user.is_authenticated %}
+                <div class="user-context">
+                    {% if user.is_superuser %}
+                        <span class="context-badge operator-badge" title="Internal Operator Account">Operator</span>
+                        <span class="context-divider">|</span>
+                        <span class="context-label">All Customers</span>
+                    {% elif user.profile %}
+                        <span class="context-badge customer-badge" title="Customer Account">{{ user.profile.customer.name }}</span>
+                        <span class="context-divider">|</span>
+                        <span class="context-badge role-badge role-{{ user.profile.role }}" title="User Role">{{ user.profile.get_role_display }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <nav class="main-nav">
+                <a href="{% url 'axis_hub' %}" class="nav-link {% if request.resolver_match.url_name == 'axis_hub' %}active{% endif %}">Axis</a>
+                <a href="{% url 'denialscope_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'denialscope_dashboard' %}active{% endif %}">DenialScope</a>
+                <a href="{% url 'driftwatch_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'driftwatch_dashboard' %}active{% endif %}">DriftWatch</a>
+                <a href="{% url 'uploads' %}" class="nav-link {% if request.resolver_match.url_name == 'uploads' %}active{% endif %}">Uploads</a>
+                <a href="{% url 'mappings' %}" class="nav-link {% if request.resolver_match.url_name == 'mappings' %}active{% endif %}">Mappings</a>
+                <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">Reports</a>
+                <a href="{% url 'settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">Settings</a>
+                <a href="{% url 'logout' %}" class="nav-link logout-link">Logout</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; {% now "Y" %} Upstream. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>

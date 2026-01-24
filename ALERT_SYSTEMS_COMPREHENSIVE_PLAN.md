@@ -1,4 +1,4 @@
-# Payrixa Alert Systems: Comprehensive Enhancement Plan
+# Upstream Alert Systems: Comprehensive Enhancement Plan
 
 **Generated:** 2026-01-22
 **Context:** Amplification of alert systems across all modules with focus on highest-signal, lowest-noise alerts that move money and surface real risk.
@@ -27,7 +27,7 @@ This plan implements 10-15 robust, production-hardened alert systems per module 
 **Enhancements:**
 
 ```python
-# payrixa/alerts/services.py
+# upstream/alerts/services.py
 
 class AlertProcessingEngine:
     """Hardened alert processing with retry, circuit breaker, and observability."""
@@ -165,7 +165,7 @@ class AlertProcessingEngine:
 **Enhancements:**
 
 ```python
-# payrixa/alerts/suppression.py
+# upstream/alerts/suppression.py
 
 class SuppressionEngine:
     """Intelligent alert suppression with learning and severity awareness."""
@@ -308,7 +308,7 @@ class SuppressionEngine:
 **Enhancements:**
 
 ```python
-# payrixa/alerts/confidence.py
+# upstream/alerts/confidence.py
 
 class ConfidenceScorer:
     """Statistical confidence scoring for alert reliability."""
@@ -435,7 +435,7 @@ class ConfidenceScorer:
 **Enhancements:**
 
 ```python
-# payrixa/alerts/security.py
+# upstream/alerts/security.py
 
 class AlertSecurityLayer:
     """Security hardening for alert system."""
@@ -570,7 +570,7 @@ class AlertSecurityLayer:
 **Enhancements:**
 
 ```python
-# payrixa/alerts/idempotency.py
+# upstream/alerts/idempotency.py
 
 class IdempotentAlertProcessor:
     """Ensure alert processing is idempotent and transaction-safe."""

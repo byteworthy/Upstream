@@ -24,7 +24,7 @@ For a 1,000-row CSV with 50 payers and 20 CPT codes, this resulted in:
 
 ### 1. Cache Configuration
 
-**File:** `payrixa/settings/base.py`
+**File:** `upstream/settings/base.py`
 
 Added Redis cache with automatic fallback to local memory cache:
 
@@ -38,7 +38,7 @@ try:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': f"{REDIS_URL}/1",  # Use database 1 for cache
-            'KEY_PREFIX': 'payrixa',
+            'KEY_PREFIX': 'upstream',
             'TIMEOUT': 300,  # 5 minutes default
         }
     }
@@ -47,7 +47,7 @@ except:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'payrixa-cache',
+            'LOCATION': 'upstream-cache',
             'OPTIONS': {'MAX_ENTRIES': 10000},
             'TIMEOUT': 300,
         }
@@ -75,7 +75,7 @@ SESSION_CACHE_ALIAS = 'default'
 
 ### 2. Cache Utility Module
 
-**File:** `payrixa/cache.py` (NEW - 250 lines)
+**File:** `upstream/cache.py` (NEW - 250 lines)
 
 Created comprehensive caching utilities:
 
@@ -110,7 +110,7 @@ stats = get_cache_stats()  # Hit rate, memory usage, etc.
 
 ### 3. Cached Data Accessors
 
-**File:** `payrixa/views.py`
+**File:** `upstream/views.py`
 
 Added cached functions for frequently accessed data:
 
@@ -130,7 +130,7 @@ def get_cpt_mappings_cached(customer):
 
 ### 4. Optimized CSV Upload
 
-**File:** `payrixa/views.py` - `process_csv_upload()` method
+**File:** `upstream/views.py` - `process_csv_upload()` method
 
 **Before (N+1 queries):**
 ```python
@@ -162,7 +162,7 @@ for row in csv_reader:
 
 ### 5. Cache Invalidation
 
-**File:** `payrixa/views.py` - `MappingsView` methods
+**File:** `upstream/views.py` - `MappingsView` methods
 
 Added automatic cache invalidation when mappings change:
 
@@ -285,10 +285,10 @@ From test results:
 Redis Instance (localhost:6379)
 ├── Database 0: Celery broker/results
 └── Database 1: Django cache
-    ├── payrixa:payer_mappings:Customer_1
-    ├── payrixa:payer_mappings:Customer_2
-    ├── payrixa:cpt_mappings:Customer_1
-    ├── payrixa:cpt_mappings:Customer_2
+    ├── upstream:payer_mappings:Customer_1
+    ├── upstream:payer_mappings:Customer_2
+    ├── upstream:cpt_mappings:Customer_1
+    ├── upstream:cpt_mappings:Customer_2
     └── Sessions (django.contrib.sessions)
 ```
 
@@ -319,7 +319,7 @@ REDIS_URL=redis://localhost:6379
 ### Monitoring
 
 ```python
-from payrixa.cache import get_cache_stats
+from upstream.cache import get_cache_stats
 
 stats = get_cache_stats()
 print(f"Hit Rate: {stats['hit_rate']:.1f}%")
@@ -345,17 +345,17 @@ print(f"Memory Used: {stats['used_memory_human']}")
 
 ## Files Changed
 
-1. **payrixa/settings/base.py**
+1. **upstream/settings/base.py**
    - Added cache configuration (+40 lines)
    - Added CACHE_TTL settings (+12 lines)
    - Updated SESSION_ENGINE to use cache (+2 lines)
    - Updated Celery to use REDIS_URL (+2 lines)
 
-2. **payrixa/cache.py** (NEW)
+2. **upstream/cache.py** (NEW)
    - Cache utility module (+250 lines)
    - Decorators, helpers, statistics
 
-3. **payrixa/views.py**
+3. **upstream/views.py**
    - Added cached accessor functions (+30 lines)
    - Updated CSV upload to use cache (+4 lines changed, -10 lines removed)
    - Added cache invalidation to mappings (+20 lines)

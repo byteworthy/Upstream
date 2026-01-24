@@ -1,5 +1,5 @@
 ```
-# 🚀 Payrixa Model Amplification - Complete Implementation
+# 🚀 Upstream Model Amplification - Complete Implementation
 
 **Version:** 1.0.0
 **Date:** January 24, 2026
@@ -16,7 +16,7 @@
 | [MODEL_AMPLIFICATION_SUMMARY.md](MODEL_AMPLIFICATION_SUMMARY.md) | Complete technical summary of all changes |
 | [DATA_QUALITY_SETUP_GUIDE.md](DATA_QUALITY_SETUP_GUIDE.md) | Step-by-step setup instructions |
 | [INTEGRATION_EXAMPLES.py](INTEGRATION_EXAMPLES.py) | Code examples for integration |
-| [Migration 0016](payrixa/migrations/0016_*.py) | Database migration file |
+| [Migration 0016](upstream/migrations/0016_*.py) | Database migration file |
 
 ---
 
@@ -154,7 +154,7 @@ python manage.py init_data_quality --all
 ### 1. Revenue Recovery
 ```python
 # Find underpayment opportunities
-from payrixa.products.driftwatch.services import DriftWatchSignalService
+from upstream.products.driftwatch.services import DriftWatchSignalService
 
 service = DriftWatchSignalService(customer)
 results = service.compute_all_signals(report_run)
@@ -170,7 +170,7 @@ underpayments = DriftEvent.objects.filter(
 ### 2. Quality Monitoring
 ```python
 # Monitor upload quality
-from payrixa.core.quality_reporting_service import DataQualityReportingService
+from upstream.core.quality_reporting_service import DataQualityReportingService
 
 service = DataQualityReportingService(customer)
 scorecard = service.generate_quality_scorecard()
@@ -183,7 +183,7 @@ if scorecard['overall_health_score'] < 70:
 ### 3. Denial Management
 ```python
 # Cluster denials for bulk resolution
-from payrixa.products.denialscope.ml_services import DenialClusteringService
+from upstream.products.denialscope.ml_services import DenialClusteringService
 
 service = DenialClusteringService(customer)
 clusters = service.cluster_denials(days_back=90)
@@ -196,7 +196,7 @@ for cluster in clusters:
 ### 4. Proactive Prevention
 ```python
 # Warn before denial
-from payrixa.products.denialscope.ml_services import PreDenialWarningService
+from upstream.products.denialscope.ml_services import PreDenialWarningService
 
 service = PreDenialWarningService(customer)
 warnings = service.generate_warnings(claim)
@@ -209,7 +209,7 @@ if warnings:
 ### 5. Appeal Automation
 ```python
 # Auto-generate appeals
-from payrixa.products.denialscope.ml_services import AppealGenerationService
+from upstream.products.denialscope.ml_services import AppealGenerationService
 
 service = AppealGenerationService(customer)
 appeal = service.generate_appeal(denied_claim)
@@ -265,7 +265,7 @@ notify_operator(appeal)
 
 **Create Custom Rule:**
 ```python
-from payrixa.core.validation_models import ValidationRule
+from upstream.core.validation_models import ValidationRule
 
 ValidationRule.objects.create(
     customer=customer,
@@ -284,7 +284,7 @@ ValidationRule.objects.create(
 
 **Adjust in services:**
 ```python
-# payrixa/products/driftwatch/services.py
+# upstream/products/driftwatch/services.py
 MIN_SAMPLE_SIZE = 20  # Minimum claims for significance
 DENIAL_RATE_THRESHOLD = 0.05  # 5% denial rate increase
 UNDERPAYMENT_THRESHOLD = 0.05  # 5% underpayment
@@ -358,7 +358,7 @@ python manage.py test payrixa.tests_integration
 ├── INTEGRATION_EXAMPLES.py                # Code examples
 ├── AMPLIFICATION_README.md                # This file
 │
-├── payrixa/
+├── upstream/
 │   ├── models.py                          # Enhanced core models
 │   ├── core/
 │   │   ├── validation_models.py          # Data quality models
@@ -378,7 +378,7 @@ python manage.py test payrixa.tests_integration
 │   ├── templatetags/
 │   │   └── quality_filters.py            # Template filters
 │   │
-│   ├── templates/payrixa/data_quality/
+│   ├── templates/upstream/data_quality/
 │   │   ├── dashboard.html                # Main dashboard
 │   │   ├── upload_detail.html            # Upload details
 │   │   ├── validation_rules.html         # Rules dashboard
@@ -397,7 +397,7 @@ python manage.py test payrixa.tests_integration
    - INTEGRATION_EXAMPLES.py - Code examples
 
 2. **Review models:**
-   - Django admin: /admin/payrixa/
+   - Django admin: /admin/upstream/
    - View created records for each customer
 
 3. **Check logs:**

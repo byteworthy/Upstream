@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 
-Successfully amplified Payrixa's Django models, product modules (DriftWatch, DenialScope), and data models with comprehensive enhancements for data quality, validation, ML-powered features, and visualization.
+Successfully amplified Upstream's Django models, product modules (DriftWatch, DenialScope), and data models with comprehensive enhancements for data quality, validation, ML-powered features, and visualization.
 
 ---
 
@@ -221,7 +221,7 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
 ### Services Created (3 total)
 
 #### 1. DataQualityService
-**File:** `/payrixa/core/data_quality_service.py`
+**File:** `/upstream/core/data_quality_service.py`
 
 **Features:**
 - **validate_upload()** - Multi-rule validation engine
@@ -243,7 +243,7 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
   - Error categorization
 
 #### 2. DataQualityReportingService
-**File:** `/payrixa/core/quality_reporting_service.py`
+**File:** `/upstream/core/quality_reporting_service.py`
 
 **Reports Generated:**
 
@@ -282,7 +282,7 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
 - Health status (excellent/good/fair/poor)
 
 #### 3. Default Validation Rules
-**File:** `/payrixa/core/default_validation_rules.py`
+**File:** `/upstream/core/default_validation_rules.py`
 
 **15 Pre-configured Rules:**
 1. Payer Required
@@ -306,7 +306,7 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
 ## ✅ Task 4: Amplified DriftWatch Module
 
 ### DriftWatchSignalService
-**File:** `/payrixa/products/driftwatch/services.py`
+**File:** `/upstream/products/driftwatch/services.py`
 
 **6 Advanced Signal Types:**
 
@@ -435,7 +435,7 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
 ### ML Services (4 total)
 
 #### 1. DenialClusteringService
-**File:** `/payrixa/products/denialscope/ml_services.py`
+**File:** `/upstream/products/denialscope/ml_services.py`
 
 **Features:**
 - Feature extraction (payer, CPT, reason, amount)
@@ -473,7 +473,7 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
 ## ✅ Task 6: Validation Visibility UI
 
 ### Views Created
-**File:** `/payrixa/views_data_quality.py`
+**File:** `/upstream/views_data_quality.py`
 
 #### 1. data_quality_dashboard
 - Health scorecard display
@@ -622,22 +622,22 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
 ## 📚 File Inventory
 
 ### Core Models & Services
-- `/payrixa/models.py` (enhanced)
-- `/payrixa/core/validation_models.py` (new)
-- `/payrixa/core/data_quality_service.py` (new)
-- `/payrixa/core/quality_reporting_service.py` (new)
-- `/payrixa/core/default_validation_rules.py` (new)
+- `/upstream/models.py` (enhanced)
+- `/upstream/core/validation_models.py` (new)
+- `/upstream/core/data_quality_service.py` (new)
+- `/upstream/core/quality_reporting_service.py` (new)
+- `/upstream/core/default_validation_rules.py` (new)
 
 ### Product Modules
-- `/payrixa/products/driftwatch/services.py` (new)
-- `/payrixa/products/denialscope/advanced_models.py` (new)
-- `/payrixa/products/denialscope/ml_services.py` (new)
-- `/payrixa/products/denialscope/models.py` (enhanced)
+- `/upstream/products/driftwatch/services.py` (new)
+- `/upstream/products/denialscope/advanced_models.py` (new)
+- `/upstream/products/denialscope/ml_services.py` (new)
+- `/upstream/products/denialscope/models.py` (enhanced)
 
 ### Views & Templates
-- `/payrixa/views_data_quality.py` (new)
-- `/payrixa/templates/payrixa/data_quality/dashboard.html` (new)
-- `/payrixa/templates/payrixa/data_quality/upload_detail.html` (new)
+- `/upstream/views_data_quality.py` (new)
+- `/upstream/templates/upstream/data_quality/dashboard.html` (new)
+- `/upstream/templates/upstream/data_quality/upload_detail.html` (new)
 
 ### Documentation
 - `/workspaces/codespaces-django/MODEL_AMPLIFICATION_SUMMARY.md` (this file)
@@ -646,7 +646,7 @@ Successfully amplified Payrixa's Django models, product modules (DriftWatch, Den
 
 ## 🎉 Summary
 
-Successfully amplified Payrixa's data models with:
+Successfully amplified Upstream's data models with:
 - **10 new database models** for quality, validation, and ML
 - **3 enhanced core models** with 35+ new fields
 - **6 new services** for quality, validation, and ML

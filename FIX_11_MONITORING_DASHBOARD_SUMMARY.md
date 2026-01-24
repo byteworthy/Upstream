@@ -27,7 +27,7 @@ This made it difficult to:
 
 ### 1. Request Timing Middleware
 
-**File:** `payrixa/middleware.py`
+**File:** `upstream/middleware.py`
 
 Tracks request duration and logs slow requests:
 
@@ -64,7 +64,7 @@ class RequestTimingMiddleware(MiddlewareMixin):
 
 ### 2. Health Check Middleware
 
-**File:** `payrixa/middleware.py`
+**File:** `upstream/middleware.py`
 
 Provides fast health check endpoints for load balancers:
 
@@ -88,7 +88,7 @@ class HealthCheckMiddleware(MiddlewareMixin):
 
 ### 3. Metrics Collection Middleware
 
-**File:** `payrixa/middleware.py`
+**File:** `upstream/middleware.py`
 
 Collects application metrics for monitoring:
 
@@ -120,7 +120,7 @@ class MetricsCollectionMiddleware(MiddlewareMixin):
 
 ### 4. Metrics Dashboard
 
-**File:** `payrixa/views/metrics.py` (NEW - 140 lines)
+**File:** `upstream/views/metrics.py` (NEW - 140 lines)
 
 Internal metrics dashboard for staff members:
 
@@ -162,7 +162,7 @@ class MetricsDashboardView(TemplateView):
 
 ### 5. Metrics Dashboard Template
 
-**File:** `payrixa/templates/payrixa/admin/metrics_dashboard.html` (NEW - 380 lines)
+**File:** `upstream/templates/upstream/admin/metrics_dashboard.html` (NEW - 380 lines)
 
 Professional dashboard UI:
 
@@ -224,13 +224,13 @@ Professional dashboard UI:
 
 ### 6. Middleware Configuration
 
-**File:** `payrixa/settings/base.py`
+**File:** `upstream/settings/base.py`
 
 Added middleware to processing pipeline:
 
 ```python
 MIDDLEWARE = [
-    "payrixa.middleware.HealthCheckMiddleware",  # Early exit for health checks
+    "upstream.middleware.HealthCheckMiddleware",  # Early exit for health checks
     "django_prometheus.middleware.PrometheusBeforeMiddleware",  # Already installed
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -240,10 +240,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "payrixa.middleware.RequestIdMiddleware",
-    "payrixa.middleware.RequestTimingMiddleware",  # NEW - Track timing
-    "payrixa.middleware.MetricsCollectionMiddleware",  # NEW - Collect metrics
-    "payrixa.middleware.ProductEnablementMiddleware",
+    "upstream.middleware.RequestIdMiddleware",
+    "upstream.middleware.RequestTimingMiddleware",  # NEW - Track timing
+    "upstream.middleware.MetricsCollectionMiddleware",  # NEW - Collect metrics
+    "upstream.middleware.ProductEnablementMiddleware",
     "auditlog.middleware.AuditlogMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -257,10 +257,10 @@ MIDDLEWARE = [
 
 ### 7. Views Package Structure
 
-Converted `payrixa/views.py` to `payrixa/views/` package:
+Converted `upstream/views.py` to `upstream/views/` package:
 
 ```
-payrixa/views/
+upstream/views/
 ├── __init__.py  (main views - 735 lines)
 └── metrics.py   (metrics dashboard - 140 lines)
 ```
@@ -412,9 +412,9 @@ For production monitoring, integrate with **Prometheus + Grafana**:
 **Prometheus scrape config:**
 ```yaml
 scrape_configs:
-  - job_name: 'payrixa'
+  - job_name: 'upstream'
     static_configs:
-      - targets: ['payrixa.com:443']
+      - targets: ['upstream.com:443']
     metrics_path: '/metrics'
     scheme: 'https'
 ```
@@ -446,27 +446,27 @@ scrape_configs:
 
 ## Files Changed
 
-1. **payrixa/middleware.py**
+1. **upstream/middleware.py**
    - Added RequestTimingMiddleware (+45 lines)
    - Added HealthCheckMiddleware (+15 lines)
    - Added MetricsCollectionMiddleware (+50 lines)
 
-2. **payrixa/views/ (package conversion)**
+2. **upstream/views/ (package conversion)**
    - Moved views.py to views/__init__.py
    - Fixed relative imports to absolute imports
 
-3. **payrixa/views/metrics.py** (NEW)
+3. **upstream/views/metrics.py** (NEW)
    - MetricsDashboardView class (+140 lines)
    - Helper methods for metrics collection
 
-4. **payrixa/templates/payrixa/admin/metrics_dashboard.html** (NEW)
+4. **upstream/templates/upstream/admin/metrics_dashboard.html** (NEW)
    - Professional dashboard UI (+380 lines)
    - Responsive design with auto-refresh
 
-5. **payrixa/urls.py**
+5. **upstream/urls.py**
    - Added metrics dashboard route (+2 lines)
 
-6. **payrixa/settings/base.py**
+6. **upstream/settings/base.py**
    - Added new middleware to MIDDLEWARE list (+2 lines)
 
 7. **test_monitoring.py** (NEW)

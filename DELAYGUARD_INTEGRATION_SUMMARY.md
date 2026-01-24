@@ -9,7 +9,7 @@
 
 ## Overview
 
-DelayGuard is the third product in the Payrixa Axis Hub (v1.0), joining DenialScope and DriftWatch. It detects when payers are taking longer to process claims than their historical baseline, providing early warning of cash flow issues.
+DelayGuard is the third product in the Upstream Axis Hub (v1.0), joining DenialScope and DriftWatch. It detects when payers are taking longer to process claims than their historical baseline, providing early warning of cash flow issues.
 
 **Core Value Proposition:** Catch payment delays before they become cash flow problems.
 
@@ -19,7 +19,7 @@ DelayGuard is the third product in the Payrixa Axis Hub (v1.0), joining DenialSc
 
 ### 1. Data Models (4 models)
 
-**File:** `payrixa/products/delayguard/models.py`
+**File:** `upstream/products/delayguard/models.py`
 
 **Models Created:**
 1. **PaymentDelayAggregate** - Daily payment timing aggregates by payer
@@ -49,7 +49,7 @@ DelayGuard is the third product in the Payrixa Axis Hub (v1.0), joining DenialSc
 
 ### 2. Computation Service
 
-**File:** `payrixa/products/delayguard/services.py` (844 lines)
+**File:** `upstream/products/delayguard/services.py` (844 lines)
 
 **Algorithm:**
 1. **Aggregate Phase:**
@@ -82,8 +82,8 @@ DelayGuard is the third product in the Payrixa Axis Hub (v1.0), joining DenialSc
 
 ### 3. Dashboard View & Template
 
-**View:** `payrixa/products/delayguard/views.py` (237 lines)
-**Template:** `payrixa/templates/payrixa/products/delayguard_dashboard.html` (441 lines)
+**View:** `upstream/products/delayguard/views.py` (237 lines)
+**Template:** `upstream/templates/upstream/products/delayguard_dashboard.html` (441 lines)
 
 **Dashboard Features:**
 - Payment delay signals table with action buttons
@@ -104,7 +104,7 @@ DelayGuard is the third product in the Payrixa Axis Hub (v1.0), joining DenialSc
 
 ### 4. Management Command
 
-**File:** `payrixa/management/commands/compute_delayguard.py` (118 lines)
+**File:** `upstream/management/commands/compute_delayguard.py` (118 lines)
 
 **Usage:**
 ```bash
@@ -134,8 +134,8 @@ python manage.py compute_delayguard --customer 1 \
 ### 5. Alert Integration
 
 **Modified Files:**
-- `payrixa/alerts/models.py` - Added `payment_delay_signal` ForeignKey to AlertEvent
-- `payrixa/alerts/services.py` - Added `evaluate_payment_delay_signal()` function
+- `upstream/alerts/models.py` - Added `payment_delay_signal` ForeignKey to AlertEvent
+- `upstream/alerts/services.py` - Added `evaluate_payment_delay_signal()` function
 
 **Integration Flow:**
 1. DelayGuardComputationService creates PaymentDelaySignal
@@ -166,7 +166,7 @@ python manage.py compute_delayguard --customer 1 \
 
 ### 6. Axis Hub Integration
 
-**Modified:** `payrixa/templates/payrixa/products/axis.html`
+**Modified:** `upstream/templates/upstream/products/axis.html`
 
 Added DelayGuard product tile:
 - Icon: ⏰ (clock emoji)
@@ -179,7 +179,7 @@ Added DelayGuard product tile:
 
 ### 7. URL Configuration
 
-**Modified:** `payrixa/urls.py`
+**Modified:** `upstream/urls.py`
 
 Added route:
 ```python
@@ -194,7 +194,7 @@ path("products/delayguard/",
 
 ## Configuration Constants
 
-**File:** `payrixa/products/delayguard/__init__.py`
+**File:** `upstream/products/delayguard/__init__.py`
 
 ```python
 # Signal type (locked for V1)
@@ -236,7 +236,7 @@ DELAYGUARD_MIN_DATE_COMPLETENESS = 0.8    # 80% valid dates required
 - Dates must be valid and in logical order (submitted before decided)
 
 **Typical Data Flow:**
-1. Claims uploaded via CSV (payrixa/uploads)
+1. Claims uploaded via CSV (upstream/uploads)
 2. ClaimRecord objects created with date fields populated
 3. DelayGuard computation runs nightly or on-demand
 4. Signals generated when delays detected
@@ -345,7 +345,7 @@ DELAYGUARD_MIN_DATE_COMPLETENESS = 0.8    # 80% valid dates required
    ```bash
    # Create customer with claims
    python manage.py shell
-   >>> from payrixa.models import Customer, ClaimRecord
+   >>> from upstream.models import Customer, ClaimRecord
    >>> customer = Customer.objects.first()
    >>> # Create test claims with varying days-to-payment
    ```
@@ -435,7 +435,7 @@ DELAYGUARD_MIN_DATE_COMPLETENESS = 0.8    # 80% valid dates required
 ### Pre-Deployment:
 
 - [x] Database migrations created and tested
-- [x] Models registered in main payrixa/models.py
+- [x] Models registered in main upstream/models.py
 - [x] Views implemented and tested
 - [x] Templates created with proper styling
 - [x] URLs configured
@@ -454,7 +454,7 @@ DELAYGUARD_MIN_DATE_COMPLETENESS = 0.8    # 80% valid dates required
 2. **Verify Models:**
    ```bash
    python manage.py shell
-   >>> from payrixa.products.delayguard.models import PaymentDelaySignal
+   >>> from upstream.products.delayguard.models import PaymentDelaySignal
    >>> PaymentDelaySignal.objects.count()  # Should return 0
    ```
 
@@ -492,21 +492,21 @@ DELAYGUARD_MIN_DATE_COMPLETENESS = 0.8    # 80% valid dates required
 ## Files Modified/Created
 
 ### Created Files (8):
-1. `payrixa/products/delayguard/models.py` (237 lines)
-2. `payrixa/products/delayguard/services.py` (844 lines)
-3. `payrixa/products/delayguard/views.py` (237 lines)
-4. `payrixa/templates/payrixa/products/delayguard_dashboard.html` (441 lines)
-5. `payrixa/management/commands/compute_delayguard.py` (118 lines)
-6. `payrixa/migrations/0017_paymentdelayaggregate_*.py` (auto-generated)
-7. `payrixa/migrations/0018_alertevent_payment_delay_signal.py` (auto-generated)
+1. `upstream/products/delayguard/models.py` (237 lines)
+2. `upstream/products/delayguard/services.py` (844 lines)
+3. `upstream/products/delayguard/views.py` (237 lines)
+4. `upstream/templates/upstream/products/delayguard_dashboard.html` (441 lines)
+5. `upstream/management/commands/compute_delayguard.py` (118 lines)
+6. `upstream/migrations/0017_paymentdelayaggregate_*.py` (auto-generated)
+7. `upstream/migrations/0018_alertevent_payment_delay_signal.py` (auto-generated)
 8. `DELAYGUARD_INTEGRATION_SUMMARY.md` (this document)
 
 ### Modified Files (5):
-1. `payrixa/models.py` - Added DelayGuard models import
-2. `payrixa/urls.py` - Added DelayGuard dashboard route
-3. `payrixa/templates/payrixa/products/axis.html` - Added DelayGuard tile
-4. `payrixa/alerts/models.py` - Added payment_delay_signal ForeignKey
-5. `payrixa/alerts/services.py` - Added evaluate_payment_delay_signal()
+1. `upstream/models.py` - Added DelayGuard models import
+2. `upstream/urls.py` - Added DelayGuard dashboard route
+3. `upstream/templates/upstream/products/axis.html` - Added DelayGuard tile
+4. `upstream/alerts/models.py` - Added payment_delay_signal ForeignKey
+5. `upstream/alerts/services.py` - Added evaluate_payment_delay_signal()
 
 ### Total Lines of Code:
 - **New code:** ~1,900 lines
@@ -553,7 +553,7 @@ DELAYGUARD_MIN_DATE_COMPLETENESS = 0.8    # 80% valid dates required
 
 **Issue 2: Dashboard shows errors**
 - Check: Migrations applied? `python manage.py migrate`
-- Check: Models imported in payrixa/models.py?
+- Check: Models imported in upstream/models.py?
 - Check: User has required permissions?
 
 **Issue 3: Alerts not appearing**
@@ -570,7 +570,7 @@ DELAYGUARD_MIN_DATE_COMPLETENESS = 0.8    # 80% valid dates required
 
 ## Conclusion
 
-DelayGuard is now fully integrated into the Payrixa Axis Hub, providing payment delay detection alongside denial analytics. The implementation follows established patterns from DenialScope and DriftWatch, ensuring consistency and maintainability.
+DelayGuard is now fully integrated into the Upstream Axis Hub, providing payment delay detection alongside denial analytics. The implementation follows established patterns from DenialScope and DriftWatch, ensuring consistency and maintainability.
 
 **Next Steps:**
 1. Write comprehensive unit tests (task #7)

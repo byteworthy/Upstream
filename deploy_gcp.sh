@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Google Cloud Platform Deployment Script for Payrixa
+# Google Cloud Platform Deployment Script for Upstream
 #
-# This script sets up and deploys Payrixa to GCP using:
+# This script sets up and deploys Upstream to GCP using:
 # - Cloud Run (Django application)
 # - Cloud SQL (PostgreSQL database)
 # - Memorystore (Redis cache)
@@ -29,10 +29,10 @@ NC='\033[0m'
 # Configuration
 PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="${GCP_REGION:-us-central1}"
-SERVICE_NAME="payrixa-staging"
-DB_INSTANCE_NAME="payrixa-db"
-REDIS_INSTANCE_NAME="payrixa-redis"
-BUCKET_NAME="${PROJECT_ID}-payrixa-static"
+SERVICE_NAME="upstream-staging"
+DB_INSTANCE_NAME="upstream-db"
+REDIS_INSTANCE_NAME="upstream-redis"
+BUCKET_NAME="${PROJECT_ID}-upstream-static"
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
@@ -96,12 +96,12 @@ setup_infrastructure() {
             --backup-start-time=03:00
 
         # Create database
-        gcloud sql databases create payrixa \
+        gcloud sql databases create upstream \
             --instance="$DB_INSTANCE_NAME"
 
         # Create database user
         DB_PASSWORD=$(openssl rand -base64 32)
-        gcloud sql users create payrixa \
+        gcloud sql users create upstream \
             --instance="$DB_INSTANCE_NAME" \
             --password="$DB_PASSWORD"
 
@@ -156,7 +156,7 @@ setup_infrastructure() {
 
     # Database URL
     CLOUDSQL_CONNECTION_NAME="${PROJECT_ID}:${REGION}:${DB_INSTANCE_NAME}"
-    DATABASE_URL="postgresql://payrixa:${DB_PASSWORD:-CHANGEME}@/payrixa?host=/cloudsql/${CLOUDSQL_CONNECTION_NAME}"
+    DATABASE_URL="postgresql://upstream:${DB_PASSWORD:-CHANGEME}@/upstream?host=/cloudsql/${CLOUDSQL_CONNECTION_NAME}"
 
     if ! gcloud secrets describe database-url &> /dev/null; then
         echo -n "$DATABASE_URL" | \

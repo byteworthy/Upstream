@@ -1,7 +1,7 @@
-# Payrixa Product Line Architecture
+# Upstream Product Line Architecture
 
 This document defines the product line architecture for the first deployable suite:
-- Payrixa Core
+- Upstream Core
 - DenialScope
 - ContractIQ
 - OpsVariance
@@ -11,7 +11,7 @@ Scope: Web app only. No desktop application.
 
 ## 1. System architecture
 
-**Payrixa Core remains the signal engine.** It owns payer drift detection, claim pattern variance, signal generation, and alert creation. Core logic stays in current locations for Sprint 1 to avoid behavior changes.
+**Upstream Core remains the signal engine.** It owns payer drift detection, claim pattern variance, signal generation, and alert creation. Core logic stays in current locations for Sprint 1 to avoid behavior changes.
 
 **Module isolation.** Each additional product is an isolated Django app that owns its own tables, services, and templates. Products do not import each other’s models. Cross-product insights flow only through shared read models and the SystemEvent feed.
 
@@ -30,7 +30,7 @@ Scope: Web app only. No desktop application.
 Sprint 1 adds new folders without moving existing logic.
 
 ```
-payrixa/
+upstream/
 ├── core/                      # Shared primitives (BaseModel, SystemConfiguration)
 ├── products/                  # Product apps (new)
 │   ├── denialscope/           # Denial pattern intelligence
@@ -47,11 +47,11 @@ payrixa/
 │   ├── components/            # Reusable widgets, empty states, filters
 │   └── dashboards/            # Product-specific templates
 ├── api/                       # Existing API layer
-├── templates/payrixa/         # Existing templates (base.html stays unchanged)
+├── templates/upstream/         # Existing templates (base.html stays unchanged)
 └── [existing files remain in place]
 ```
 
-**Payrixa Core product app**: deferred to Sprint 2 to avoid duplicate sources of truth.
+**Upstream Core product app**: deferred to Sprint 2 to avoid duplicate sources of truth.
 
 ## 3. UI and UX system architecture
 
@@ -69,8 +69,8 @@ payrixa/
 
 ## 4. Dashboard information design
 
-**Payrixa Core**
-- Primary dashboard: existing drift feed page (Payrixa Core signal feed)
+**Upstream Core**
+- Primary dashboard: existing drift feed page (Upstream Core signal feed)
 - Key widgets: drift summary, top movers, recent alerts
 - Key tables: drift events by payer, drift events by CPT group
 - Trend charts: denial rate drift over time, decision time variance
@@ -123,7 +123,7 @@ payrixa/
 
 ## 5. Data ownership and boundaries
 
-**Owned by Payrixa Core (existing):**
+**Owned by Upstream Core (existing):**
 - ClaimRecord, DriftEvent, ReportRun, Upload, PayerMapping, CPTGroupMapping
 
 **Owned by DenialScope (future):**
@@ -168,7 +168,7 @@ payrixa/
 
 **Product enablement model:**
 - ProductConfig: `{customer, product_slug, enabled, config_json, created_at, updated_at}`
-- Product slugs: `payrixa-core`, `denialscope`, `contractiq`, `opsvariance`, `authsignal`
+- Product slugs: `upstream-core`, `denialscope`, `contractiq`, `opsvariance`, `authsignal`
 
 **UI enforcement:**
 - Navigation shows only enabled products
@@ -189,7 +189,7 @@ payrixa/
 - Hiding product logic inside templates
 - Building cross-product joins in Django ORM
 - Coupling product services to each other’s service functions
-- Overwriting or forking Payrixa Core logic in new apps
+- Overwriting or forking Upstream Core logic in new apps
 
 ## 9. Sprint 1 execution plan
 
@@ -199,7 +199,7 @@ payrixa/
 1. Create `products/` folder with 4 empty Django apps (DenialScope, ContractIQ, OpsVariance, AuthSignal)
 2. Add ProductConfig model and admin toggle
 3. Add product-aware navigation (additive only, base layout unchanged)
-4. Create stub dashboards for Payrixa Core (existing drift feed) and DenialScope (empty state)
+4. Create stub dashboards for Upstream Core (existing drift feed) and DenialScope (empty state)
 5. Create shared insight feed page backed by SystemEvent (empty state if none)
 6. Add enablement middleware and permission gates
 7. Add tests for enablement and nav visibility
@@ -209,21 +209,21 @@ payrixa/
 - Folder structure in place
 - Product enablement model
 - Unified UI shell with conditional navigation
-- Stub dashboards (Payrixa Core + DenialScope)
+- Stub dashboards (Upstream Core + DenialScope)
 - Insight feed stub
 - Tests for gating and nav visibility
 
 **Sprint 1 constraints:**
 - No new business logic
 - No analytics for new products
-- No Payrixa Core code moves
+- No Upstream Core code moves
 
 ## 10. Readiness checklist
 
 - [ ] Parallel development safe (isolated product apps)
 - [ ] UI consistency enforced (base template preserved)
 - [ ] Data contracts clear (service boundaries documented)
-- [ ] Payrixa Core logic protected (no moves in Sprint 1)
+- [ ] Upstream Core logic protected (no moves in Sprint 1)
 - [ ] Product enablement implemented
 - [ ] Navigation gated by enablement
 - [ ] Tests cover gating and nav visibility
@@ -245,4 +245,4 @@ payrixa/
 - ContractIQ parsing
 - OpsVariance analytics
 - AuthSignal analytics
-- Payrixa Core refactor into product app
+- Upstream Core refactor into product app

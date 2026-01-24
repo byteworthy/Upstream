@@ -1,4 +1,4 @@
-# Phase 2 Completion Report - Payrixa Production Readiness
+# Phase 2 Completion Report - Upstream Production Readiness
 
 **Status:** ✅ COMPLETE
 **Date:** 2026-01-24
@@ -45,12 +45,12 @@ Phase 2 audit and implementation has been successfully completed. All 11 high-pr
 - Enhanced Axis Hub with value propositions
 
 **Files Modified:**
-- `templates/payrixa/axis_hub.html`
-- `templates/payrixa/drift_feed.html`
-- `templates/payrixa/insights_feed.html`
-- `templates/payrixa/reports.html`
-- `templates/payrixa/settings.html`
-- `templates/payrixa/uploads.html`
+- `templates/upstream/axis_hub.html`
+- `templates/upstream/drift_feed.html`
+- `templates/upstream/insights_feed.html`
+- `templates/upstream/reports.html`
+- `templates/upstream/settings.html`
+- `templates/upstream/uploads.html`
 - Product dashboard templates (DenialScope, DriftWatch)
 
 **Verification:** Manual review of all user-facing text
@@ -130,7 +130,7 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 **Impact:** HIPAA compliance, data breach prevention
 
 **Changes:**
-- Created PHI detection utility (`payrixa/utils.py:detect_phi`)
+- Created PHI detection utility (`upstream/utils.py:detect_phi`)
 - Added 40 common first names for detection
 - Implemented real-time validation in upload views
 - Added user-friendly error messages
@@ -223,7 +223,7 @@ def filter_phi_from_sentry(event, hint):
 sentry_sdk.init(
     dsn=os.getenv('SENTRY_DSN'),
     environment=os.getenv('ENVIRONMENT', 'production'),
-    release=f"payrixa@{get_version()}",
+    release=f"upstream@{get_version()}",
     traces_sample_rate=0.1,  # 10% performance monitoring
     before_send=filter_phi_from_sentry,
 )
@@ -281,7 +281,7 @@ class DataQualityReport(models.Model):
 
 **Changes:**
 - Implemented Redis caching with automatic fallback
-- Created reusable cache utilities (`payrixa/cache.py`)
+- Created reusable cache utilities (`upstream/cache.py`)
 - Optimized CSV upload process (2,000+ queries → 2 queries)
 - Added cache invalidation for CRUD operations
 
@@ -295,7 +295,7 @@ try:
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': f"{REDIS_URL}/1",
-            'KEY_PREFIX': 'payrixa',
+            'KEY_PREFIX': 'upstream',
             'TIMEOUT': 300,
         }
     }
@@ -303,7 +303,7 @@ except:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'payrixa-cache',
+            'LOCATION': 'upstream-cache',
         }
     }
 ```
@@ -506,7 +506,7 @@ CACHE_TTL = {
 
 ### Before Phase 2:
 ```
-payrixa/
+upstream/
 ├── views.py (735 lines, monolithic)
 ├── models.py (no indexes)
 └── middleware.py (basic)
@@ -514,7 +514,7 @@ payrixa/
 
 ### After Phase 2:
 ```
-payrixa/
+upstream/
 ├── views/
 │   ├── __init__.py (main views - 735 lines)
 │   └── metrics.py (metrics dashboard - 140 lines)
@@ -636,11 +636,11 @@ payrixa/
 ## Files Changed Summary
 
 ### Created Files (11):
-1. `payrixa/cache.py` - Caching utilities (250 lines)
-2. `payrixa/views/metrics.py` - Metrics dashboard (140 lines)
-3. `payrixa/templates/payrixa/admin/metrics_dashboard.html` - Dashboard UI (380 lines)
-4. `payrixa/migrations/0012_add_database_indexes.py` - Database indexes
-5. `payrixa/migrations/0013_data_quality_report.py` - Quality report model
+1. `upstream/cache.py` - Caching utilities (250 lines)
+2. `upstream/views/metrics.py` - Metrics dashboard (140 lines)
+3. `upstream/templates/upstream/admin/metrics_dashboard.html` - Dashboard UI (380 lines)
+4. `upstream/migrations/0012_add_database_indexes.py` - Database indexes
+5. `upstream/migrations/0013_data_quality_report.py` - Quality report model
 6. `PRODUCTION_DEPLOYMENT.md` - Deployment guide (680 lines)
 7. `test_session_security.py` - Session tests (180 lines)
 8. `test_database_indexes.py` - Index tests (220 lines)
@@ -656,18 +656,18 @@ payrixa/
 18. `PHASE_2_COMPLETION_REPORT.md` - This document
 
 ### Modified Files (12):
-1. `payrixa/settings/base.py` - Cache config, session settings, middleware
-2. `payrixa/middleware.py` - Added 3 monitoring middleware classes
-3. `payrixa/views/__init__.py` - Converted from views.py, added caching
-4. `payrixa/urls.py` - Added metrics dashboard route
-5. `payrixa/utils.py` - Added PHI detection function
-6. `payrixa/models.py` - Added DataQualityReport model, indexes
-7. `templates/payrixa/axis_hub.html` - Updated messaging
-8. `templates/payrixa/drift_feed.html` - Simplified language
-9. `templates/payrixa/insights_feed.html` - Updated messaging
-10. `templates/payrixa/reports.html` - Updated messaging
-11. `templates/payrixa/settings.html` - Simplified language
-12. `templates/payrixa/uploads.html` - Updated messaging
+1. `upstream/settings/base.py` - Cache config, session settings, middleware
+2. `upstream/middleware.py` - Added 3 monitoring middleware classes
+3. `upstream/views/__init__.py` - Converted from views.py, added caching
+4. `upstream/urls.py` - Added metrics dashboard route
+5. `upstream/utils.py` - Added PHI detection function
+6. `upstream/models.py` - Added DataQualityReport model, indexes
+7. `templates/upstream/axis_hub.html` - Updated messaging
+8. `templates/upstream/drift_feed.html` - Simplified language
+9. `templates/upstream/insights_feed.html` - Updated messaging
+10. `templates/upstream/reports.html` - Updated messaging
+11. `templates/upstream/settings.html` - Simplified language
+12. `templates/upstream/uploads.html` - Updated messaging
 
 ### Deleted Files (7):
 1. `opsvariance/` directory and all contents (724 lines)
@@ -686,7 +686,7 @@ payrixa/
 ```bash
 # 1. Clone repository
 git clone https://github.com/yourorg/payrixa.git
-cd payrixa
+cd upstream
 
 # 2. Setup environment
 cp .env.example .env.production
@@ -696,21 +696,21 @@ cp .env.example .env.production
 pip install -r requirements.txt
 
 # 4. Run migrations
-python manage.py migrate --settings=payrixa.settings.production
+python manage.py migrate --settings=upstream.settings.production
 
 # 5. Collect static files
-python manage.py collectstatic --noinput --settings=payrixa.settings.production
+python manage.py collectstatic --noinput --settings=upstream.settings.production
 
 # 6. Create superuser
-python manage.py createsuperuser --settings=payrixa.settings.production
+python manage.py createsuperuser --settings=upstream.settings.production
 
 # 7. Start Gunicorn
-gunicorn payrixa.wsgi:application \
+gunicorn upstream.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 4 \
     --timeout 60 \
-    --access-logfile /var/log/payrixa/access.log \
-    --error-logfile /var/log/payrixa/error.log \
+    --access-logfile /var/log/upstream/access.log \
+    --error-logfile /var/log/upstream/error.log \
     --daemon
 ```
 
@@ -726,8 +726,8 @@ curl https://yourdomain.com/health/
 curl https://yourdomain.com/metrics
 
 # Verify database indexes
-python manage.py dbshell --settings=payrixa.settings.production
-# Run: \d+ payrixa_claimrecord (PostgreSQL)
+python manage.py dbshell --settings=upstream.settings.production
+# Run: \d+ upstream_claimrecord (PostgreSQL)
 ```
 
 See `PRODUCTION_DEPLOYMENT.md` for complete deployment procedures.
@@ -796,7 +796,7 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 ENVIRONMENT=production
 
 # Database
-DATABASE_URL=postgresql://user:password@host:5432/payrixa
+DATABASE_URL=postgresql://user:password@host:5432/upstream
 
 # Redis
 REDIS_URL=redis://localhost:6379/1
@@ -824,22 +824,22 @@ See `PRODUCTION_DEPLOYMENT.md` Section 2 for complete variable list.
 ## Appendix B: Database Schema Changes
 
 ### New Tables:
-1. **payrixa_dataqualityreport** - Data quality tracking
+1. **upstream_dataqualityreport** - Data quality tracking
    - Columns: id, upload_id, total_rows, valid_rows, rejected_rows, rejection_reasons, quality_score, created_at
 
 ### New Indexes (12 total):
-1. `payrixa_claimrecord_customer_service_date_idx`
-2. `payrixa_claimrecord_customer_payer_service_date_idx`
-3. `payrixa_claimrecord_customer_status_idx`
-4. `payrixa_driftevent_customer_event_date_idx`
-5. `payrixa_driftevent_customer_event_type_event_date_idx`
-6. `payrixa_alert_customer_created_at_idx`
-7. `payrixa_alert_customer_priority_status_idx`
-8. `payrixa_alert_customer_alert_type_status_idx`
-9. `payrixa_upload_customer_created_at_idx`
-10. `payrixa_upload_customer_status_idx`
-11. `payrixa_dataqualityreport_upload_created_at_idx`
-12. `payrixa_dataqualityreport_upload_quality_score_idx`
+1. `upstream_claimrecord_customer_service_date_idx`
+2. `upstream_claimrecord_customer_payer_service_date_idx`
+3. `upstream_claimrecord_customer_status_idx`
+4. `upstream_driftevent_customer_event_date_idx`
+5. `upstream_driftevent_customer_event_type_event_date_idx`
+6. `upstream_alert_customer_created_at_idx`
+7. `upstream_alert_customer_priority_status_idx`
+8. `upstream_alert_customer_alert_type_status_idx`
+9. `upstream_upload_customer_created_at_idx`
+10. `upstream_upload_customer_status_idx`
+11. `upstream_dataqualityreport_upload_created_at_idx`
+12. `upstream_dataqualityreport_upload_quality_score_idx`
 
 ### Migration Files:
 - `0012_add_database_indexes.py`
@@ -852,7 +852,7 @@ See `PRODUCTION_DEPLOYMENT.md` Section 2 for complete variable list.
 ### Final Middleware Order:
 ```python
 MIDDLEWARE = [
-    "payrixa.middleware.HealthCheckMiddleware",              # 1. Fast exit for health checks
+    "upstream.middleware.HealthCheckMiddleware",              # 1. Fast exit for health checks
     "django_prometheus.middleware.PrometheusBeforeMiddleware", # 2. Start metrics collection
     "django.middleware.security.SecurityMiddleware",          # 3. Security headers
     "corsheaders.middleware.CorsMiddleware",                 # 4. CORS handling
@@ -862,10 +862,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware", # 8. User authentication
     "django.contrib.messages.middleware.MessageMiddleware",  # 9. Flash messages
     "django.middleware.clickjacking.XFrameOptionsMiddleware", # 10. Clickjacking protection
-    "payrixa.middleware.RequestIdMiddleware",               # 11. Request ID tracking
-    "payrixa.middleware.RequestTimingMiddleware",           # 12. Performance tracking
-    "payrixa.middleware.MetricsCollectionMiddleware",       # 13. Metrics collection
-    "payrixa.middleware.ProductEnablementMiddleware",       # 14. Product access control
+    "upstream.middleware.RequestIdMiddleware",               # 11. Request ID tracking
+    "upstream.middleware.RequestTimingMiddleware",           # 12. Performance tracking
+    "upstream.middleware.MetricsCollectionMiddleware",       # 13. Metrics collection
+    "upstream.middleware.ProductEnablementMiddleware",       # 14. Product access control
     "auditlog.middleware.AuditlogMiddleware",              # 15. Audit logging
     "django_browser_reload.middleware.BrowserReloadMiddleware", # 16. Dev hot reload
     "django_prometheus.middleware.PrometheusAfterMiddleware",  # 17. End metrics collection

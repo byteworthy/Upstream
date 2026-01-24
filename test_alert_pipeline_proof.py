@@ -25,9 +25,9 @@ os.environ['PORTAL_BASE_URL'] = 'http://localhost:8000'
 django.setup()
 
 from django.core.management import call_command
-from payrixa.models import Customer, DriftEvent
-from payrixa.alerts.models import AlertRule, AlertEvent, NotificationChannel
-from payrixa.alerts.services import evaluate_drift_event
+from upstream.models import Customer, DriftEvent
+from upstream.alerts.models import AlertRule, AlertEvent, NotificationChannel
+from upstream.alerts.services import evaluate_drift_event
 from django.utils import timezone
 
 def print_banner(text):
@@ -194,7 +194,7 @@ def main():
         print(f"  ✗ Suppression failed ({new_alerts_second} new alerts on second run)")
         all_passed = False
     
-    if 'localhost' in portal_url or 'payrixa.com' in portal_url:
+    if 'localhost' in portal_url or 'upstream.com' in portal_url:
         print(f"  ✓ Portal URL configured: {portal_url}")
     else:
         print(f"  ? Portal URL: {portal_url}")

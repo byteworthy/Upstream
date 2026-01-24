@@ -1,6 +1,6 @@
-# Docker Setup for Payrixa
+# Docker Setup for Upstream
 
-This document explains how to run Payrixa using Docker and Docker Compose.
+This document explains how to run Upstream using Docker and Docker Compose.
 
 ## Prerequisites
 
@@ -78,7 +78,7 @@ docker-compose exec web bash
 docker-compose exec web python manage.py shell
 
 # Database shell
-docker-compose exec db psql -U payrixa -d payrixa
+docker-compose exec db psql -U upstream -d upstream
 ```
 
 ### Running Management Commands
@@ -94,7 +94,7 @@ docker-compose exec web python manage.py makemigrations
 docker-compose exec web python manage.py collectstatic --noinput
 
 # Load fixtures
-docker-compose exec web python manage.py loaddata payrixa/fixtures/demo_data.json
+docker-compose exec web python manage.py loaddata upstream/fixtures/demo_data.json
 
 # Run drift detection
 docker-compose exec web python manage.py run_weekly_payer_drift --customer-id=1
@@ -132,8 +132,8 @@ DEBUG=True
 SECRET_KEY=your-secret-key-here
 
 # Database Settings
-DB_NAME=payrixa
-DB_USER=payrixa
+DB_NAME=upstream
+DB_USER=upstream
 DB_PASSWORD=secure_password_here
 DB_HOST=db
 DB_PORT=5432
@@ -143,7 +143,7 @@ REDIS_URL=redis://redis:6379/0
 
 # Email Settings
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-DEFAULT_FROM_EMAIL=alerts@payrixa.com
+DEFAULT_FROM_EMAIL=alerts@upstream.cx
 ```
 
 ## Production Deployment
@@ -152,7 +152,7 @@ DEFAULT_FROM_EMAIL=alerts@payrixa.com
 
 ```bash
 # Build production image
-docker build --target production -t payrixa:latest .
+docker build --target production -t upstream:latest .
 
 # Run production container
 docker run -d \
@@ -161,7 +161,7 @@ docker run -d \
   -e SECRET_KEY=your-secret-key \
   -e DB_HOST=your-db-host \
   -e DB_PASSWORD=your-db-password \
-  payrixa:latest
+  upstream:latest
 ```
 
 ### Production Considerations
@@ -172,7 +172,7 @@ docker run -d \
 4. **Static Files** - Run `collectstatic` and serve via CDN/nginx
 5. **Environment Variables** - Use secrets management (AWS Secrets Manager, etc.)
 6. **Health Checks** - The Dockerfile includes health checks for orchestration
-7. **Non-root User** - Production image runs as non-root user `payrixa`
+7. **Non-root User** - Production image runs as non-root user `upstream`
 
 ## Troubleshooting
 
@@ -225,10 +225,10 @@ docker-compose exec web python manage.py migrate
 
 ```bash
 # Backup PostgreSQL data
-docker-compose exec db pg_dump -U payrixa payrixa > backup.sql
+docker-compose exec db pg_dump -U upstream upstream > backup.sql
 
 # Restore from backup
-docker-compose exec -T db psql -U payrixa payrixa < backup.sql
+docker-compose exec -T db psql -U upstream upstream < backup.sql
 ```
 
 ### Clean Up Volumes

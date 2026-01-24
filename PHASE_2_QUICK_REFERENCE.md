@@ -138,7 +138,7 @@ Track validation metrics for every CSV upload:
 
 **Usage:**
 ```python
-from payrixa.models import DataQualityReport
+from upstream.models import DataQualityReport
 
 # Get quality report for upload
 report = DataQualityReport.objects.filter(upload=upload).first()
@@ -171,7 +171,7 @@ Automatic caching with graceful fallback:
 
 **Usage:**
 ```python
-from payrixa.cache import cache_result, CACHE_KEYS
+from upstream.cache import cache_result, CACHE_KEYS
 
 @cache_result(CACHE_KEYS['PAYER_MAPPINGS'], ttl=900)
 def get_payer_mappings(customer):
@@ -197,7 +197,7 @@ Real-time PHI detection prevents accidental data exposure:
 
 **Example:**
 ```python
-from payrixa.utils import detect_phi
+from upstream.utils import detect_phi
 
 # This will be rejected
 is_phi, message = detect_phi("John Smith Insurance")
@@ -213,7 +213,7 @@ is_phi, message = detect_phi("Blue Cross Blue Shield")
 ## Database Changes
 
 ### New Tables:
-- `payrixa_dataqualityreport` - Quality tracking for uploads
+- `upstream_dataqualityreport` - Quality tracking for uploads
 
 ### New Indexes (12 total):
 Performance indexes added to high-traffic queries:
@@ -259,7 +259,7 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': 'redis://localhost:6379/1',
-        'KEY_PREFIX': 'payrixa',
+        'KEY_PREFIX': 'upstream',
         'TIMEOUT': 300,
     }
 }
@@ -279,10 +279,10 @@ CACHE_TTL = {
 **Middleware (3 new):**
 ```python
 MIDDLEWARE = [
-    "payrixa.middleware.HealthCheckMiddleware",      # NEW
+    "upstream.middleware.HealthCheckMiddleware",      # NEW
     # ... existing middleware ...
-    "payrixa.middleware.RequestTimingMiddleware",    # NEW
-    "payrixa.middleware.MetricsCollectionMiddleware", # NEW
+    "upstream.middleware.RequestTimingMiddleware",    # NEW
+    "upstream.middleware.MetricsCollectionMiddleware", # NEW
     # ... remaining middleware ...
 ]
 ```
@@ -294,7 +294,7 @@ MIDDLEWARE = [
 ### Views Package Structure:
 Converted monolithic `views.py` to package:
 ```
-payrixa/views/
+upstream/views/
 ├── __init__.py      # Main views (735 lines)
 └── metrics.py       # Metrics dashboard (140 lines)
 ```
@@ -305,7 +305,7 @@ payrixa/views/
 - Scalable for future growth
 
 ### New Modules:
-- `payrixa/cache.py` - Caching utilities (250 lines)
+- `upstream/cache.py` - Caching utilities (250 lines)
   - `@cache_result()` decorator
   - `invalidate_cache_pattern()`
   - `get_cache_stats()`
@@ -317,7 +317,7 @@ payrixa/views/
 
 ### Check Cache Status:
 ```python
-from payrixa.cache import get_cache_stats
+from upstream.cache import get_cache_stats
 stats = get_cache_stats()
 print(f"Hit Rate: {stats['hit_rate']}%")
 print(f"Memory: {stats['used_memory_human']}")
@@ -346,7 +346,7 @@ print(f"Active users: {len(active_users)}")
 
 ### Invalidate Cache for Customer:
 ```python
-from payrixa.cache import invalidate_cache_pattern
+from upstream.cache import invalidate_cache_pattern
 invalidate_cache_pattern(f"payer_mappings:Customer_{customer.pk}")
 ```
 
@@ -384,7 +384,7 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 ### Issue: PHI detection too aggressive
 **Tune detection:**
-Edit `payrixa/utils.py` and adjust `COMMON_FIRST_NAMES` set.
+Edit `upstream/utils.py` and adjust `COMMON_FIRST_NAMES` set.
 
 ### Issue: Monitoring dashboard not accessible
 **Check permissions:**

@@ -14,7 +14,7 @@ import os
 
 # Setup Django FIRST before any imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'payrixa.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'upstream.settings.dev')
 
 import django
 django.setup()
@@ -23,7 +23,7 @@ django.setup()
 from django.test import RequestFactory, Client
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from payrixa.middleware import RequestTimingMiddleware, HealthCheckMiddleware, MetricsCollectionMiddleware
+from upstream.middleware import RequestTimingMiddleware, HealthCheckMiddleware, MetricsCollectionMiddleware
 
 
 def test_health_check():

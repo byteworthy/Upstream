@@ -1,13 +1,13 @@
-# Payrixa Settings Guide
+# Upstream Settings Guide
 
 ## Overview
 
-The Payrixa project uses a split settings structure to separate development and production configurations. This ensures security best practices in production while maintaining ease of use in development.
+The Upstream project uses a split settings structure to separate development and production configurations. This ensures security best practices in production while maintaining ease of use in development.
 
 ## Settings Structure
 
 ```
-payrixa/settings/
+upstream/settings/
 ├── __init__.py     # Package documentation
 ├── base.py         # Shared settings for all environments
 ├── dev.py          # Development-specific settings (default)
@@ -31,7 +31,7 @@ python manage.py migrate
 To use production settings, set the `DJANGO_SETTINGS_MODULE` environment variable:
 
 ```bash
-export DJANGO_SETTINGS_MODULE=payrixa.settings.prod
+export DJANGO_SETTINGS_MODULE=upstream.settings.prod
 python manage.py check
 python manage.py migrate
 gunicorn hello_world.wsgi:application
@@ -40,7 +40,7 @@ gunicorn hello_world.wsgi:application
 Or set it inline for a single command:
 
 ```bash
-DJANGO_SETTINGS_MODULE=payrixa.settings.prod python manage.py check
+DJANGO_SETTINGS_MODULE=upstream.settings.prod python manage.py check
 ```
 
 ## Development Settings (dev.py)
@@ -104,8 +104,8 @@ MAILGUN_DOMAIN=mg.yourdomain.com
 DATABASE_URL=postgres://user:password@host:port/database
 
 # Database - Option 2: Individual parameters
-DB_NAME=payrixa
-DB_USER=payrixa
+DB_NAME=upstream
+DB_USER=upstream
 DB_PASSWORD=your-secure-password
 DB_HOST=your-db-host.rds.amazonaws.com
 DB_PORT=5432
@@ -172,14 +172,14 @@ python manage.py test payrixa.tests_email
 
 ```bash
 # This will fail without required env vars (expected)
-DJANGO_SETTINGS_MODULE=payrixa.settings.prod python manage.py check
+DJANGO_SETTINGS_MODULE=upstream.settings.prod python manage.py check
 
 # Test with required vars
 MAILGUN_API_KEY=test \
 MAILGUN_DOMAIN=test.example.com \
 SECRET_KEY=test-secret \
 ALLOWED_HOSTS=example.com \
-DJANGO_SETTINGS_MODULE=payrixa.settings.prod \
+DJANGO_SETTINGS_MODULE=upstream.settings.prod \
 python manage.py check
 ```
 
@@ -195,7 +195,7 @@ Before deploying to production:
 6. ✅ Run migrations: `python manage.py migrate`
 7. ✅ Collect static files: `python manage.py collectstatic`
 8. ✅ Run system check: `python manage.py check --deploy`
-9. ✅ Set `DJANGO_SETTINGS_MODULE=payrixa.settings.prod` in your deployment environment
+9. ✅ Set `DJANGO_SETTINGS_MODULE=upstream.settings.prod` in your deployment environment
 
 ## Troubleshooting
 
@@ -230,7 +230,7 @@ If upgrading from the old `hello_world/settings.py` file:
 1. The new settings split is already configured in `manage.py`, `wsgi.py`, and `asgi.py`
 2. Development behavior is identical - no changes needed
 3. The old `hello_world/settings.py` file can be kept as a backup or removed
-4. Update any deployment scripts to use `DJANGO_SETTINGS_MODULE=payrixa.settings.prod`
+4. Update any deployment scripts to use `DJANGO_SETTINGS_MODULE=upstream.settings.prod`
 
 ## Security Notes
 

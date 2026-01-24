@@ -28,7 +28,7 @@ python manage.py migrate
 
 # 2. Create alert rules
 python manage.py shell
->>> from payrixa.alerts.models import AlertRule, Customer
+>>> from upstream.alerts.models import AlertRule, Customer
 >>> customer = Customer.objects.first()
 >>> AlertRule.objects.create(
 ...     customer=customer,
@@ -57,9 +57,9 @@ Create the new security modules:
 
 ```bash
 # Create directory structure
-mkdir -p payrixa/alerts/{detectors,tests}
-touch payrixa/alerts/detectors/__init__.py
-touch payrixa/alerts/tests/__init__.py
+mkdir -p upstream/alerts/{detectors,tests}
+touch upstream/alerts/detectors/__init__.py
+touch upstream/alerts/tests/__init__.py
 
 # Copy files from SECURITY_HARDENING_FIXES.md:
 # - processing.py
@@ -78,7 +78,7 @@ touch payrixa/alerts/tests/__init__.py
 
 #### Step 1.2: Update Models
 
-**File:** `payrixa/alerts/models.py`
+**File:** `upstream/alerts/models.py`
 
 Add the DeadLetterQueue and AlertAuditLog models:
 
@@ -153,7 +153,7 @@ class AlertAuditLog(models.Model):
     )
 
     customer = models.ForeignKey(
-        'payrixa.Customer',
+        'upstream.Customer',
         on_delete=models.CASCADE,
         related_name='alert_audit_logs'
     )
@@ -178,7 +178,7 @@ python manage.py makemigrations alerts --name security_hardening
 Edit the migration to add constraints:
 
 ```python
-# payrixa/alerts/migrations/000X_security_hardening.py
+# upstream/alerts/migrations/000X_security_hardening.py
 
 from django.db import migrations, models
 
@@ -236,7 +236,7 @@ python manage.py migrate alerts
 
 #### Step 1.4: Update Existing Services
 
-**File:** `payrixa/alerts/services.py`
+**File:** `upstream/alerts/services.py`
 
 Replace the existing functions with the hardened versions:
 
@@ -255,7 +255,7 @@ from django.utils import timezone
 from django.db import transaction, IntegrityError
 
 from .models import AlertRule, AlertEvent, NotificationChannel
-from payrixa.models import DriftEvent, Customer
+from upstream.models import DriftEvent, Customer
 
 # Import new security modules
 from .processing import AlertProcessingEngine
@@ -587,7 +587,7 @@ def _send_email_notification_secure(alert_event, channel):
         return False
 
     # Build email content (sanitized)
-    subject = f"[{alert_event.payload.get('severity', 'INFO').upper()}] Payrixa Alert"
+    subject = f"[{alert_event.payload.get('severity', 'INFO').upper()}] Upstream Alert"
 
     html_body = render_to_string('alerts/email_template.html', {
         'alert': alert_event,
@@ -610,7 +610,7 @@ def _send_default_email_notification_secure(alert_event):
 
     recipients = [getattr(settings, 'DEFAULT_ALERT_EMAIL', 'alerts@example.com')]
 
-    subject = f"[{alert_event.payload.get('severity', 'INFO').upper()}] Payrixa Alert"
+    subject = f"[{alert_event.payload.get('severity', 'INFO').upper()}] Upstream Alert"
 
     html_body = render_to_string('alerts/email_template.html', {
         'alert': alert_event,
@@ -694,7 +694,7 @@ def process_dead_letter_queue():
 
 ### Unit Tests
 
-**File:** `payrixa/alerts/tests/test_security.py`
+**File:** `upstream/alerts/tests/test_security.py`
 
 ```python
 """
@@ -707,14 +707,14 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 from datetime import timedelta
 
-from payrixa.models import Customer, DriftEvent
-from payrixa.alerts.models import AlertEvent, AlertRule
-from payrixa.alerts.pii_sanitizer import PIISanitizer
-from payrixa.alerts.validation import PayloadValidator
-from payrixa.alerts.authorization import AlertAuthorization
-from payrixa.alerts.suppression import SuppressionEngine
-from payrixa.alerts.webhook_security import SecureWebhookDelivery
-from payrixa.alerts.email_security import SecureEmailSender
+from upstream.models import Customer, DriftEvent
+from upstream.alerts.models import AlertEvent, AlertRule
+from upstream.alerts.pii_sanitizer import PIISanitizer
+from upstream.alerts.validation import PayloadValidator
+from upstream.alerts.authorization import AlertAuthorization
+from upstream.alerts.suppression import SuppressionEngine
+from upstream.alerts.webhook_security import SecureWebhookDelivery
+from upstream.alerts.email_security import SecureEmailSender
 
 User = get_user_model()
 
@@ -993,7 +993,7 @@ class EmailSecurityTestCase(TestCase):
 
 ### Integration Tests
 
-**File:** `payrixa/alerts/tests/test_integration.py`
+**File:** `upstream/alerts/tests/test_integration.py`
 
 ```python
 """
@@ -1004,11 +1004,11 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 from datetime import timedelta
 
-from payrixa.models import Customer, DriftEvent, ClaimRecord
-from payrixa.alerts.models import AlertEvent, AlertRule
-from payrixa.alerts.services import evaluate_drift_event, process_pending_alerts
-from payrixa.alerts.detectors.underpayment import UnderpaymentDetector
-from payrixa.alerts.detectors.payment_delay import PaymentDelayDetector
+from upstream.models import Customer, DriftEvent, ClaimRecord
+from upstream.alerts.models import AlertEvent, AlertRule
+from upstream.alerts.services import evaluate_drift_event, process_pending_alerts
+from upstream.alerts.detectors.underpayment import UnderpaymentDetector
+from upstream.alerts.detectors.payment_delay import PaymentDelayDetector
 
 
 class EndToEndAlertFlowTestCase(TransactionTestCase):
@@ -1181,7 +1181,7 @@ class PaymentDelayDetectorIntegrationTestCase(TransactionTestCase):
 
 ### Load Testing
 
-**File:** `payrixa/alerts/tests/test_performance.py`
+**File:** `upstream/alerts/tests/test_performance.py`
 
 ```python
 """
@@ -1193,10 +1193,10 @@ from django.utils import timezone
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from payrixa.models import Customer, DriftEvent
-from payrixa.alerts.models import AlertEvent, AlertRule
-from payrixa.alerts.services import evaluate_drift_event
-from payrixa.alerts.processing import AlertProcessingEngine
+from upstream.models import Customer, DriftEvent
+from upstream.alerts.models import AlertEvent, AlertRule
+from upstream.alerts.services import evaluate_drift_event
+from upstream.alerts.processing import AlertProcessingEngine
 
 
 class PerformanceTestCase(TransactionTestCase):
@@ -1316,14 +1316,14 @@ python manage.py qcluster  # Start task processor
 # - Setup CloudWatch/DataDog alerts
 
 # 8. Run Production Server
-gunicorn payrixa.wsgi:application --bind 0.0.0.0:8000 --workers 4
+gunicorn upstream.wsgi:application --bind 0.0.0.0:8000 --workers 4
 ```
 
 ### Monitoring Dashboard
 
 Create a simple dashboard endpoint:
 
-**File:** `payrixa/alerts/views.py` (ADD)
+**File:** `upstream/alerts/views.py` (ADD)
 
 ```python
 from django.http import JsonResponse

@@ -1,4 +1,4 @@
-# Prometheus configuration for Payrixa monitoring
+# Prometheus configuration for Upstream monitoring
 
 global:
   scrape_interval: 15s
@@ -6,7 +6,7 @@ global:
 
 scrape_configs:
   # Django web application metrics
-  - job_name: 'payrixa-web'
+  - job_name: 'upstream-web'
     static_configs:
       - targets: ['web:8000']
     metrics_path: '/metrics'

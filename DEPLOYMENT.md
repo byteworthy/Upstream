@@ -1,4 +1,4 @@
-# Payrixa Production Deployment Guide
+# Upstream Production Deployment Guide
 
 **Version:** 1.0  
 **Last Updated:** 2026-01-24  
@@ -15,12 +15,12 @@ For experienced DevOps teams, here's the 10-minute deployment:
 sudo apt install -y python3.12 postgresql-14 redis nginx certbot
 
 # 2. Create database
-sudo -u postgres createuser payrixa_user --pwprompt
-sudo -u postgres createdb payrixa_prod --owner=payrixa_user
+sudo -u postgres createuser upstream_user --pwprompt
+sudo -u postgres createdb upstream_prod --owner=upstream_user
 
 # 3. Clone and configure
-git clone https://github.com/your-org/payrixa.git /opt/payrixa
-cd /opt/payrixa
+git clone https://github.com/your-org/payrixa.git /opt/upstream
+cd /opt/upstream
 python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt gunicorn
@@ -91,17 +91,17 @@ sudo apt install -y \
 
 ### Required Environment Variables
 
-Create `/opt/payrixa/.env.production`:
+Create `/opt/upstream/.env.production`:
 
 ```bash
 # Django Core
 SECRET_KEY=generate-with-python-manage-py-shell-get-random-secret-key
-DJANGO_SETTINGS_MODULE=payrixa.settings.prod
+DJANGO_SETTINGS_MODULE=upstream.settings.prod
 DEBUG=False
-ALLOWED_HOSTS=payrixa.com,www.payrixa.com
+ALLOWED_HOSTS=upstream.cx,www.upstream.cx
 
 # Database
-DATABASE_URL=postgresql://payrixa_user:SECURE_PASSWORD@localhost:5432/payrixa_prod
+DATABASE_URL=postgresql://upstream_user:SECURE_PASSWORD@localhost:5432/upstream_prod
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -112,13 +112,13 @@ SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
 
 # Application
-PORTAL_BASE_URL=https://payrixa.com
+PORTAL_BASE_URL=https://upstream.cx
 
 # Email (Mailgun example)
 EMAIL_BACKEND=anymail.backends.mailgun.EmailBackend
 MAILGUN_API_KEY=your-mailgun-api-key
-MAILGUN_DOMAIN=mg.payrixa.com
-DEFAULT_FROM_EMAIL=alerts@payrixa.com
+MAILGUN_DOMAIN=mg.upstream.cx
+DEFAULT_FROM_EMAIL=alerts@upstream.cx
 
 # PHI Encryption (REQUIRED)
 # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -132,8 +132,8 @@ SENTRY_DSN=https://your-sentry-dsn
 ### Secure the Environment File
 
 ```bash
-sudo chmod 600 /opt/payrixa/.env.production
-sudo chown payrixa:payrixa /opt/payrixa/.env.production
+sudo chmod 600 /opt/upstream/.env.production
+sudo chown upstream:upstream /opt/upstream/.env.production
 ```
 
 ---
@@ -144,13 +144,13 @@ sudo chown payrixa:payrixa /opt/payrixa/.env.production
 
 ```bash
 # Create database user
-sudo -u postgres createuser payrixa_user --no-superuser --no-createdb --no-createrole --pwprompt
+sudo -u postgres createuser upstream_user --no-superuser --no-createdb --no-createrole --pwprompt
 
 # Create database
-sudo -u postgres createdb payrixa_prod --owner=payrixa_user
+sudo -u postgres createdb upstream_prod --owner=upstream_user
 
 # Run migrations
-cd /opt/payrixa
+cd /opt/upstream
 source venv/bin/activate
 export $(cat .env.production | xargs)
 python manage.py migrate
@@ -169,16 +169,16 @@ Create `/etc/systemd/system/payrixa.service`:
 
 ```ini
 [Unit]
-Description=Payrixa Gunicorn
+Description=Upstream Gunicorn
 After=network.target postgresql.service redis.service
 
 [Service]
 Type=notify
-User=payrixa
-Group=payrixa
-WorkingDirectory=/opt/payrixa
-EnvironmentFile=/opt/payrixa/.env.production
-ExecStart=/opt/payrixa/venv/bin/gunicorn \
+User=upstream
+Group=upstream
+WorkingDirectory=/opt/upstream
+EnvironmentFile=/opt/upstream/.env.production
+ExecStart=/opt/upstream/venv/bin/gunicorn \
     --workers 4 \
     --timeout 120 \
     --bind unix:/run/payrixa.sock \
@@ -201,25 +201,25 @@ sudo systemctl status payrixa.service
 
 ## Web Server (Nginx)
 
-Create `/etc/nginx/sites-available/payrixa`:
+Create `/etc/nginx/sites-available/upstream`:
 
 ```nginx
-upstream payrixa_app {
+upstream upstream_app {
     server unix:/run/payrixa.sock fail_timeout=0;
 }
 
 server {
     listen 80;
-    server_name payrixa.com www.payrixa.com;
+    server_name upstream.cx www.upstream.cx;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name payrixa.com www.payrixa.com;
+    server_name upstream.cx www.upstream.cx;
 
-    ssl_certificate /etc/letsencrypt/live/payrixa.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/payrixa.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/upstream.cx/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/upstream.cx/privkey.pem;
     
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
@@ -227,12 +227,12 @@ server {
     client_max_body_size 50M;
 
     location /static/ {
-        alias /opt/payrixa/hello_world/staticfiles/;
+        alias /opt/upstream/hello_world/staticfiles/;
         expires 30d;
     }
 
     location /media/ {
-        alias /opt/payrixa/hello_world/media/;
+        alias /opt/upstream/hello_world/media/;
     }
 
     location / {
@@ -240,7 +240,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_pass http://payrixa_app;
+        proxy_pass http://upstream_app;
     }
 }
 ```
@@ -248,7 +248,7 @@ server {
 Enable and restart:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/payrixa /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/upstream /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
@@ -258,7 +258,7 @@ sudo systemctl restart nginx
 ## SSL Certificate
 
 ```bash
-sudo certbot --nginx -d payrixa.com -d www.payrixa.com
+sudo certbot --nginx -d upstream.cx -d www.upstream.cx
 sudo certbot renew --dry-run  # Test auto-renewal
 ```
 
@@ -268,19 +268,19 @@ sudo certbot renew --dry-run  # Test auto-renewal
 
 ### Celery Beat Service
 
-Create `/etc/systemd/system/payrixa-beat.service`:
+Create `/etc/systemd/system/upstream-beat.service`:
 
 ```ini
 [Unit]
-Description=Payrixa Celery Beat
+Description=Upstream Celery Beat
 After=network.target redis.service
 
 [Service]
 Type=simple
-User=payrixa
-WorkingDirectory=/opt/payrixa
-EnvironmentFile=/opt/payrixa/.env.production
-ExecStart=/opt/payrixa/venv/bin/celery -A hello_world beat --loglevel=info
+User=upstream
+WorkingDirectory=/opt/upstream
+EnvironmentFile=/opt/upstream/.env.production
+ExecStart=/opt/upstream/venv/bin/celery -A hello_world beat --loglevel=info
 Restart=on-failure
 
 [Install]
@@ -289,19 +289,19 @@ WantedBy=multi-user.target
 
 ### Celery Worker Service
 
-Create `/etc/systemd/system/payrixa-worker.service`:
+Create `/etc/systemd/system/upstream-worker.service`:
 
 ```ini
 [Unit]
-Description=Payrixa Celery Worker
+Description=Upstream Celery Worker
 After=network.target redis.service
 
 [Service]
 Type=simple
-User=payrixa
-WorkingDirectory=/opt/payrixa
-EnvironmentFile=/opt/payrixa/.env.production
-ExecStart=/opt/payrixa/venv/bin/celery -A hello_world worker --loglevel=info --concurrency=2
+User=upstream
+WorkingDirectory=/opt/upstream
+EnvironmentFile=/opt/upstream/.env.production
+ExecStart=/opt/upstream/venv/bin/celery -A hello_world worker --loglevel=info --concurrency=2
 Restart=on-failure
 
 [Install]
@@ -311,8 +311,8 @@ WantedBy=multi-user.target
 Start services:
 
 ```bash
-sudo systemctl enable payrixa-beat.service payrixa-worker.service
-sudo systemctl start payrixa-beat.service payrixa-worker.service
+sudo systemctl enable upstream-beat.service upstream-worker.service
+sudo systemctl start upstream-beat.service upstream-worker.service
 ```
 
 ---
@@ -345,7 +345,7 @@ SENTRY_RELEASE=v1.0.0  # Optional: track which version is deployed
 
 Test PHI filtering:
 ```bash
-cd /opt/payrixa
+cd /opt/upstream
 python test_sentry_phi_filtering.py
 ```
 
@@ -361,17 +361,17 @@ Install Prometheus and Grafana (optional):
 
 ## Backups
 
-Create `/usr/local/bin/payrixa-backup.sh`:
+Create `/usr/local/bin/upstream-backup.sh`:
 
 ```bash
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/var/backups/payrixa"
-DB_NAME="payrixa_prod"
-DB_USER="payrixa_user"
+BACKUP_DIR="/var/backups/upstream"
+DB_NAME="upstream_prod"
+DB_USER="upstream_user"
 
 mkdir -p "$BACKUP_DIR"
-pg_dump -U "$DB_USER" -Fc "$DB_NAME" > "$BACKUP_DIR/payrixa_$DATE.dump"
+pg_dump -U "$DB_USER" -Fc "$DB_NAME" > "$BACKUP_DIR/upstream_$DATE.dump"
 
 # Compress old backups (>7 days)
 find "$BACKUP_DIR" -name "*.dump" -mtime +7 -exec gzip {} \;
@@ -379,17 +379,17 @@ find "$BACKUP_DIR" -name "*.dump" -mtime +7 -exec gzip {} \;
 # Delete old backups (>30 days)
 find "$BACKUP_DIR" -name "*.dump.gz" -mtime +30 -delete
 
-echo "Backup completed: payrixa_$DATE.dump"
+echo "Backup completed: upstream_$DATE.dump"
 ```
 
 Schedule daily backups:
 
 ```bash
-sudo chmod +x /usr/local/bin/payrixa-backup.sh
+sudo chmod +x /usr/local/bin/upstream-backup.sh
 sudo crontab -e
 
 # Add:
-0 2 * * * /usr/local/bin/payrixa-backup.sh >> /var/log/payrixa_backup.log 2>&1
+0 2 * * * /usr/local/bin/upstream-backup.sh >> /var/log/upstream_backup.log 2>&1
 ```
 
 ---
@@ -400,21 +400,21 @@ sudo crontab -e
 
 ```bash
 # Health check
-curl -I https://payrixa.com/api/v1/health/
+curl -I https://upstream.cx/api/v1/health/
 
 # Login page
-curl https://payrixa.com/login/ | grep "Payrixa"
+curl https://upstream.cx/login/ | grep "Upstream"
 
 # Static files
-curl -I https://payrixa.com/static/payrixa/css/style.css
+curl -I https://upstream.cx/static/upstream/css/style.css
 ```
 
 ### Service Status
 
 ```bash
 sudo systemctl status payrixa.service
-sudo systemctl status payrixa-beat.service
-sudo systemctl status payrixa-worker.service
+sudo systemctl status upstream-beat.service
+sudo systemctl status upstream-worker.service
 sudo systemctl status nginx
 sudo systemctl status postgresql
 sudo systemctl status redis
@@ -431,7 +431,7 @@ sudo systemctl status redis
 sudo journalctl -u payrixa.service -n 100
 
 # Test manually
-cd /opt/payrixa
+cd /opt/upstream
 source venv/bin/activate
 export $(cat .env.production | xargs)
 gunicorn hello_world.wsgi:application --bind 0.0.0.0:8000
@@ -447,10 +447,10 @@ gunicorn hello_world.wsgi:application --bind 0.0.0.0:8000
 
 ```bash
 # Test connection
-psql -U payrixa_user -d payrixa_prod -h localhost
+psql -U upstream_user -d upstream_prod -h localhost
 
 # Check DATABASE_URL in .env.production
-cat /opt/payrixa/.env.production | grep DATABASE_URL
+cat /opt/upstream/.env.production | grep DATABASE_URL
 ```
 
 ---
@@ -480,14 +480,14 @@ sudo systemctl restart payrixa.service
 sudo journalctl -u payrixa.service -f
 
 # Manual backup
-sudo /usr/local/bin/payrixa-backup.sh
+sudo /usr/local/bin/upstream-backup.sh
 
 # Clear cache
-cd /opt/payrixa
+cd /opt/upstream
 source venv/bin/activate
 python manage.py shell -c "from django.core.cache import cache; cache.clear()"
 ```
 
 ---
 
-**For support:** devops@payrixa.com
+**For support:** devops@upstream.cx

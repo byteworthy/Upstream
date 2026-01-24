@@ -1,4 +1,4 @@
-# Payrixa Hub v1 Project Status
+# Upstream Hub v1 Project Status
 
 ## Hub v1 Definition (LOCKED)
 
@@ -49,7 +49,7 @@ python manage.py generate_driftwatch_demo --customer 1
 
 ### Verify Demo Data
 ```bash
-python manage.py shell -c "from payrixa.models import DriftEvent; from payrixa.products.denialscope.models import DenialSignal; print('DriftEvents:', DriftEvent.objects.filter(drift_type='DENIAL_RATE').count()); print('DenialSignals:', DenialSignal.objects.filter(signal_type='denial_dollars_spike').count())"
+python manage.py shell -c "from upstream.models import DriftEvent; from upstream.products.denialscope.models import DenialSignal; print('DriftEvents:', DriftEvent.objects.filter(drift_type='DENIAL_RATE').count()); print('DenialSignals:', DenialSignal.objects.filter(signal_type='denial_dollars_spike').count())"
 ```
 
 ## Email Alert Artifact

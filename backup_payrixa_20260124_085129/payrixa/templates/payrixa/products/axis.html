@@ -1,0 +1,139 @@
+{% extends "upstream/base.html" %}
+{% load static %}
+
+{% block title %}Axis{% endblock %}
+
+{% block content %}
+<div class="axis-container">
+    <div class="axis-header">
+        <h1>Axis</h1>
+        <p class="subtitle">Early Warning System — Choose your signal detector</p>
+    </div>
+
+    <div class="product-tiles">
+        <div class="product-tile">
+            <div class="tile-icon">📊</div>
+            <h2>DenialScope</h2>
+            <p class="tile-description">
+                Denial pattern detection and early warning. Track denial rates,
+                identify denial dollars spikes, and surface new denial reasons across payers.
+            </p>
+            <p class="tile-signal"><strong>V1 Signal:</strong> Denial dollars spike</p>
+            <a href="{% url 'denialscope_dashboard' %}" class="tile-button">Open DenialScope →</a>
+        </div>
+
+        <div class="product-tile">
+            <div class="tile-icon">🔍</div>
+            <h2>DriftWatch</h2>
+            <p class="tile-description">
+                Volume and decision time drift signals. Detect when payer behavior
+                deviates from historical baselines across denial rates and processing times.
+            </p>
+            <p class="tile-signal"><strong>V1 Signal:</strong> Denial rate drift</p>
+            <a href="{% url 'driftwatch_dashboard' %}" class="tile-button">Open DriftWatch →</a>
+        </div>
+
+        <div class="product-tile">
+            <div class="tile-icon">⏰</div>
+            <h2>DelayGuard</h2>
+            <p class="tile-description">
+                Payment delay detection and cash flow protection. Monitor payer payment timing
+                and identify when claims are taking longer to process than baseline.
+            </p>
+            <p class="tile-signal"><strong>V1 Signal:</strong> Payment delay drift</p>
+            <a href="{% url 'delayguard_dashboard' %}" class="tile-button">Open DelayGuard →</a>
+        </div>
+    </div>
+
+    <div class="axis-footer">
+        <p class="hub-info">
+            Hub v1 provides three products with focused signals.
+            Email alerts notify you when thresholds are exceeded.
+        </p>
+    </div>
+</div>
+
+<style>
+    .axis-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .axis-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    .axis-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2.5rem;
+        color: #1a1a2e;
+    }
+    .axis-header .subtitle {
+        margin: 0;
+        color: #666;
+        font-size: 1.2rem;
+    }
+    .product-tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+    .product-tile {
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 2rem;
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .product-tile:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    .tile-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+    .product-tile h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.5rem;
+        color: #1a1a2e;
+    }
+    .tile-description {
+        color: #555;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+    .tile-signal {
+        color: #666;
+        font-size: 0.9rem;
+        background: #f5f5f5;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+    .tile-button {
+        display: inline-block;
+        background: #007bff;
+        color: #ffffff;
+        text-decoration: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background 0.2s ease;
+    }
+    .tile-button:hover {
+        background: #0056b3;
+        color: #ffffff;
+    }
+    .axis-footer {
+        text-align: center;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+    }
+    .hub-info {
+        color: #777;
+        font-size: 0.95rem;
+    }
+</style>
+{% endblock %}

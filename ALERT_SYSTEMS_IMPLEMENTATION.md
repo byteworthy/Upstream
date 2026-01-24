@@ -1,4 +1,4 @@
-# Payrixa Alert Systems: Production Hardening & Amplification
+# Upstream Alert Systems: Production Hardening & Amplification
 
 **Generated:** 2026-01-22
 **Priority:** Highest Signal, Lowest Noise - Money-Moving Alerts
@@ -52,7 +52,7 @@ Plus 5-10 additional alerts per module to reach 10-15 total per module.
 
 #### 1.1 Alert Processing Engine (Resilient, Parallel)
 
-**File:** `payrixa/alerts/processing.py` (NEW)
+**File:** `upstream/alerts/processing.py` (NEW)
 
 ```python
 """
@@ -71,7 +71,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.core.cache import cache
 from .models import AlertEvent, NotificationChannel
-from payrixa.core.models import SystemEvent
+from upstream.core.models import SystemEvent
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +277,7 @@ class AlertDeliveryFailed(Exception):
 
 #### 1.2 Intelligent Suppression Engine
 
-**File:** `payrixa/alerts/suppression.py` (NEW)
+**File:** `upstream/alerts/suppression.py` (NEW)
 
 ```python
 """
@@ -467,7 +467,7 @@ class SuppressionEngine:
 
 #### 1.3 Confidence Scoring System
 
-**File:** `payrixa/alerts/confidence.py` (NEW)
+**File:** `upstream/alerts/confidence.py` (NEW)
 
 ```python
 """
@@ -608,7 +608,7 @@ class ConfidenceScorer:
 
 **Integration into existing services:**
 
-Update `payrixa/alerts/services.py`:
+Update `upstream/alerts/services.py`:
 
 ```python
 # Add imports at top
@@ -624,7 +624,7 @@ confidence_scorer = ConfidenceScorer()
 # Update evaluate_drift_event to add confidence scoring
 def evaluate_drift_event(drift_event):
     """Evaluate a drift event against all active alert rules with confidence scoring."""
-    from payrixa.core.services import create_audit_event
+    from upstream.core.services import create_audit_event
 
     alert_events = []
     alert_rules = AlertRule.objects.filter(customer=drift_event.customer, enabled=True)
@@ -761,7 +761,7 @@ These are the alerts your developer identified as the **absolute core set** that
 **Current:** Single-metric drift (denial_rate OR decision_time)
 **Enhancement:** Multi-dimensional composite scoring
 
-**File:** Update `payrixa/services/drift_detection.py`
+**File:** Update `upstream/services/drift_detection.py`
 
 Add composite drift scoring:
 
@@ -818,7 +818,7 @@ def calculate_composite_drift_score(payer_data):
 
 **Why It Matters:** Direct revenue loss. Clean enforcement path. Money left on table.
 
-**File:** `payrixa/alerts/detectors/underpayment.py` (NEW)
+**File:** `upstream/alerts/detectors/underpayment.py` (NEW)
 
 ```python
 """
@@ -830,8 +830,8 @@ Detects systematic underpayments relative to contract or historical allowed amou
 from django.db.models import Avg, Sum, Count, StdDev, F
 from django.utils import timezone
 from datetime import timedelta
-from payrixa.models import ClaimRecord, Customer
-from payrixa.alerts.confidence import ConfidenceScorer
+from upstream.models import ClaimRecord, Customer
+from upstream.alerts.confidence import ConfidenceScorer
 
 confidence_scorer = ConfidenceScorer()
 
@@ -965,7 +965,7 @@ class UnderpaymentDetector:
 
 **Why It Matters:** Cash flow killer. Early warning before AR explodes.
 
-**File:** `payrixa/alerts/detectors/payment_delay.py` (NEW)
+**File:** `upstream/alerts/detectors/payment_delay.py` (NEW)
 
 ```python
 """
@@ -978,7 +978,7 @@ Critical for cash flow management.
 from django.db.models import Avg, F, ExpressionWrapper, fields
 from django.utils import timezone
 from datetime import timedelta
-from payrixa.models import ClaimRecord
+from upstream.models import ClaimRecord
 
 
 class PaymentDelayDetector:
@@ -1111,7 +1111,7 @@ class PaymentDelayDetector:
 
 **Why It Matters:** Often signals payer rule changes or internal workflow decay. High recovery potential.
 
-**File:** `payrixa/alerts/detectors/auth_failure.py` (NEW)
+**File:** `upstream/alerts/detectors/auth_failure.py` (NEW)
 
 ```python
 """
@@ -1123,7 +1123,7 @@ Detects increases in auth-related denials beyond baseline.
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
-from payrixa.models import ClaimRecord
+from upstream.models import ClaimRecord
 
 
 class AuthFailureDetector:
@@ -1294,7 +1294,7 @@ class AuthFailureDetector:
 
 **Why It Matters:** Indicates intentional or systemic payer behavior. Justifies escalation.
 
-**File:** `payrixa/alerts/detectors/repeat_offender.py` (NEW)
+**File:** `upstream/alerts/detectors/repeat_offender.py` (NEW)
 
 ```python
 """
@@ -1306,7 +1306,7 @@ Indicates systematic or intentional payer behavior.
 
 from django.utils import timezone
 from datetime import timedelta
-from payrixa.alerts.models import AlertEvent, OperatorJudgment
+from upstream.alerts.models import AlertEvent, OperatorJudgment
 
 
 class RepeatOffenderDetector:
@@ -1441,7 +1441,7 @@ class RepeatOffenderDetector:
 
 ### 3.1 Management Command for Alert Detection
 
-**File:** `payrixa/management/commands/detect_alerts.py` (NEW)
+**File:** `upstream/management/commands/detect_alerts.py` (NEW)
 
 ```python
 """
@@ -1453,13 +1453,13 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
-from payrixa.models import Customer
-from payrixa.alerts.detectors.underpayment import UnderpaymentDetector
-from payrixa.alerts.detectors.payment_delay import PaymentDelayDetector
-from payrixa.alerts.detectors.auth_failure import AuthFailureDetector
-from payrixa.alerts.detectors.repeat_offender import RepeatOffenderDetector
-from payrixa.alerts.models import AlertEvent, AlertRule
-from payrixa.alerts.services import evaluate_drift_event
+from upstream.models import Customer
+from upstream.alerts.detectors.underpayment import UnderpaymentDetector
+from upstream.alerts.detectors.payment_delay import PaymentDelayDetector
+from upstream.alerts.detectors.auth_failure import AuthFailureDetector
+from upstream.alerts.detectors.repeat_offender import RepeatOffenderDetector
+from upstream.alerts.models import AlertEvent, AlertRule
+from upstream.alerts.services import evaluate_drift_event
 from django.utils import timezone
 
 
@@ -1536,7 +1536,7 @@ class Command(BaseCommand):
 Add to your task scheduler (Celery, Django-Q, etc.):
 
 ```python
-# payrixa/tasks.py
+# upstream/tasks.py
 
 from django_q.tasks import schedule
 from django_q.models import Schedule
@@ -1546,7 +1546,7 @@ def setup_alert_detection_schedule():
 
     # Run alert detection every 6 hours
     Schedule.objects.get_or_create(
-        func='payrixa.management.commands.detect_alerts.Command.handle',
+        func='upstream.management.commands.detect_alerts.Command.handle',
         schedule_type=Schedule.HOURLY,
         minutes=6,
         defaults={
@@ -1562,7 +1562,7 @@ def setup_alert_detection_schedule():
 
 ### 4.1 Unit Tests for Detectors
 
-**File:** `payrixa/alerts/tests/test_detectors.py` (NEW)
+**File:** `upstream/alerts/tests/test_detectors.py` (NEW)
 
 ```python
 """Unit tests for alert detectors."""
@@ -1570,9 +1570,9 @@ def setup_alert_detection_schedule():
 from django.test import TestCase
 from django.utils import timezone
 from datetime import timedelta
-from payrixa.models import Customer, ClaimRecord
-from payrixa.alerts.detectors.underpayment import UnderpaymentDetector
-from payrixa.alerts.detectors.payment_delay import PaymentDelayDetector
+from upstream.models import Customer, ClaimRecord
+from upstream.alerts.detectors.underpayment import UnderpaymentDetector
+from upstream.alerts.detectors.payment_delay import PaymentDelayDetector
 
 
 class UnderpaymentDetectorTestCase(TestCase):

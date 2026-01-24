@@ -72,8 +72,8 @@ git push origin main
 **Option B: Manual Push from Local Machine**
 ```bash
 # Clone/pull on your local machine
-git clone https://github.com/byteworthy/Payrixa.git
-cd Payrixa
+git clone https://github.com/byteworthy/Upstream.git
+cd Upstream
 git pull origin main  # Should fetch 13 commits
 
 # Or if you have uncommitted work locally, cherry-pick:
@@ -185,7 +185,7 @@ After staging deployment, test these critical flows:
    - Grade: A (Approved for Production)
 
 ### Code Improvements (1 file)
-5. **payrixa/cache.py** (1 line changed)
+5. **upstream/cache.py** (1 line changed)
    - Upgraded hash function: MD5 → SHA256
    - Security best practice alignment
 
@@ -209,7 +209,7 @@ After staging deployment, test these critical flows:
 # (Configure based on your infrastructure)
 
 # 2. Backup production database
-pg_dump -U postgres payrixa_prod > backup_$(date +%Y%m%d_%H%M%S).sql
+pg_dump -U postgres upstream_prod > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 3. Deploy code
 git pull origin main
@@ -268,11 +268,11 @@ python smoke_tests.py --env production --critical-only
 # 2. Revert code
 git reset --hard <previous-commit>
 # 3. Rollback migrations
-python manage.py migrate payrixa 0013
+python manage.py migrate upstream 0013
 # 4. Restart services
 sudo systemctl restart gunicorn
 # 5. Restore database if needed
-psql -U postgres payrixa_prod < backup_TIMESTAMP.sql
+psql -U postgres upstream_prod < backup_TIMESTAMP.sql
 ```
 
 **Rollback Time:** <5 minutes
@@ -423,7 +423,7 @@ Thanks,
 - Migration errors: See DEPLOYMENT_RUNBOOK.md troubleshooting
 
 **Monitoring:**
-- Sentry: https://sentry.io/payrixa
+- Sentry: https://sentry.io/upstream
 - Application logs: /var/log/gunicorn/
 - Database logs: /var/log/postgresql/
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Payrixa Model Amplification - Automated Setup Script
+# Upstream Model Amplification - Automated Setup Script
 #
 # This script automates the setup of data quality, validation,
 # DriftWatch, and DenialScope amplified features.
@@ -12,7 +12,7 @@
 set -e  # Exit on error
 
 echo "=========================================="
-echo "Payrixa Model Amplification Setup"
+echo "Upstream Model Amplification Setup"
 echo "=========================================="
 echo ""
 
@@ -62,7 +62,7 @@ fi
 echo ""
 print_status "Step 2: Checking for pending migrations..."
 
-if python manage.py showmigrations payrixa | grep -q "\[ \]"; then
+if python manage.py showmigrations upstream | grep -q "\[ \]"; then
     print_warning "Pending migrations found"
 fi
 
@@ -95,7 +95,7 @@ echo ""
 print_status "Step 5: Initializing data quality for customers..."
 
 # Check if customers exist
-CUSTOMER_COUNT=$(python manage.py shell -c "from payrixa.models import Customer; print(Customer.objects.count())")
+CUSTOMER_COUNT=$(python manage.py shell -c "from upstream.models import Customer; print(Customer.objects.count())")
 
 if [ "$CUSTOMER_COUNT" -gt 0 ]; then
     print_status "Found $CUSTOMER_COUNT customers"
@@ -121,8 +121,8 @@ print_status "Step 7: Verifying installation..."
 
 # Check if models are accessible
 python manage.py shell -c "
-from payrixa.core.validation_models import ValidationRule, DataQualityMetric
-from payrixa.products.denialscope.advanced_models import DenialCluster
+from upstream.core.validation_models import ValidationRule, DataQualityMetric
+from upstream.products.denialscope.advanced_models import DenialCluster
 print('✓ All models accessible')
 " 2>/dev/null
 
@@ -139,11 +139,11 @@ echo "=========================================="
 echo "Setup Complete!"
 echo "=========================================="
 echo ""
-print_success "Payrixa Model Amplification is ready to use!"
+print_success "Upstream Model Amplification is ready to use!"
 echo ""
 echo "Next steps:"
 echo "  1. Add URL patterns to hello_world/urls.py:"
-echo "     path('', include('payrixa.urls_data_quality')),"
+echo "     path('', include('upstream.urls_data_quality')),"
 echo ""
 echo "  2. Start development server:"
 echo "     python manage.py runserver"

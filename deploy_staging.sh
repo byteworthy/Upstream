@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Staging Deployment Script for Payrixa
+# Staging Deployment Script for Upstream
 #
 # This script deploys Phase 2 + DelayGuard to staging environment
 # with comprehensive safety checks and rollback capability.
@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 ENVIRONMENT="staging"
-APP_NAME="payrixa"
+APP_NAME="upstream"
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
@@ -228,9 +228,9 @@ restart_services() {
 
     # Adjust based on your deployment setup:
     # - systemctl restart gunicorn
-    # - supervisorctl restart payrixa
+    # - supervisorctl restart upstream
     # - docker-compose restart web
-    # - kubectl rollout restart deployment/payrixa
+    # - kubectl rollout restart deployment/upstream
 
     log_warning "Service restart command needs configuration"
 }
@@ -276,7 +276,7 @@ perform_rollback() {
 # Main deployment flow
 main() {
     echo "========================================="
-    echo "   Payrixa Staging Deployment"
+    echo "   Upstream Staging Deployment"
     echo "========================================="
     echo ""
 

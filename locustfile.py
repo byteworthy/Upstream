@@ -1,5 +1,5 @@
 """
-Locust load testing configuration for Payrixa API.
+Locust load testing configuration for Upstream API.
 
 Usage:
     locust --host=http://localhost:8000
@@ -13,7 +13,7 @@ import random
 
 class PayrixaAPIUser(HttpUser):
     """
-    Simulates a Payrixa API user making requests to various endpoints.
+    Simulates a Upstream API user making requests to various endpoints.
     """
     wait_time = between(1, 3)  # Wait 1-3 seconds between requests
     

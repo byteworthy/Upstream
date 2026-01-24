@@ -1,7 +1,7 @@
-# Payrixa Operator Workflows
+# Upstream Operator Workflows
 
 **For**: Revenue Cycle Directors, Billing Managers, RCM Analysts  
-**Purpose**: Step-by-step workflows for daily, weekly, and monthly use of Payrixa
+**Purpose**: Step-by-step workflows for daily, weekly, and monthly use of Upstream
 
 ---
 
@@ -15,7 +15,7 @@ Know if there are any urgent issues that need attention today.
 
 ### Steps
 
-1. **Open Payrixa Portal**
+1. **Open Upstream Portal**
    - Navigate to your dashboard (bookmark it)
    - You should land on the Axis hub page or your default product dashboard
 
@@ -98,7 +98,7 @@ At the end of weekly review, you should have:
 First Monday of each month, or during your monthly billing operations review.
 
 ### Goal
-Validate that Payrixa is catching real issues, calibrate your expectations, identify systemic patterns.
+Validate that Upstream is catching real issues, calibrate your expectations, identify systemic patterns.
 
 ### Steps
 
@@ -276,7 +276,7 @@ Low:     Note and watch (2-3 min)
 - Assign follow-ups
 
 ### Monthly Operations Review
-- Include Payrixa ROI summary
+- Include Upstream ROI summary
 - Present systemic patterns
 - Propose operational changes
 
@@ -329,7 +329,7 @@ Low:     Note and watch (2-3 min)
 - [ ] You have a documented pattern or two
 
 ### After 6 Months
-- [ ] Payrixa is part of your operational rhythm
+- [ ] Upstream is part of your operational rhythm
 - [ ] You can articulate ROI to leadership
 - [ ] You're calibrating thresholds based on experience
 - [ ] Your team knows how to respond to alerts

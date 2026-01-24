@@ -47,7 +47,7 @@ python manage.py migrate
 python manage.py init_data_quality --all
 
 # 4. Verify models load
-python manage.py shell -c "from payrixa.core.validation_models import ValidationRule; print('✓ Models OK')"
+python manage.py shell -c "from upstream.core.validation_models import ValidationRule; print('✓ Models OK')"
 ```
 
 **Time:** ~10 minutes
@@ -65,7 +65,7 @@ urlpatterns = [
     # ... existing patterns ...
 
     # Data Quality URLs
-    path('', include('payrixa.urls_data_quality')),
+    path('', include('upstream.urls_data_quality')),
 ]
 ```
 
@@ -95,8 +95,8 @@ Open your browser and visit:
 Use the integration example:
 
 ```python
-from payrixa.core.data_quality_service import DataQualityService
-from payrixa.models import Customer, Upload
+from upstream.core.data_quality_service import DataQualityService
+from upstream.models import Customer, Upload
 
 customer = Customer.objects.first()
 service = DataQualityService(customer)
@@ -128,8 +128,8 @@ print(f"Validation: {result['summary']['accepted_rows']} accepted")
 ### 4. Test DriftWatch
 
 ```python
-from payrixa.products.driftwatch.services import DriftWatchSignalService
-from payrixa.models import ReportRun
+from upstream.products.driftwatch.services import DriftWatchSignalService
+from upstream.models import ReportRun
 
 report_run = ReportRun.objects.create(
     customer=customer,
@@ -147,7 +147,7 @@ print(f"By type: {results['by_type']}")
 ### 5. Test DenialScope Clustering
 
 ```python
-from payrixa.products.denialscope.ml_services import DenialClusteringService
+from upstream.products.denialscope.ml_services import DenialClusteringService
 
 service = DenialClusteringService(customer)
 clusters = service.cluster_denials(days_back=90, min_cluster_size=5)
@@ -293,7 +293,7 @@ brew install openblas lapack
 python manage.py shell -c "from django.conf import settings; print(settings.TEMPLATES[0]['DIRS'])"
 
 # Ensure templates are in correct location
-ls -la payrixa/templates/payrixa/data_quality/
+ls -la upstream/templates/upstream/data_quality/
 ```
 
 ### Issue: No validation rules

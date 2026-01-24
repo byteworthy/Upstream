@@ -17,7 +17,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hello_world.settings')
 import django
 django.setup()
 
-from payrixa.views import validate_not_phi
+from upstream.views import validate_not_phi
 
 def test_phi_validation():
     """Test PHI validation with various inputs."""

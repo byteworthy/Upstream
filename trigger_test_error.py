@@ -19,7 +19,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'payrixa.settings.prod')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'upstream.settings.prod')
 import django
 django.setup()
 

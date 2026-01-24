@@ -17,7 +17,7 @@ from decimal import Decimal
 
 # Setup Django FIRST before any imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'payrixa.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'upstream.settings.dev')
 
 import django
 django.setup()
@@ -28,10 +28,10 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from io import StringIO
 
-from payrixa.models import Customer, ClaimRecord, Upload
-from payrixa.products.delayguard.models import PaymentDelaySignal, PaymentDelayAggregate
-from payrixa.products.delayguard.services import DelayGuardComputationService
-from payrixa.alerts.models import AlertEvent, AlertRule
+from upstream.models import Customer, ClaimRecord, Upload
+from upstream.products.delayguard.models import PaymentDelaySignal, PaymentDelayAggregate
+from upstream.products.delayguard.services import DelayGuardComputationService
+from upstream.alerts.models import AlertEvent, AlertRule
 
 
 def test_delayguard_computation():
@@ -180,7 +180,7 @@ def test_alert_integration():
     print(f"✓ Created payment delay signal")
 
     # Trigger alert evaluation
-    from payrixa.alerts.services import evaluate_payment_delay_signal
+    from upstream.alerts.services import evaluate_payment_delay_signal
     alert_events = evaluate_payment_delay_signal(signal)
 
     if alert_events:

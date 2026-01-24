@@ -1,4 +1,4 @@
-# Dockerfile for Payrixa Django Application
+# Dockerfile for Upstream Django Application
 # Optimized for Google Cloud Run deployment
 
 FROM python:3.12-slim
@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    DJANGO_SETTINGS_MODULE=payrixa.settings.prod \
+    DJANGO_SETTINGS_MODULE=upstream.settings.prod \
     PORT=8080
 
 # Install system dependencies
@@ -46,7 +46,7 @@ RUN useradd -m -u 1000 appuser && \
 USER appuser
 
 # Collect static files
-RUN python manage.py collectstatic --no-input --settings=payrixa.settings.prod || true
+RUN python manage.py collectstatic --no-input --settings=upstream.settings.prod || true
 
 # Expose port (Cloud Run uses PORT env var, default 8080)
 EXPOSE 8080

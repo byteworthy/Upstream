@@ -1,6 +1,6 @@
-# GCP Quick Start - Payrixa Deployment
+# GCP Quick Start - Upstream Deployment
 
-**⚡ Get Payrixa running on Google Cloud in 20 minutes**
+**⚡ Get Upstream running on Google Cloud in 20 minutes**
 
 ## Prerequisites (5 minutes)
 
@@ -58,7 +58,7 @@ gcloud config set project $GCP_PROJECT_ID
 ./deploy_gcp.sh status
 
 # Get service URL
-SERVICE_URL=$(gcloud run services describe payrixa-staging \
+SERVICE_URL=$(gcloud run services describe upstream-staging \
     --region=us-central1 \
     --format="get(status.url)")
 
@@ -87,7 +87,7 @@ git push origin main
 ./deploy_gcp.sh deploy
 
 # SSH into database
-gcloud sql connect payrixa-db --user=payrixa
+gcloud sql connect upstream-db --user=upstream
 ```
 
 ---
@@ -113,14 +113,14 @@ gcloud builds log <BUILD_ID>
 
 ### Can't connect to database?
 ```bash
-gcloud sql instances describe payrixa-db
-gcloud sql connect payrixa-db --user=payrixa
+gcloud sql instances describe upstream-db
+gcloud sql connect upstream-db --user=upstream
 ```
 
 ### Service not responding?
 ```bash
 ./deploy_gcp.sh logs
-gcloud run services describe payrixa-staging --region=us-central1
+gcloud run services describe upstream-staging --region=us-central1
 ```
 
 ---

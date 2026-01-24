@@ -1,10 +1,10 @@
 # Monitoring and Observability Guide
 
-This document describes the monitoring and observability stack for Payrixa.
+This document describes the monitoring and observability stack for Upstream.
 
 ## Overview
 
-Payrixa uses **Prometheus** for metrics collection and **Grafana** for visualization. The `django-prometheus` library automatically instruments Django to expose metrics.
+Upstream uses **Prometheus** for metrics collection and **Grafana** for visualization. The `django-prometheus` library automatically instruments Django to expose metrics.
 
 ## Architecture
 
@@ -64,7 +64,7 @@ This endpoint exposes Prometheus-format metrics including:
 
 Pre-configured dashboards are available in `monitoring/grafana/dashboards/`:
 
-1. **Payrixa Application Monitoring** - Main dashboard showing:
+1. **Upstream Application Monitoring** - Main dashboard showing:
    - HTTP request rate
    - Request latency (p95)
    - Error rates (4xx, 5xx)
@@ -74,7 +74,7 @@ Pre-configured dashboards are available in `monitoring/grafana/dashboards/`:
 
 1. Log in to Grafana at http://localhost:3000
 2. Navigate to **Dashboards** → **Import**
-3. Upload the JSON file from `monitoring/grafana/dashboards/payrixa-dashboard.json`
+3. Upload the JSON file from `monitoring/grafana/dashboards/upstream-dashboard.json`
 4. Select **Prometheus** as the data source
 
 ## Configuration
@@ -114,7 +114,7 @@ Configure Prometheus alerting rules in `monitoring/prometheus/alerts.yml`:
 
 ```yaml
 groups:
-  - name: payrixa_alerts
+  - name: upstream_alerts
     rules:
       - alert: HighErrorRate
         expr: rate(django_http_responses_total_by_status_total{status=~"5.."}[5m]) > 0.05

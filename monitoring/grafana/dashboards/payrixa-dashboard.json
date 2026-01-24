@@ -1,7 +1,7 @@
 {
   "dashboard": {
-    "title": "Payrixa Application Monitoring",
-    "tags": ["payrixa", "django"],
+    "title": "Upstream Application Monitoring",
+    "tags": ["upstream", "django"],
     "timezone": "browser",
     "panels": [
       {

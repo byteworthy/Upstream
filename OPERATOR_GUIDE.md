@@ -1,13 +1,13 @@
-# Payrixa Operator Guide
+# Upstream Operator Guide
 
 **For**: Revenue Cycle Directors, Billing Managers, RCM Analysts  
-**Purpose**: Understand what Payrixa watches, why it matters, and how to respond
+**Purpose**: Understand what Upstream watches, why it matters, and how to respond
 
 ---
 
-## What Payrixa Watches
+## What Upstream Watches
 
-Payrixa monitors **two critical signals** that indicate when your revenue is at risk:
+Upstream monitors **two critical signals** that indicate when your revenue is at risk:
 
 ### 1. Denial Rate Drift (DriftWatch)
 **What it is**: Week-over-week changes in how often payers deny your claims.
@@ -33,9 +33,9 @@ Payrixa monitors **two critical signals** that indicate when your revenue is at 
 
 ---
 
-## What Payrixa Doesn't Watch
+## What Upstream Doesn't Watch
 
-Payrixa is **not** a claims clearinghouse, a billing system, or a collections tool.
+Upstream is **not** a claims clearinghouse, a billing system, or a collections tool.
 
 **It does NOT**:
 - Submit claims for you
@@ -61,8 +61,8 @@ Most practices discover payer behavior changes **30-60 days after they start**:
 - By the time you see it, you've already lost revenue
 - Appeals have shorter windows than you think
 
-### The Payrixa Advantage
-Payrixa detects shifts **within 7 days**:
+### The Upstream Advantage
+Upstream detects shifts **within 7 days**:
 - Weekly analysis catches changes in the first cycle
 - Alerts arrive when you can still act
 - Historical context shows if this is new or recurring
@@ -126,7 +126,7 @@ After investigating:
 
 ---
 
-## Trust Building: How to Know Payrixa Is Right
+## Trust Building: How to Know Upstream Is Right
 
 ### Week 1: Calibration
 - You'll see alerts
@@ -151,19 +151,19 @@ After investigating:
 ## Common Questions
 
 ### "How do I know this isn't just normal variance?"
-Payrixa uses statistical thresholds based on your historical data. A "high severity" alert means the change is **outside normal variance** for your practice.
+Upstream uses statistical thresholds based on your historical data. A "high severity" alert means the change is **outside normal variance** for your practice.
 
 ### "What if I don't have time to investigate every alert?"
 Focus on **High severity + First time** signals first. Low severity alerts are informational and can be reviewed weekly.
 
 ### "Will this replace my monthly reporting?"
-No. Payrixa is **early detection**, not **comprehensive reporting**. Use it alongside your monthly reports, not instead of them.
+No. Upstream is **early detection**, not **comprehensive reporting**. Use it alongside your monthly reports, not instead of them.
 
 ### "What if I investigate and find nothing?"
-That's okay. False positives teach Payrixa what "normal" looks like for you. Over time, the signal-to-noise ratio improves.
+That's okay. False positives teach Upstream what "normal" looks like for you. Over time, the signal-to-noise ratio improves.
 
 ### "How do I explain this to my team?"
-> "Payrixa watches for when payers change how they treat our claims. It's like a smoke detector—it tells us early when something's wrong, so we can fix it before it becomes a fire."
+> "Upstream watches for when payers change how they treat our claims. It's like a smoke detector—it tells us early when something's wrong, so we can fix it before it becomes a fire."
 
 ---
 
@@ -185,7 +185,7 @@ That's okay. False positives teach Payrixa what "normal" looks like for you. Ove
 ### Building the Habit
 - **Daily check** (5 min): Any new high-priority alerts?
 - **Weekly review** (20 min): Investigate active signals, review trends
-- **Monthly sanity check** (30 min): Is Payrixa catching things you'd miss? What's the ROI?
+- **Monthly sanity check** (30 min): Is Upstream catching things you'd miss? What's the ROI?
 
 ---
 
@@ -193,11 +193,11 @@ That's okay. False positives teach Payrixa what "normal" looks like for you. Ove
 
 ### Short Term (Month 1-2)
 - You catch 1-2 denial rate changes before they show up in monthly reports
-- Your team knows what Payrixa is and checks it regularly
+- Your team knows what Upstream is and checks it regularly
 - You have evidence to bring to payer conversations
 
 ### Medium Term (Month 3-6)
-- Payrixa is part of your Monday morning routine
+- Upstream is part of your Monday morning routine
 - You trust the High severity alerts enough to act without full investigation
 - You've prevented at least one 5-figure revenue leak
 
@@ -217,4 +217,4 @@ That's okay. False positives teach Payrixa what "normal" looks like for you. Ove
 
 ---
 
-**Remember**: Payrixa doesn't make decisions for you. It gives you **early certainty** so you can make better decisions faster.
+**Remember**: Upstream doesn't make decisions for you. It gives you **early certainty** so you can make better decisions faster.

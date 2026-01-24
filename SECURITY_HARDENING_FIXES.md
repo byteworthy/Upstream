@@ -36,7 +36,7 @@ This document identifies and fixes **critical security vulnerabilities, bugs, an
 
 **VULNERABILITY:** JSON field queries in suppression engine are vulnerable to injection.
 
-**File:** `payrixa/alerts/suppression.py` (SECURE VERSION)
+**File:** `upstream/alerts/suppression.py` (SECURE VERSION)
 
 ```python
 """
@@ -290,7 +290,7 @@ class SuppressionEngine:
 
 **VULNERABILITY:** Multiple concurrent evaluations can create duplicate alerts.
 
-**File:** `payrixa/alerts/services.py` (RACE CONDITION FIX)
+**File:** `upstream/alerts/services.py` (RACE CONDITION FIX)
 
 ```python
 """
@@ -311,7 +311,7 @@ def evaluate_drift_event(drift_event):
 
     Uses database-level locking to prevent duplicate alert creation.
     """
-    from payrixa.core.services import create_audit_event
+    from upstream.core.services import create_audit_event
     from .confidence import ConfidenceScorer
 
     alert_events = []
@@ -439,7 +439,7 @@ def _sanitize_severity(severity):
 
 **VULNERABILITY:** Sensitive patient data could be logged or stored in alerts.
 
-**File:** `payrixa/alerts/pii_sanitizer.py` (NEW)
+**File:** `upstream/alerts/pii_sanitizer.py` (NEW)
 
 ```python
 """
@@ -615,7 +615,7 @@ def safe_logger():
 
 **VULNERABILITY:** Webhooks lack replay attack prevention and proper signature verification.
 
-**File:** `payrixa/alerts/webhook_security.py` (NEW)
+**File:** `upstream/alerts/webhook_security.py` (NEW)
 
 ```python
 """
@@ -718,10 +718,10 @@ class SecureWebhookDelivery:
         # Prepare headers
         headers = {
             'Content-Type': 'application/json',
-            'X-Payrixa-Signature': signature,
-            'X-Payrixa-Timestamp': str(timestamp),
-            'X-Payrixa-Nonce': nonce,
-            'User-Agent': 'Payrixa-Webhook/1.0'
+            'X-Upstream-Signature': signature,
+            'X-Upstream-Timestamp': str(timestamp),
+            'X-Upstream-Nonce': nonce,
+            'User-Agent': 'Upstream-Webhook/1.0'
         }
 
         try:
@@ -823,7 +823,7 @@ class SecureWebhookDelivery:
 
 **VULNERABILITY:** Large payloads can cause memory exhaustion and DoS.
 
-**File:** `payrixa/alerts/validation.py` (NEW)
+**File:** `upstream/alerts/validation.py` (NEW)
 
 ```python
 """
@@ -939,7 +939,7 @@ class PayloadValidator:
 
 **VULNERABILITY:** Insecure Direct Object References - users could access other customers' alerts.
 
-**File:** `payrixa/alerts/authorization.py` (NEW)
+**File:** `upstream/alerts/authorization.py` (NEW)
 
 ```python
 """
@@ -1026,7 +1026,7 @@ def require_alert_access(view_func):
     """Decorator to check alert access."""
     @wraps(view_func)
     def wrapper(request, alert_id, *args, **kwargs):
-        from payrixa.alerts.models import AlertEvent
+        from upstream.alerts.models import AlertEvent
 
         try:
             alert_event = AlertEvent.objects.select_related('customer').get(id=alert_id)
@@ -1044,7 +1044,7 @@ def require_alert_modification(view_func):
     """Decorator to check alert modification permission."""
     @wraps(view_func)
     def wrapper(request, alert_id, *args, **kwargs):
-        from payrixa.alerts.models import AlertEvent
+        from upstream.alerts.models import AlertEvent
 
         try:
             alert_event = AlertEvent.objects.select_related('customer').get(id=alert_id)
@@ -1062,7 +1062,7 @@ def require_alert_modification(view_func):
 
 **VULNERABILITY:** Email subject/recipient fields vulnerable to header injection.
 
-**File:** `payrixa/alerts/email_security.py` (NEW)
+**File:** `upstream/alerts/email_security.py` (NEW)
 
 ```python
 """
@@ -1180,7 +1180,7 @@ class SecureEmailSender:
     def _sanitize_subject(cls, subject):
         """Sanitize email subject."""
         if not subject:
-            return "Payrixa Alert"
+            return "Upstream Alert"
 
         # Convert to string
         subject = str(subject)
@@ -1237,7 +1237,7 @@ class SecureEmailSender:
 
 ### 2.1 Dead Letter Queue (Critical Alert Backup)
 
-**File:** `payrixa/alerts/dead_letter_queue.py` (NEW)
+**File:** `upstream/alerts/dead_letter_queue.py` (NEW)
 
 ```python
 """
@@ -1374,7 +1374,7 @@ class DeadLetterQueue(models.Model):
 
 ### 2.2 Comprehensive Audit Trail
 
-**File:** `payrixa/alerts/audit.py` (NEW)
+**File:** `upstream/alerts/audit.py` (NEW)
 
 ```python
 """
@@ -1438,7 +1438,7 @@ class AlertAuditLog(models.Model):
         related_name='audit_logs'
     )
     customer = models.ForeignKey(
-        'payrixa.Customer',
+        'upstream.Customer',
         on_delete=models.CASCADE,
         related_name='alert_audit_logs'
     )
@@ -1526,7 +1526,7 @@ class AlertAuditLog(models.Model):
 
 ### 2.3 Rate Limiting Per Alert Type
 
-**File:** `payrixa/alerts/rate_limiter.py` (ENHANCED)
+**File:** `upstream/alerts/rate_limiter.py` (ENHANCED)
 
 ```python
 """
@@ -1648,7 +1648,7 @@ class AlertRateLimiter:
 
 ### 3.1 Database Constraints & Indexes
 
-**File:** `payrixa/alerts/migrations/0002_security_hardening.py` (NEW)
+**File:** `upstream/alerts/migrations/0002_security_hardening.py` (NEW)
 
 ```python
 """
@@ -1722,7 +1722,7 @@ class Migration(migrations.Migration):
 
 ### 4.1 Metrics Collection
 
-**File:** `payrixa/alerts/metrics.py` (NEW)
+**File:** `upstream/alerts/metrics.py` (NEW)
 
 ```python
 """

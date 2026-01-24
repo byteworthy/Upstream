@@ -21,7 +21,7 @@ import time
 
 # Setup Django
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'payrixa.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'upstream.settings.dev')
 
 import django
 django.setup()
@@ -31,8 +31,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
-from payrixa.models import Customer, Upload, ClaimRecord, PayerMapping, CPTGroupMapping, DataQualityReport
-from payrixa.views import get_payer_mappings_cached, get_cpt_mappings_cached
+from upstream.models import Customer, Upload, ClaimRecord, PayerMapping, CPTGroupMapping, DataQualityReport
+from upstream.views import get_payer_mappings_cached, get_cpt_mappings_cached
 from io import BytesIO
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -172,7 +172,7 @@ def test_phi_detection():
     print("Test 3: PHI Detection")
     print("=" * 60)
 
-    from payrixa.views import validate_not_phi, COMMON_FIRST_NAMES
+    from upstream.views import validate_not_phi, COMMON_FIRST_NAMES
 
     results = []
 
@@ -231,7 +231,7 @@ def test_data_quality_reports():
 
     # Check DataQualityReport model exists
     try:
-        from payrixa.models import DataQualityReport
+        from upstream.models import DataQualityReport
         print("  ✓ DataQualityReport model imported")
     except ImportError as e:
         print(f"  ✗ DataQualityReport model not found: {str(e)}")
@@ -368,9 +368,9 @@ def test_monitoring_middleware():
 
     # Check middleware configuration
     expected_middleware = [
-        'payrixa.middleware.HealthCheckMiddleware',
-        'payrixa.middleware.RequestTimingMiddleware',
-        'payrixa.middleware.MetricsCollectionMiddleware',
+        'upstream.middleware.HealthCheckMiddleware',
+        'upstream.middleware.RequestTimingMiddleware',
+        'upstream.middleware.MetricsCollectionMiddleware',
     ]
 
     configured_middleware = settings.MIDDLEWARE
@@ -406,7 +406,7 @@ def test_monitoring_middleware():
     factory = RequestFactory()
     request = factory.get('/test-endpoint/')
 
-    from payrixa.middleware import RequestTimingMiddleware
+    from upstream.middleware import RequestTimingMiddleware
     middleware = RequestTimingMiddleware(lambda r: None)
     middleware.process_request(request)
 
@@ -458,7 +458,7 @@ def test_sentry_configuration():
 
     # Check if PHI filter function exists
     try:
-        from payrixa.settings import prod
+        from upstream.settings import prod
         if hasattr(prod, 'filter_phi_from_errors') or 'filter_phi_from_errors' in dir(prod):
             print("  ✓ PHI filter function defined")
             results.append(True)
@@ -497,8 +497,8 @@ def test_middleware_order():
 
     # 1. HealthCheckMiddleware should be first (for fast exit)
     health_idx = None
-    if 'payrixa.middleware.HealthCheckMiddleware' in middleware:
-        health_idx = middleware.index('payrixa.middleware.HealthCheckMiddleware')
+    if 'upstream.middleware.HealthCheckMiddleware' in middleware:
+        health_idx = middleware.index('upstream.middleware.HealthCheckMiddleware')
         if health_idx == 0:
             print("  ✓ HealthCheckMiddleware is first (position 0)")
             checks.append(True)
@@ -530,9 +530,9 @@ def test_middleware_order():
             checks.append(False)
 
     # 4. RequestTimingMiddleware after AuthenticationMiddleware
-    if 'payrixa.middleware.RequestTimingMiddleware' in middleware and \
+    if 'upstream.middleware.RequestTimingMiddleware' in middleware and \
        'django.contrib.auth.middleware.AuthenticationMiddleware' in middleware:
-        timing_idx = middleware.index('payrixa.middleware.RequestTimingMiddleware')
+        timing_idx = middleware.index('upstream.middleware.RequestTimingMiddleware')
         auth_idx = middleware.index('django.contrib.auth.middleware.AuthenticationMiddleware')
 
         if timing_idx > auth_idx:

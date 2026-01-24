@@ -17,14 +17,14 @@ from io import BytesIO
 
 # Setup Django
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'payrixa.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'upstream.settings.dev')
 django.setup()
 
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from payrixa.models import Customer, PayerMapping, CPTGroupMapping, Upload
-from payrixa.views import get_payer_mappings_cached, get_cpt_mappings_cached, UploadsView
-from payrixa.cache import get_cache_key, CACHE_KEYS, get_cache_stats
+from upstream.models import Customer, PayerMapping, CPTGroupMapping, Upload
+from upstream.views import get_payer_mappings_cached, get_cpt_mappings_cached, UploadsView
+from upstream.cache import get_cache_key, CACHE_KEYS, get_cache_stats
 
 
 def test_cache_configuration():

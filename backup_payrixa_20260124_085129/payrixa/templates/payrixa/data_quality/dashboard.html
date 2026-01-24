@@ -1,0 +1,297 @@
+{% extends "hello_world/base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - Upstream{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>
+                <i class="bi bi-shield-check"></i> Data Quality Dashboard
+            </h2>
+            <p class="text-muted">Monitor data quality, validation, and anomalies</p>
+        </div>
+    </div>
+
+    <!-- Health Scorecard -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-{{ scorecard.status }}">
+                <div class="card-header bg-{{ scorecard.status }} text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-heart-pulse"></i> Overall Health Score
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center border-end">
+                            <h1 class="display-3 text-{{ scorecard.status }}">
+                                {{ scorecard.overall_health_score }}
+                            </h1>
+                            <p class="text-muted mb-0">Health Score</p>
+                            <h4 class="mt-2">{{ scorecard.overall_health_grade }}</h4>
+                        </div>
+                        <div class="col-md-3 text-center border-end">
+                            <h2 class="text-success">{{ scorecard.average_acceptance_rate|floatformat:1 }}%</h2>
+                            <p class="text-muted mb-0">Acceptance Rate</p>
+                            <small class="text-muted">{{ scorecard.period }}</small>
+                        </div>
+                        <div class="col-md-3 text-center border-end">
+                            <h2>{{ scorecard.uploads_count }}</h2>
+                            <p class="text-muted mb-0">Uploads Processed</p>
+                            <small class="text-muted">{{ scorecard.total_rows_processed|intcomma }} rows</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h2 class="text-danger">{{ scorecard.open_issues.critical }}</h2>
+                            <p class="text-muted mb-0">Critical Issues</p>
+                            <small class="text-muted">{{ scorecard.open_issues.total_anomalies }} total anomalies</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quality Metrics Row -->
+    <div class="row mb-4">
+        {% for metric_type, metric_data in scorecard.quality_metrics.items %}
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="text-primary">{{ metric_data.grade }}</h3>
+                    <p class="mb-1">{{ metric_type|title }}</p>
+                    <small class="text-muted">{{ metric_data.score|floatformat:2 }} / 1.0</small>
+                    <div class="progress mt-2" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar"
+                             style="width: {{ metric_data.score|floatformat:0 }}%"
+                             aria-valuenow="{{ metric_data.score|floatformat:0 }}"
+                             aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Recent Uploads -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-bar-graph"></i> Recent Uploads
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>File</th>
+                                    <th>Uploaded</th>
+                                    <th>Rows</th>
+                                    <th>Quality</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in recent_uploads %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.upload.filename }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ item.upload.uploaded_at|date:"M d, Y H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        {{ item.upload.row_count|default:"—" }}
+                                    </td>
+                                    <td>
+                                        {% if item.has_report %}
+                                            <span class="badge bg-{{ item.quality_report.quality_score|quality_badge_class }}">
+                                                {{ item.quality_report.quality_score|floatformat:1 }}
+                                            </span>
+                                            {% if item.quality_report.has_issues %}
+                                                <i class="bi bi-exclamation-triangle text-warning"
+                                                   title="{{ item.quality_report.rejected_rows }} issues"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.upload.status == 'success' %}
+                                            <span class="badge bg-success">Success</span>
+                                        {% elif item.upload.status == 'processing' %}
+                                            <span class="badge bg-info">Processing</span>
+                                        {% elif item.upload.status == 'partial' %}
+                                            <span class="badge bg-warning">Partial</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'upload_quality_detail' item.upload.id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quality Trend Chart -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up"></i> Quality Trend (30 Days)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="qualityTrendChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Open Issues -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Open Issues
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Critical Anomalies</span>
+                        <span class="badge bg-danger">{{ scorecard.open_issues.critical }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>High Severity</span>
+                        <span class="badge bg-warning">{{ scorecard.open_issues.high }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Medium Severity</span>
+                        <span class="badge bg-info">{{ scorecard.open_issues.medium }}</span>
+                    </div>
+                    <hr>
+                    <a href="{% url 'anomaly_dashboard' %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="bi bi-bug"></i> View All Anomalies
+                    </a>
+                </div>
+            </div>
+
+            <!-- Recent Anomalies -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bug"></i> Recent Anomalies
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_anomalies %}
+                        <div class="list-group list-group-flush">
+                            {% for anomaly in recent_anomalies %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        <span class="badge bg-{{ anomaly.severity }}">{{ anomaly.severity|upper }}</span>
+                                        {{ anomaly.anomaly_type|title|replace:"_"," " }}
+                                    </h6>
+                                    <small>{{ anomaly.detected_at|timesince }} ago</small>
+                                </div>
+                                <p class="mb-1 small">{{ anomaly.description|truncatewords:15 }}</p>
+                                <small class="text-muted">Score: {{ anomaly.anomaly_score|floatformat:2 }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-check-circle text-success"></i> No recent anomalies
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-link-45deg"></i> Quick Links
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'validation_rules_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-gear"></i> Validation Rules
+                        </a>
+                        <a href="{% url 'quality_trends' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-graph-up"></i> Quality Trends
+                        </a>
+                        <a href="{% url 'anomaly_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-bug"></i> Anomaly Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quality Trend Chart
+    const trendCtx = document.getElementById('qualityTrendChart').getContext('2d');
+    const trendData = {{ trend_report.daily_quality|safe }};
+
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: trendData.map(d => d.date),
+            datasets: [{
+                label: 'Quality Score',
+                data: trendData.map(d => d.quality_score * 100),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Quality Score (%)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

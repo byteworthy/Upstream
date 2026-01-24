@@ -1,4 +1,4 @@
-# Payrixa Demo Story
+# Upstream Demo Story
 
 **Duration**: 10-15 minutes  
 **Audience**: Revenue Cycle Director, Billing Manager, Potential Customer  
@@ -32,20 +32,20 @@ python manage.py compute_denialscope --customer 1
 ```
 
 ### Scenario
-It's Monday morning. Sam logs into Payrixa for their weekly check. Unknown to Sam, Blue Cross started denying more E&M claims last week due to a policy change. This is Sam's first alert.
+It's Monday morning. Sam logs into Upstream for their weekly check. Unknown to Sam, Blue Cross started denying more E&M claims last week due to a policy change. This is Sam's first alert.
 
 ---
 
 ## Part 1: The Morning Check (2 min)
 
 ### Talking Points
-> "Let's walk through Sam's Monday morning. She opens Payrixa to check if there's anything urgent—this should take about 5 minutes."
+> "Let's walk through Sam's Monday morning. She opens Upstream to check if there's anything urgent—this should take about 5 minutes."
 
 ### Steps
 1. **Open the Portal** → Navigate to `/portal/`
    
 2. **Show the Dashboard** → Note the "What is This?" section at top
-   > "Notice Payrixa explains what you're looking at right here. It watches denial rates and dollar spikes—the two things that matter for catching payer behavior changes."
+   > "Notice Upstream explains what you're looking at right here. It watches denial rates and dollar spikes—the two things that matter for catching payer behavior changes."
 
 3. **Point to High-Severity Signal**
    > "See this red badge? That's a High severity signal. It says 'Investigate Today'—that means something changed enough to warrant attention."
@@ -70,7 +70,7 @@ It's Monday morning. Sam logs into Payrixa for their weekly check. Unknown to Sa
    - **Delta**: +0.08 (+8 points) — the change
    - **Severity**: 0.75 (High) — outside normal patterns
 
-   > "Payrixa doesn't just show you data—it tells you if it matters. Severity 0.75 means this is statistically significant. It's not noise."
+   > "Upstream doesn't just show you data—it tells you if it matters. Severity 0.75 means this is statistically significant. It's not noise."
 
 3. **Show the Evidence Section**
    > "And here's the evidence: specific claims, specific CPT groups, specific time range. Sam doesn't have to dig—it's all here."
@@ -91,7 +91,7 @@ It's Monday morning. Sam logs into Payrixa for their weekly check. Unknown to Sa
 > "If Sam catches this in Week 1, she loses $2,400. If she catches it in her monthly report (Week 4), she's lost $9,600. If it takes 8 weeks to notice, that's $19,200."
 
 ### The Value
-> "Payrixa caught this in Week 1. Sam has 3 weeks of runway to investigate, appeal, or adjust—instead of discovering it after the damage is done."
+> "Upstream caught this in Week 1. Sam has 3 weeks of runway to investigate, appeal, or adjust—instead of discovering it after the damage is done."
 
 ---
 
@@ -105,7 +105,7 @@ It's Monday morning. Sam logs into Payrixa for their weekly check. Unknown to Sa
    - Show "What This Means" section
    - Show "Recommended Action" with specific steps
    
-   > "Payrixa doesn't just say 'something changed'—it says what to do about it."
+   > "Upstream doesn't just say 'something changed'—it says what to do about it."
 
 2. **Pull Sample Claims**
    > "Sam pulls 5 claims from the evidence table. She sees they're all E&M codes (99213, 99214) getting denied for 'Medical necessity not established.'"
@@ -117,14 +117,14 @@ It's Monday morning. Sam logs into Payrixa for their weekly check. Unknown to Sa
    > "Sam sends a quick note to her billing team: 'Heads up—Blue Cross has new E&M documentation requirements. Make sure providers are including X, Y, Z.' She schedules a training for Thursday."
 
 ### The Outcome
-> "Problem identified in Week 1. Training happens in Week 1. By Week 2, denial rate is back to normal. Total exposure: one week. Without Payrixa? Could have been 6-8 weeks."
+> "Problem identified in Week 1. Training happens in Week 1. By Week 2, denial rate is back to normal. Total exposure: one week. Without Upstream? Could have been 6-8 weeks."
 
 ---
 
 ## Part 5: The Routine (2 min)
 
 ### Talking Points
-> "Let's zoom out. How does Payrixa fit into Sam's week?"
+> "Let's zoom out. How does Upstream fit into Sam's week?"
 
 ### Daily Check (5 min)
 > "Every morning, Sam opens the dashboard, checks for red badges, and moves on. Most days: nothing urgent. Takes 5 minutes."
@@ -136,21 +136,21 @@ It's Monday morning. Sam logs into Payrixa for their weekly check. Unknown to Sa
 > "First Monday of the month, she reviews last month's alerts, calculates rough ROI, and shares insights with her team."
 
 ### The Rhythm
-> "Payrixa becomes part of the routine—not a burden. It's the smoke detector that runs in the background, alerting when something's wrong."
+> "Upstream becomes part of the routine—not a burden. It's the smoke detector that runs in the background, alerting when something's wrong."
 
 ---
 
 ## Closing: The Value Prop (1 min)
 
 ### Summary
-> "Payrixa doesn't replace Sam's judgment. It gives her early certainty."
+> "Upstream doesn't replace Sam's judgment. It gives her early certainty."
 
-> "Without Payrixa: Sam discovers problems 30-60 days late, after the damage is done."
+> "Without Upstream: Sam discovers problems 30-60 days late, after the damage is done."
 
-> "With Payrixa: Sam catches problems in Week 1, when there's still time to act."
+> "With Upstream: Sam catches problems in Week 1, when there's still time to act."
 
 ### The One-Liner
-> "Payrixa is like a smoke detector for your revenue cycle. It doesn't fight the fire—it tells you early, so you can."
+> "Upstream is like a smoke detector for your revenue cycle. It doesn't fight the fire—it tells you early, so you can."
 
 ---
 
@@ -176,10 +176,10 @@ It's Monday morning. Sam logs into Payrixa for their weekly check. Unknown to Sa
 ## Objection Handling
 
 ### "We already have reports"
-> "Reports tell you what happened. Payrixa tells you what's changing—early enough to do something about it. It's not a replacement for reports; it's early warning before reports show the problem."
+> "Reports tell you what happened. Upstream tells you what's changing—early enough to do something about it. It's not a replacement for reports; it's early warning before reports show the problem."
 
 ### "How accurate is it?"
-> "Payrixa uses statistical thresholds based on your historical data. It flags changes that are outside your normal variance. Early on, you might get a few false positives as it learns your patterns. Within a month, the signal-to-noise ratio improves."
+> "Upstream uses statistical thresholds based on your historical data. It flags changes that are outside your normal variance. Early on, you might get a few false positives as it learns your patterns. Within a month, the signal-to-noise ratio improves."
 
 ### "We don't have time for another tool"
 > "Daily check: 5 minutes. Weekly review: 20 minutes. That's less than an hour a week. Compare that to the hours spent investigating problems you catch too late."
@@ -224,4 +224,4 @@ After the demo:
 
 ---
 
-**Remember**: The goal of the demo is not to show features. It's to show **value discovery**—the moment Sam realizes Payrixa caught something she would have missed.
+**Remember**: The goal of the demo is not to show features. It's to show **value discovery**—the moment Sam realizes Upstream caught something she would have missed.

@@ -1,4 +1,4 @@
-# Payrixa Authentication & Multi-Tenancy Guide
+# Upstream Authentication & Multi-Tenancy Guide
 
 **Last Updated:** 2026-01-22
 **Version:** Hub v1
@@ -7,7 +7,7 @@
 
 ## Overview
 
-Payrixa uses a **multi-tenant architecture** with role-based access control (RBAC). This guide explains how authentication and tenant separation work.
+Upstream uses a **multi-tenant architecture** with role-based access control (RBAC). This guide explains how authentication and tenant separation work.
 
 ---
 
@@ -15,7 +15,7 @@ Payrixa uses a **multi-tenant architecture** with role-based access control (RBA
 
 ### 1. **Operator Accounts** (Internal Staff)
 
-**Who:** Payrixa employees, support staff, system administrators
+**Who:** Upstream employees, support staff, system administrators
 
 **How to Create:**
 ```bash
@@ -40,12 +40,12 @@ python manage.py createsuperuser
 
 ### 2. **Client Accounts** (Customer Users)
 
-**Who:** Healthcare organization staff using Payrixa for their claims analysis
+**Who:** Healthcare organization staff using Upstream for their claims analysis
 
 **How to Create:**
 ```python
 from django.contrib.auth.models import User
-from payrixa.models import Customer, UserProfile
+from upstream.models import Customer, UserProfile
 
 # Create user
 user = User.objects.create_user(
@@ -102,12 +102,12 @@ The navigation header now shows clear tenant and role context:
 
 **For Operators:**
 ```
-Payrixa [Operator | All Customers] Axis DenialScope ... Logout
+Upstream [Operator | All Customers] Axis DenialScope ... Logout
 ```
 
 **For Clients:**
 ```
-Payrixa [Memorial Hospital | Admin] Axis DenialScope ... Logout
+Upstream [Memorial Hospital | Admin] Axis DenialScope ... Logout
 ```
 
 **Visual Styling:**
@@ -146,7 +146,7 @@ When logging out, users see a confirmation showing:
 
 **In Views:**
 ```python
-from payrixa.permissions import PermissionRequiredMixin
+from upstream.permissions import PermissionRequiredMixin
 
 class MyView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'upload_claims'
@@ -154,7 +154,7 @@ class MyView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
 **In Code:**
 ```python
-from payrixa.permissions import has_permission
+from upstream.permissions import has_permission
 
 if has_permission(request.user, 'manage_alerts'):
     # User can manage alerts
@@ -166,7 +166,7 @@ if has_permission(request.user, 'manage_alerts'):
 
 ### Architecture
 
-Payrixa uses **application-level tenant isolation**, not database-level middleware.
+Upstream uses **application-level tenant isolation**, not database-level middleware.
 
 **Data Model:**
 ```
@@ -185,7 +185,7 @@ All domain models (Upload, ClaimRecord, DriftEvent, etc.)
 Every view calls `get_current_customer(request)`:
 
 ```python
-from payrixa.utils import get_current_customer
+from upstream.utils import get_current_customer
 
 customer = get_current_customer(request)
 data = SomeModel.objects.filter(customer=customer)
@@ -201,7 +201,7 @@ data = SomeModel.objects.filter(customer=customer)
 Views use `CustomerFilterMixin`:
 
 ```python
-from payrixa.api.views import CustomerFilterMixin
+from upstream.api.views import CustomerFilterMixin
 
 class MyViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
     queryset = MyModel.objects.all()
@@ -217,7 +217,7 @@ class MyViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
 API uses custom permissions:
 
 ```python
-from payrixa.api.permissions import IsCustomerMember
+from upstream.api.permissions import IsCustomerMember
 
 class MyViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsCustomerMember]
@@ -267,7 +267,7 @@ For additional safety, consider implementing:
 ### Create a New Customer
 
 ```python
-from payrixa.models import Customer
+from upstream.models import Customer
 
 customer = Customer.objects.create(name="Memorial Hospital")
 ```
@@ -276,7 +276,7 @@ customer = Customer.objects.create(name="Memorial Hospital")
 
 ```python
 from django.contrib.auth.models import User
-from payrixa.models import Customer, UserProfile
+from upstream.models import Customer, UserProfile
 
 # Get customer
 customer = Customer.objects.get(name="Memorial Hospital")
@@ -308,7 +308,7 @@ profile.save()
 
 ```python
 # In a view with request
-from payrixa.utils import get_current_customer
+from upstream.utils import get_current_customer
 
 try:
     customer = get_current_customer(request)
@@ -320,7 +320,7 @@ except ValueError as e:
 ### Verify User Permissions
 
 ```python
-from payrixa.permissions import has_permission
+from upstream.permissions import has_permission
 
 if has_permission(request.user, 'upload_claims'):
     # User can upload claims
@@ -355,7 +355,7 @@ python manage.py createsuperuser
 # In Django shell
 from django.test import RequestFactory
 from django.contrib.auth.models import User
-from payrixa.models import Customer, UserProfile, Upload
+from upstream.models import Customer, UserProfile, Upload
 
 # Create two customers
 c1 = Customer.objects.create(name="Hospital A")
@@ -372,7 +372,7 @@ UserProfile.objects.create(user=u1, customer=c1, role='admin')
 UserProfile.objects.create(user=u2, customer=c2, role='admin')
 
 # Test isolation
-from payrixa.utils import get_current_customer
+from upstream.utils import get_current_customer
 
 request1 = RequestFactory().get('/')
 request1.user = u1
@@ -400,7 +400,7 @@ assert uploads1.first().filename == "test1.csv"
 
 **Fix:**
 ```python
-from payrixa.models import Customer, UserProfile
+from upstream.models import Customer, UserProfile
 
 customer = Customer.objects.get(name='...')
 profile = UserProfile.objects.create(
@@ -434,16 +434,16 @@ print(user.is_staff)  # Should be True
 
 | File | Purpose |
 |------|---------|
-| `payrixa/models.py` | Customer, UserProfile models |
-| `payrixa/utils.py` | `get_current_customer()` helper |
-| `payrixa/permissions.py` | RBAC permission checks |
-| `payrixa/api/permissions.py` | API permission classes |
-| `payrixa/api/views.py` | `CustomerFilterMixin` |
-| `payrixa/views.py` | Portal views + CustomLogoutView |
-| `payrixa/middleware.py` | ProductEnablementMiddleware |
-| `payrixa/templates/payrixa/base.html` | Navigation with tenant indicator |
-| `payrixa/templates/payrixa/logged_out.html` | Logout confirmation page |
-| `payrixa/templates/payrixa/login.html` | Login page |
+| `upstream/models.py` | Customer, UserProfile models |
+| `upstream/utils.py` | `get_current_customer()` helper |
+| `upstream/permissions.py` | RBAC permission checks |
+| `upstream/api/permissions.py` | API permission classes |
+| `upstream/api/views.py` | `CustomerFilterMixin` |
+| `upstream/views.py` | Portal views + CustomLogoutView |
+| `upstream/middleware.py` | ProductEnablementMiddleware |
+| `upstream/templates/upstream/base.html` | Navigation with tenant indicator |
+| `upstream/templates/upstream/logged_out.html` | Logout confirmation page |
+| `upstream/templates/upstream/login.html` | Login page |
 
 ---
 

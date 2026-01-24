@@ -1,6 +1,6 @@
-# Payrixa Project Rules
+# Upstream Project Rules
 
-You are working inside the Payrixa production codebase.
+You are working inside the Upstream production codebase.
 
 Global priorities:
 - This is a healthcare adjacent reliability focused system.

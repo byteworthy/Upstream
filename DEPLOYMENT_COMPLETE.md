@@ -1,4 +1,4 @@
-# 🎉 Payrixa Model Amplification - Deployment Complete
+# 🎉 Upstream Model Amplification - Deployment Complete
 
 **Date:** January 24, 2026
 **Status:** ✅ Production Ready
@@ -137,7 +137,7 @@ This creates 15 default validation rules for each customer.
 ### Example 1: Validate an Upload
 
 ```python
-from payrixa.core.data_quality_service import DataQualityService
+from upstream.core.data_quality_service import DataQualityService
 
 # During upload processing
 quality_service = DataQualityService(customer)
@@ -156,7 +156,7 @@ for anomaly in validation_result['anomalies']:
 ### Example 2: Run Drift Detection
 
 ```python
-from payrixa.products.driftwatch.services import DriftWatchSignalService
+from upstream.products.driftwatch.services import DriftWatchSignalService
 
 # Weekly drift analysis
 service = DriftWatchSignalService(customer)
@@ -177,7 +177,7 @@ for signal in underpayments:
 ### Example 3: Cluster Denials
 
 ```python
-from payrixa.products.denialscope.ml_services import DenialClusteringService
+from upstream.products.denialscope.ml_services import DenialClusteringService
 
 # ML clustering
 service = DenialClusteringService(customer)
@@ -322,7 +322,7 @@ Monitor these for ROI measurement:
 
 ## 🎉 You're Live!
 
-Your Payrixa instance now has enterprise-grade:
+Your Upstream instance now has enterprise-grade:
 - ✅ Data quality management
 - ✅ Statistical drift detection
 - ✅ ML-powered denial intelligence
