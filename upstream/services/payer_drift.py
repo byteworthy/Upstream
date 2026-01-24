@@ -10,7 +10,8 @@ def compute_weekly_payer_drift(
     baseline_days: int = 90,
     current_days: int = 14,
     min_volume: int = 30,
-    as_of_date: Optional[date] = None
+    as_of_date: Optional[date] = None,
+    report_run: Optional[ReportRun] = None
 ) -> ReportRun:
     """
     Compute payer drift metrics and create DriftEvent records.
@@ -21,6 +22,7 @@ def compute_weekly_payer_drift(
         current_days: Number of days in current window (default: 14)
         min_volume: Minimum volume threshold for both windows (default: 30)
         as_of_date: Date to use as reference point (defaults to today)
+        report_run: Optional existing ReportRun to use (creates new if None)
 
     Returns:
         ReportRun object with results
@@ -34,13 +36,14 @@ def compute_weekly_payer_drift(
     current_start = baseline_end
     current_end = as_of_date
 
-    # Create ReportRun
-    report_run = ReportRun.objects.create(
-        customer=customer,
-        run_type='weekly',
-        status='running',
-        started_at=timezone.now()
-    )
+    # Create or use existing ReportRun
+    if report_run is None:
+        report_run = ReportRun.objects.create(
+            customer=customer,
+            run_type='weekly',
+            status='running',
+            started_at=timezone.now()
+        )
 
     try:
         with transaction.atomic():

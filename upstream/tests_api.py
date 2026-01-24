@@ -256,6 +256,10 @@ class DashboardEndpointTests(APITestBase):
         customer_a_uploads = Upload.all_objects.filter(customer=self.customer_a).count()
         self.assertEqual(customer_a_uploads, 2, f"Expected 2 uploads for customer A, got {customer_a_uploads}")
 
+        # Clear dashboard cache to avoid stale data
+        from django.core.cache import cache
+        cache.delete(f'dashboard:customer:{self.customer_a.id}')
+
         self.authenticate_as(self.user_a)
         response = self.client.get(f'{API_BASE}/dashboard/')
 
@@ -577,9 +581,9 @@ class ReportRunEndpointTests(APITestBase):
         
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
         self.assertIn('id', response.data)
-        
+
         # Verify report was created for customer A
-        report = ReportRun.objects.get(id=response.data['id'])
+        report = ReportRun.all_objects.get(id=response.data['id'])
         self.assertEqual(report.customer, self.customer_a)
 
 

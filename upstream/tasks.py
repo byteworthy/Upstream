@@ -118,10 +118,10 @@ def generate_report_artifact_task(report_run_id: int, artifact_type: str = 'pdf'
     from upstream.reporting.models import ReportRun
     
     logger.info(f"Starting async report artifact generation for run {report_run_id}, type {artifact_type}")
-    
+
     try:
-        report_run = ReportRun.objects.get(id=report_run_id)
-        
+        report_run = ReportRun.all_objects.get(id=report_run_id)
+
         if artifact_type == 'pdf':
             artifact = generate_weekly_drift_pdf(report_run_id)
         elif artifact_type == 'csv':
@@ -186,26 +186,28 @@ def compute_report_drift_task(report_run_id: int) -> Dict[str, Any]:
     logger.info(f"Starting drift computation for report run {report_run_id}")
 
     try:
-        report_run = ReportRun.objects.get(id=report_run_id)
+        report_run = ReportRun.all_objects.get(id=report_run_id)
 
         # Compute drift for this report run
-        drift_events = compute_weekly_payer_drift(report_run.customer, report_run)
+        report_run = compute_weekly_payer_drift(report_run.customer, report_run=report_run)
 
         # Update report run status
         report_run.status = 'completed'
         report_run.save()
 
-        logger.info(f"Completed drift computation for report run {report_run_id}: {len(drift_events)} events")
+        # Count drift events for this report
+        drift_event_count = report_run.drift_events.count()
+        logger.info(f"Completed drift computation for report run {report_run_id}: {drift_event_count} events")
         return {
             'report_run_id': report_run_id,
-            'events_detected': len(drift_events),
+            'events_detected': drift_event_count,
             'status': 'success'
         }
     except Exception as e:
         logger.error(f"Error computing drift for report run {report_run_id}: {str(e)}")
         # Mark report as failed
         try:
-            report_run = ReportRun.objects.get(id=report_run_id)
+            report_run = ReportRun.all_objects.get(id=report_run_id)
             report_run.status = 'failed'
             report_run.save()
         except Exception:

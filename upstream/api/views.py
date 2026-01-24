@@ -331,18 +331,19 @@ class DriftEventViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     def active(self, request):
         """Get drift events from the most recent report run."""
         queryset = self.get_queryset()
-        
+
         # Get the most recent report run
-        latest_report = ReportRun.objects.filter(
+        # Use all_objects with explicit customer filter to avoid double-filtering
+        latest_report = ReportRun.all_objects.filter(
             customer=get_user_customer(request.user),
             status='success'
         ).order_by('-finished_at').first()
-        
+
         if latest_report:
             queryset = queryset.filter(report_run=latest_report)
         else:
             queryset = queryset.none()
-        
+
         serializer = DriftEventSerializer(queryset, many=True)
         return Response(serializer.data)
 
