@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Local database
+*.sqlite3
+*.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Development files
+.agents/
+.claude/
+smoke_tests.py
+test_*.py
+deploy_staging.sh
+
+# Documentation (already in repo)
+*.md
+!README.md
+
+# Backups
+backups/
+*.sql
+*.dump
+
+# Static files (collected during build)
+staticfiles/
+media/
+
+# OS
+.DS_Store
+Thumbs.db
