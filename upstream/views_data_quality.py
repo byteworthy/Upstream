@@ -10,9 +10,10 @@ Provides comprehensive dashboards and reports for:
 """
 
 import json
+from typing import Any, Dict
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from datetime import timedelta
@@ -27,11 +28,17 @@ from upstream.core.default_validation_rules import get_validation_rule_statistic
 
 
 @login_required
-def data_quality_dashboard(request):
+def data_quality_dashboard(request: HttpRequest) -> HttpResponse:
     """
     Main data quality dashboard.
 
     Shows overall quality health, recent uploads, and key metrics.
+
+    Args:
+        request: HTTP request object with authenticated user
+
+    Returns:
+        HttpResponse: Rendered dashboard template
     """
     customer = request.user.profile.customer
 
@@ -91,11 +98,18 @@ def data_quality_dashboard(request):
 
 
 @login_required
-def upload_quality_detail(request, upload_id):
+def upload_quality_detail(request: HttpRequest, upload_id: int) -> HttpResponse:
     """
     Detailed quality report for a specific upload.
 
     Shows validation failures, anomalies, and recommendations.
+
+    Args:
+        request: HTTP request object with authenticated user
+        upload_id: ID of the upload to show quality details for
+
+    Returns:
+        HttpResponse: Rendered upload quality detail template
     """
     customer = request.user.profile.customer
     upload = get_object_or_404(Upload, id=upload_id, customer=customer)

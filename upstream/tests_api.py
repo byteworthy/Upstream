@@ -267,6 +267,31 @@ class DashboardEndpointTests(APITestBase):
         self.assertEqual(response.status_code, 200, f"Expected 200, got {response.status_code}: {response.data}")
         self.assertEqual(response.data['total_uploads'], 2)
 
+    def test_dashboard_query_count(self):
+        """Dashboard should use optimized queries to prevent N+1."""
+        # Create test data
+        report_run = self.create_report_run_for_customer(self.customer_a)
+        for i in range(5):
+            self.create_upload_for_customer(self.customer_a)
+            self.create_drift_event_for_customer(self.customer_a, report_run)
+
+        self.authenticate_as(self.user_a)
+
+        # Dashboard should aggregate data efficiently
+        # Expected queries:
+        # 1. SELECT user (authentication)
+        # 2. SELECT user profile (get customer)
+        # 3. SELECT customer
+        # 4. SELECT COUNT claims
+        # 5. SELECT COUNT uploads (status=success)
+        # 6. SELECT latest report run
+        # 7. SELECT monthly denial trend
+        # Should be constant (~7 queries) regardless of data volume
+        with self.assertNumQueries(7):
+            response = self.client.get(f'{API_BASE}/dashboard/')
+            # Force evaluation
+            _ = response.data
+
 
 class DriftEventEndpointTests(APITestBase):
     """Tests for drift event endpoints."""
@@ -297,7 +322,7 @@ class DriftEventEndpointTests(APITestBase):
     def test_drift_events_filter_by_severity(self):
         """Drift events should be filterable by minimum severity."""
         report_run = self.create_report_run_for_customer(self.customer_a)
-        
+
         # Create events with different severities
         DriftEvent.objects.create(
             customer=self.customer_a,
@@ -331,14 +356,36 @@ class DriftEventEndpointTests(APITestBase):
             current_start=timezone.now().date() - timedelta(days=14),
             current_end=timezone.now().date()
         )
-        
+
         self.authenticate_as(self.user_a)
         response = self.client.get(f'{API_BASE}/drift-events/?min_severity=0.5')
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should only return the high severity event
         self.assertEqual(len(response.data['results']), 1)
         self.assertEqual(response.data['results'][0]['payer'], 'HighSeverityPayer')
+
+    def test_drift_events_list_query_count(self):
+        """Drift events list should use optimized queries to prevent N+1."""
+        report_run = self.create_report_run_for_customer(self.customer_a)
+
+        # Create 10 drift events with relationships
+        for i in range(10):
+            self.create_drift_event_for_customer(self.customer_a, report_run)
+
+        self.authenticate_as(self.user_a)
+
+        # Query count should be constant regardless of number of events
+        # Expected queries:
+        # 1. SELECT user (authentication)
+        # 2. SELECT user profile (get customer)
+        # 3. SELECT customer
+        # 4. SELECT count for pagination
+        # 5. SELECT drift events
+        with self.assertNumQueries(5):
+            response = self.client.get(f'{API_BASE}/drift-events/')
+            # Force evaluation
+            _ = response.data['results']
 
 
 class PayerSummaryEndpointTests(APITestBase):
@@ -573,7 +620,27 @@ class ReportRunEndpointTests(APITestBase):
         self.authenticate_as(self.user_a)
         response = self.client.get(f'{API_BASE}/reports/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-    
+
+    def test_report_list_query_count(self):
+        """Report list should use optimized queries to prevent N+1."""
+        # Create 10 report runs
+        for i in range(10):
+            self.create_report_run_for_customer(self.customer_a)
+
+        self.authenticate_as(self.user_a)
+
+        # Query count should be constant regardless of number of reports
+        # Expected queries:
+        # 1. SELECT user (authentication)
+        # 2. SELECT user profile (get customer)
+        # 3. SELECT customer
+        # 4. SELECT count for pagination
+        # 5. SELECT report runs
+        with self.assertNumQueries(5):
+            response = self.client.get(f'{API_BASE}/reports/')
+            # Force evaluation
+            _ = response.data['results']
+
     def test_report_trigger_creates_new_run(self):
         """Report trigger should create a new report run."""
         self.authenticate_as(self.user_a)

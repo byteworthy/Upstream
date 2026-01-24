@@ -1,5 +1,5 @@
 # Google Cloud Build configuration for Upstream
-# Simplified for Cloud Run deployment
+# Uses Cloud Build automatic substitutions
 
 steps:
   # Step 1: Build Docker image
@@ -7,16 +7,16 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/upstream:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/upstream:$BUILD_ID'
       - '-t'
       - 'gcr.io/$PROJECT_ID/upstream:latest'
       - '.'
 
-  # Step 2: Push Docker image to Container Registry
+  # Step 2: Push Docker image with build ID tag
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/upstream:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/upstream:$BUILD_ID'
 
   # Step 3: Push latest tag
   - name: 'gcr.io/cloud-builders/docker'
@@ -32,7 +32,7 @@ steps:
       - 'deploy'
       - 'upstream-staging'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/upstream:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/upstream:$BUILD_ID'
       - '--region'
       - 'us-central1'
       - '--platform'

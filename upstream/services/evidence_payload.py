@@ -6,6 +6,15 @@ from typing import Any, Dict, Iterable, List, Optional
 from django.db.models import Sum
 
 from upstream.products.driftwatch import DRIFTWATCH_V1_EVENT_TYPE
+from upstream.constants import (
+    SEVERITY_DEFAULT,
+    SEVERITY_NUMERIC_VALUES,
+    SEVERITY_THRESHOLD_CRITICAL,
+    SEVERITY_THRESHOLD_MEDIUM,
+    SEVERITY_THRESHOLD_LOW,
+    ALERT_HIGH_URGENCY_DELTA,
+    ALERT_MEDIUM_URGENCY_DELTA,
+)
 
 
 def get_alert_interpretation(evidence_payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -41,7 +50,7 @@ def get_alert_interpretation(evidence_payload: Dict[str, Any]) -> Dict[str, Any]
     )
     
     # Determine if likely noise
-    is_likely_noise = severity_value < 0.3 and abs(delta_value) < 0.05
+    is_likely_noise = severity_value < SEVERITY_THRESHOLD_LOW and abs(delta_value) < ALERT_MEDIUM_URGENCY_DELTA
     
     # Generate action steps based on urgency
     action_steps = _generate_action_steps(urgency['level'], signal_type, entity_label)
@@ -79,14 +88,13 @@ def _default_interpretation() -> Dict[str, Any]:
 def _normalize_severity(severity) -> float:
     """Convert severity to float value between 0 and 1."""
     if severity is None:
-        return 0.5
+        return SEVERITY_DEFAULT
     if isinstance(severity, str):
-        severity_map = {'low': 0.25, 'medium': 0.5, 'high': 0.75, 'critical': 0.9}
-        return severity_map.get(severity.lower(), 0.5)
+        return SEVERITY_NUMERIC_VALUES.get(severity.lower(), SEVERITY_DEFAULT)
     try:
         return float(severity)
     except (TypeError, ValueError):
-        return 0.5
+        return SEVERITY_DEFAULT
 
 
 def _normalize_delta(delta) -> float:
@@ -101,14 +109,14 @@ def _normalize_delta(delta) -> float:
 
 def _calculate_urgency(severity_value: float, delta_value: float) -> Dict[str, str]:
     """Calculate urgency level and label based on severity and delta."""
-    # High urgency: high severity OR large delta (>10 points)
-    if severity_value >= 0.7 or abs(delta_value) >= 0.10:
+    # High urgency: high severity OR large delta
+    if severity_value >= SEVERITY_THRESHOLD_CRITICAL or abs(delta_value) >= ALERT_HIGH_URGENCY_DELTA:
         return {'level': 'high', 'label': 'Investigate Today'}
-    
-    # Medium urgency: medium severity OR moderate delta (5-10 points)
-    if severity_value >= 0.4 or abs(delta_value) >= 0.05:
+
+    # Medium urgency: medium severity OR moderate delta
+    if severity_value >= SEVERITY_THRESHOLD_MEDIUM or abs(delta_value) >= ALERT_MEDIUM_URGENCY_DELTA:
         return {'level': 'medium', 'label': 'Review This Week'}
-    
+
     # Low urgency: everything else
     return {'level': 'low', 'label': 'Monitor for Trend'}
 
@@ -131,9 +139,9 @@ def _generate_plain_language(
             impact = "fewer claims are being denied (good news, verify it's real)"
         
         points = abs(delta_value) * 100
-        if severity_value >= 0.7:
+        if severity_value >= SEVERITY_THRESHOLD_CRITICAL:
             urgency = "This is a significant shift that warrants immediate attention."
-        elif severity_value >= 0.4:
+        elif severity_value >= SEVERITY_THRESHOLD_MEDIUM:
             urgency = "This is notable but not critical—review when you can this week."
         else:
             urgency = "This is a small change—watch for it to continue before acting."
@@ -142,9 +150,9 @@ def _generate_plain_language(
     
     # DenialScope explanations
     if signal_type == 'denial_dollars_spike':
-        if severity_value >= 0.7:
+        if severity_value >= SEVERITY_THRESHOLD_CRITICAL:
             return f"There's a significant spike in denial dollars from {entity_label}. This could indicate a contract change, policy update, or systemic coding issue that needs investigation today."
-        elif severity_value >= 0.4:
+        elif severity_value >= SEVERITY_THRESHOLD_MEDIUM:
             return f"Denial dollars from {entity_label} have increased above normal variance. This is worth reviewing this week to understand the cause."
         else:
             return f"Minor increase in denial dollars from {entity_label}. Monitor this payer for continued variance."
@@ -181,16 +189,16 @@ def _generate_action_steps(urgency_level: str, signal_type: str, entity_label: s
 
 def _generate_historical_context(severity_value: float) -> str:
     """Generate historical context message.
-    
+
     Note: This is a simplified version. A full implementation would:
     - Query AlertEvent history for this (customer, signal_type, entity)
     - Determine if this is first occurrence, recurring, or trending
     """
     # Placeholder implementation - returns context based on severity
     # Real implementation would check AlertEvent history
-    if severity_value >= 0.7:
+    if severity_value >= SEVERITY_THRESHOLD_CRITICAL:
         return "This appears to be a new or escalating pattern that hasn't been seen at this level recently."
-    elif severity_value >= 0.4:
+    elif severity_value >= SEVERITY_THRESHOLD_MEDIUM:
         return "Similar signals have been detected before. Compare to previous alerts for this payer."
     else:
         return "This is a minor variance that may resolve on its own. Watch for continuation."

@@ -11,10 +11,22 @@ from .models import AlertRule, AlertEvent, NotificationChannel
 from upstream.models import DriftEvent, Customer
 from upstream.products.delayguard.models import PaymentDelaySignal
 from upstream.services.evidence_payload import build_driftwatch_evidence_payload, get_alert_interpretation
+from upstream.constants import (
+    ALERT_SUPPRESSION_COOLDOWN_HOURS,
+    ALERT_SUPPRESSION_NOISE_WINDOW_DAYS,
+    ALERT_SUPPRESSION_NOISE_THRESHOLD,
+    ALERT_HISTORICAL_CONTEXT_DAYS,
+    PAYMENT_DELAY_MIN_CONFIDENCE_LOW_SEVERITY,
+    SEVERITY_THRESHOLD_CRITICAL,
+    SEVERITY_THRESHOLD_MEDIUM,
+    COLOR_CRITICAL,
+    COLOR_HIGH,
+    COLOR_LOW,
+)
 
 logger = logging.getLogger(__name__)
 
-ALERT_SUPPRESSION_COOLDOWN = timezone.timedelta(hours=4)
+ALERT_SUPPRESSION_COOLDOWN = timezone.timedelta(hours=ALERT_SUPPRESSION_COOLDOWN_HOURS)
 
 def evaluate_drift_event(drift_event):
     """Evaluate a drift event against all active alert rules for the customer."""
@@ -88,7 +100,7 @@ def evaluate_payment_delay_signal(payment_delay_signal):
     # We create an alert for any signal that meets minimum thresholds
 
     # Skip low-severity signals with low confidence
-    if payment_delay_signal.severity == 'low' and payment_delay_signal.confidence < 0.5:
+    if payment_delay_signal.severity == 'low' and payment_delay_signal.confidence < PAYMENT_DELAY_MIN_CONFIDENCE_LOW_SEVERITY:
         logger.info(f"Skipping low-severity, low-confidence signal for {payment_delay_signal.payer}")
         return alert_events
 
@@ -370,9 +382,9 @@ def _severity_label(severity_value):
         return 'unknown'
     if isinstance(severity_value, str):
         return severity_value.lower()
-    if severity_value >= 0.7:
+    if severity_value >= SEVERITY_THRESHOLD_CRITICAL:
         return 'high'
-    if severity_value >= 0.4:
+    if severity_value >= SEVERITY_THRESHOLD_MEDIUM:
         return 'medium'
     return 'low'
 
@@ -408,9 +420,9 @@ def _is_suppressed(customer, evidence_payload):
         return True
 
     # Check 2: Operator noise judgment suppression
-    # Look for similar alerts marked as "noise" in the last 30 days
+    # Look for similar alerts marked as "noise" in the configured window
     # IMPORTANT: Filter by judgment creation date, not alert creation date
-    noise_window_start = timezone.now() - timezone.timedelta(days=30)
+    noise_window_start = timezone.now() - timezone.timedelta(days=ALERT_SUPPRESSION_NOISE_WINDOW_DAYS)
     similar_noise_alerts = AlertEvent.objects.filter(
         customer=customer,
         payload__product_name=product_name,
@@ -424,8 +436,8 @@ def _is_suppressed(customer, evidence_payload):
         # Count how many times this pattern was marked noise
         noise_count = similar_noise_alerts.count()
 
-        # If marked as noise 2+ times in 30 days, suppress it
-        if noise_count >= 2:
+        # If marked as noise threshold+ times in window, suppress it
+        if noise_count >= ALERT_SUPPRESSION_NOISE_THRESHOLD:
             logger.info(
                 f"Alert suppressed: operator noise pattern "
                 f"(entity={entity_label}, signal={signal_type}, noise_count={noise_count})"
@@ -464,14 +476,14 @@ def send_slack_notification(alert_event, channel):
     severity = payload.get('severity', 0)
     
     # Severity emoji and color
-    if severity >= 0.7:
-        color = "#d32f2f"  # Red
+    if severity >= SEVERITY_THRESHOLD_CRITICAL:
+        color = COLOR_CRITICAL  # Red
         emoji = "🚨"
-    elif severity >= 0.4:
-        color = "#ff9800"  # Orange
+    elif severity >= SEVERITY_THRESHOLD_MEDIUM:
+        color = COLOR_HIGH  # Orange
         emoji = "⚠️"
     else:
-        color = "#2196f3"  # Blue
+        color = COLOR_LOW  # Blue
         emoji = "ℹ️"
     
     # Portal URL from settings
@@ -581,8 +593,8 @@ def get_suppression_context(alert_event):
     customer = alert_event.customer
     drift_event = alert_event.drift_event
 
-    # Look for similar alerts in the last 60 days
-    similar_window = timezone.now() - timezone.timedelta(days=60)
+    # Look for similar alerts in the configured historical context window
+    similar_window = timezone.now() - timezone.timedelta(days=ALERT_HISTORICAL_CONTEXT_DAYS)
     similar_alerts = AlertEvent.objects.filter(
         customer=customer,
         created_at__gte=similar_window,
@@ -608,23 +620,23 @@ def get_suppression_context(alert_event):
                 followup_count += 1
 
     # Determine dominant pattern
-    if noise_count >= 2:
+    if noise_count >= ALERT_SUPPRESSION_NOISE_THRESHOLD:
         return {
             'type': 'noise',
             'count': noise_count,
-            'message': f'Similar alerts marked as noise {noise_count} times in last 60 days'
+            'message': f'Similar alerts marked as noise {noise_count} times in last {ALERT_HISTORICAL_CONTEXT_DAYS} days'
         }
     elif real_count >= 1:
         return {
             'type': 'confirmed',
             'count': real_count,
-            'message': f'Similar alerts confirmed real {real_count} times in last 60 days'
+            'message': f'Similar alerts confirmed real {real_count} times in last {ALERT_HISTORICAL_CONTEXT_DAYS} days'
         }
     elif followup_count >= 1:
         return {
             'type': 'pending',
             'count': followup_count,
-            'message': f'Similar alerts need follow-up {followup_count} times in last 60 days'
+            'message': f'Similar alerts need follow-up {followup_count} times in last {ALERT_HISTORICAL_CONTEXT_DAYS} days'
         }
 
     return None

@@ -9,6 +9,7 @@ PORTAL_BASE_URL is required to ensure all links in emails are correct.
 """
 import os
 import sys
+from typing import List
 
 # Core required vars for production deployment
 REQUIRED_VARS = [
@@ -32,9 +33,17 @@ RECOMMENDED_VARS = [
 ]
 
 
-def validate_env():
-    """Validate required environment variables are set."""
-    missing = [var for var in REQUIRED_VARS if not os.getenv(var)]
+def validate_env() -> bool:
+    """
+    Validate required environment variables are set.
+
+    Returns:
+        bool: True if all required vars are present, exits with code 1 if missing
+
+    Raises:
+        SystemExit: If required variables are missing
+    """
+    missing: List[str] = [var for var in REQUIRED_VARS if not os.getenv(var)]
     
     if missing:
         print(f"ERROR: Missing required env vars: {', '.join(missing)}")

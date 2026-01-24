@@ -3,13 +3,25 @@ from datetime import date, timedelta
 from django.db import transaction
 from django.utils import timezone
 from upstream.models import ClaimRecord, ReportRun, DriftEvent, Customer
+from upstream.constants import (
+    DRIFT_BASELINE_DAYS,
+    DRIFT_CURRENT_DAYS,
+    DRIFT_MIN_VOLUME,
+    DENIAL_RATE_ABSOLUTE_THRESHOLD,
+    DENIAL_RATE_RELATIVE_THRESHOLD,
+    DECISION_TIME_ABSOLUTE_THRESHOLD_DAYS,
+    DECISION_TIME_RELATIVE_THRESHOLD,
+    DENIAL_DELTA_SEVERITY_MULTIPLIER,
+    DECISION_TIME_SEVERITY_DIVISOR,
+    CONFIDENCE_VOLUME_MULTIPLIER,
+)
 import statistics
 
 def compute_weekly_payer_drift(
     customer: Customer,
-    baseline_days: int = 90,
-    current_days: int = 14,
-    min_volume: int = 30,
+    baseline_days: int = DRIFT_BASELINE_DAYS,
+    current_days: int = DRIFT_CURRENT_DAYS,
+    min_volume: int = DRIFT_MIN_VOLUME,
     as_of_date: Optional[date] = None,
     report_run: Optional[ReportRun] = None
 ) -> ReportRun:
@@ -18,9 +30,9 @@ def compute_weekly_payer_drift(
 
     Args:
         customer: Customer object
-        baseline_days: Number of days in baseline window (default: 90)
-        current_days: Number of days in current window (default: 14)
-        min_volume: Minimum volume threshold for both windows (default: 30)
+        baseline_days: Number of days in baseline window (default from constants)
+        current_days: Number of days in current window (default from constants)
+        min_volume: Minimum volume threshold for both windows (default from constants)
         as_of_date: Date to use as reference point (defaults to today)
         report_run: Optional existing ReportRun to use (creates new if None)
 
@@ -128,10 +140,10 @@ def compute_weekly_payer_drift(
 
                 # Check denial rate drift
                 denial_delta = current_denial_rate - baseline_denial_rate
-                if abs(denial_delta) >= 0.05 or (baseline_denial_rate > 0 and abs(denial_delta / baseline_denial_rate) >= 0.5):
+                if abs(denial_delta) >= DENIAL_RATE_ABSOLUTE_THRESHOLD or (baseline_denial_rate > 0 and abs(denial_delta / baseline_denial_rate) >= DENIAL_RATE_RELATIVE_THRESHOLD):
                     # Calculate severity and confidence
-                    severity = min(abs(denial_delta) * 2, 1.0)  # Scale to 0-1 range
-                    confidence = min((baseline_volume + current_volume) / (min_volume * 4), 1.0)  # Cap at 1.0
+                    severity = min(abs(denial_delta) * DENIAL_DELTA_SEVERITY_MULTIPLIER, 1.0)  # Scale to 0-1 range
+                    confidence = min((baseline_volume + current_volume) / (min_volume * CONFIDENCE_VOLUME_MULTIPLIER), 1.0)  # Cap at 1.0
 
                     DriftEvent.objects.create(
                         customer=customer,
@@ -163,10 +175,10 @@ def compute_weekly_payer_drift(
                 # Check decision time drift
                 if baseline_decision_time is not None and current_decision_time is not None:
                     decision_delta = current_decision_time - baseline_decision_time
-                    if abs(decision_delta) >= 3 or (baseline_decision_time > 0 and abs(decision_delta / baseline_decision_time) >= 0.5):
+                    if abs(decision_delta) >= DECISION_TIME_ABSOLUTE_THRESHOLD_DAYS or (baseline_decision_time > 0 and abs(decision_delta / baseline_decision_time) >= DECISION_TIME_RELATIVE_THRESHOLD):
                         # Calculate severity and confidence
-                        severity = min(abs(decision_delta) / 10, 1.0)  # Scale to 0-1 range
-                        confidence = min((baseline_volume + current_volume) / (min_volume * 4), 1.0)  # Cap at 1.0
+                        severity = min(abs(decision_delta) / DECISION_TIME_SEVERITY_DIVISOR, 1.0)  # Scale to 0-1 range
+                        confidence = min((baseline_volume + current_volume) / (min_volume * CONFIDENCE_VOLUME_MULTIPLIER), 1.0)  # Cap at 1.0
 
                         DriftEvent.objects.create(
                             customer=customer,

@@ -5,6 +5,7 @@ Provides easy-to-use caching decorators and functions for frequently accessed da
 Uses Redis for fast in-memory caching with configurable TTLs.
 """
 
+from typing import Any, Callable, Dict, Optional, TypeVar
 from django.core.cache import cache
 from django.conf import settings
 from functools import wraps
@@ -14,8 +15,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Type variable for generic return types
+T = TypeVar('T')
 
-def get_cache_key(prefix, *args, **kwargs):
+
+def get_cache_key(prefix: str, *args: Any, **kwargs: Any) -> str:
     """
     Generate a deterministic cache key from arguments.
 
@@ -57,7 +61,7 @@ def get_cache_key(prefix, *args, **kwargs):
     return cache_key
 
 
-def cache_result(cache_key_prefix, ttl=None):
+def cache_result(cache_key_prefix: str, ttl: Optional[int] = None) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to cache function results.
 
@@ -70,9 +74,9 @@ def cache_result(cache_key_prefix, ttl=None):
         cache_key_prefix: Prefix for cache key
         ttl: Time to live in seconds (uses CACHE_TTL config if not specified)
     """
-    def decorator(func):
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             # Generate cache key from function args
             cache_key = get_cache_key(cache_key_prefix, *args, **kwargs)
 
@@ -104,7 +108,7 @@ def cache_result(cache_key_prefix, ttl=None):
     return decorator
 
 
-def invalidate_cache(cache_key_prefix, *args, **kwargs):
+def invalidate_cache(cache_key_prefix: str, *args: Any, **kwargs: Any) -> None:
     """
     Invalidate a specific cache entry.
 
@@ -121,7 +125,7 @@ def invalidate_cache(cache_key_prefix, *args, **kwargs):
     logger.info(f"Cache INVALIDATED: {cache_key}")
 
 
-def invalidate_cache_pattern(pattern):
+def invalidate_cache_pattern(pattern: str) -> int:
     """
     Invalidate all cache entries matching a pattern.
 
@@ -132,6 +136,9 @@ def invalidate_cache_pattern(pattern):
 
     Args:
         pattern: Pattern to match (supports * wildcard)
+
+    Returns:
+        int: Number of keys deleted
     """
     try:
         # Get Redis client from cache backend
@@ -165,7 +172,7 @@ def invalidate_cache_pattern(pattern):
         return 0
 
 
-def get_or_set_cache(cache_key, callable_func, timeout=300):
+def get_or_set_cache(cache_key: str, callable_func: Callable[[], T], timeout: int = 300) -> T:
     """
     Get from cache or set if not exists.
 
@@ -198,7 +205,7 @@ def get_or_set_cache(cache_key, callable_func, timeout=300):
     return result
 
 
-def warm_cache(cache_key, value, timeout=300):
+def warm_cache(cache_key: str, value: Any, timeout: int = 300) -> None:
     """
     Proactively warm the cache with a value.
 
@@ -214,12 +221,12 @@ def warm_cache(cache_key, value, timeout=300):
     logger.info(f"Cache WARMED: {cache_key} (TTL={timeout}s)")
 
 
-def get_cache_stats():
+def get_cache_stats() -> Dict[str, Any]:
     """
     Get cache statistics (if Redis supports INFO command).
 
     Returns:
-        dict: Cache statistics
+        dict: Cache statistics including hits, misses, hit rate, memory usage
     """
     try:
         redis_client = cache._cache.get_client()
