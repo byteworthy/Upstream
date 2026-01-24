@@ -48,7 +48,7 @@ def test_database_indexes():
         print("  ℹ Using SQLite - skipping PostgreSQL index check")
         print("  ℹ Indexes will be verified in production (PostgreSQL)")
         print("✅ Database indexes check skipped (development)")
-        return True
+        return  # Skip test for SQLite
 
     cursor = connection.cursor()
 
@@ -93,10 +93,9 @@ def test_database_indexes():
 
     if missing:
         print(f"Missing indexes: {', '.join(missing)}")
-        return False
+        assert False, f"Missing indexes: {', '.join(missing)}"
 
     print("✅ All database indexes created")
-    return True
 
 
 def test_session_timeout():
@@ -158,12 +157,8 @@ def test_session_timeout():
         print("  ✗ SESSION_COOKIE_HTTPONLY not configured")
         results.append(False)
 
-    if all(results):
-        print("✅ Session security properly configured")
-        return True
-    else:
-        print(f"⚠ Session security partially configured ({sum(results)}/{len(results)})")
-        return False
+    assert all(results), f"Session security partially configured ({sum(results)}/{len(results)} checks passed)"
+    print("✅ Session security properly configured")
 
 
 def test_phi_detection():
@@ -215,12 +210,8 @@ def test_phi_detection():
         print(f"  ✗ COMMON_FIRST_NAMES only contains {len(COMMON_FIRST_NAMES)} names")
         results.append(False)
 
-    if all(results):
-        print("✅ PHI detection working correctly")
-        return True
-    else:
-        print(f"⚠ PHI detection partially working ({sum(results)}/{len(results)})")
-        return False
+    assert all(results), f"PHI detection partially working ({sum(results)}/{len(results)} checks passed)"
+    print("✅ PHI detection working correctly")
 
 
 def test_data_quality_reports():
@@ -235,7 +226,7 @@ def test_data_quality_reports():
         print("  ✓ DataQualityReport model imported")
     except ImportError as e:
         print(f"  ✗ DataQualityReport model not found: {str(e)}")
-        return False
+        assert False, f"DataQualityReport model not found: {str(e)}"
 
     # Check model has required fields
     expected_fields = [
@@ -273,12 +264,8 @@ def test_data_quality_reports():
         print("  ✗ get_rejection_summary method missing")
         missing_fields.append('get_rejection_summary')
 
-    if missing_fields:
-        print(f"⚠ Data quality reports partially implemented (missing: {', '.join(missing_fields)})")
-        return False
-
+    assert not missing_fields, f"Data quality reports partially implemented (missing: {', '.join(missing_fields)})"
     print("✅ Data quality reports fully implemented")
-    return True
 
 
 def test_caching_system():
@@ -300,7 +287,7 @@ def test_caching_system():
     else:
         print("  ✗ CACHES not configured")
         results.append(False)
-        return False
+        assert False, "CACHES not configured"
 
     # Test 2: Cache operations work
     try:
@@ -350,12 +337,8 @@ def test_caching_system():
             print(f"  ⚠ Sessions not using cache: {settings.SESSION_ENGINE}")
             results.append(False)
 
-    if all(results):
-        print("✅ Caching system fully configured")
-        return True
-    else:
-        print(f"⚠ Caching system partially configured ({sum(results)}/{len(results)})")
-        return False
+    assert all(results), f"Caching system partially configured ({sum(results)}/{len(results)} checks passed)"
+    print("✅ Caching system fully configured")
 
 
 def test_monitoring_middleware():
@@ -417,12 +400,8 @@ def test_monitoring_middleware():
         print("  ✗ Request timing middleware not working")
         results.append(False)
 
-    if all(results):
-        print("✅ Monitoring middleware fully operational")
-        return True
-    else:
-        print(f"⚠ Monitoring middleware partially operational ({sum(results)}/{len(results)})")
-        return False
+    assert all(results), f"Monitoring middleware partially operational ({sum(results)}/{len(results)} checks passed)"
+    print("✅ Monitoring middleware fully operational")
 
 
 def test_sentry_configuration():
@@ -476,12 +455,8 @@ def test_sentry_configuration():
         print(f"  ⚠ Could not verify PHI filter: {str(e)}")
         results.append(True)  # Don't fail on this
 
-    if all(results):
-        print("✅ Sentry configuration ready")
-        return True
-    else:
-        print(f"⚠ Sentry partially configured ({sum(results)}/{len(results)})")
-        return False
+    assert all(results), f"Sentry partially configured ({sum(results)}/{len(results)} checks passed)"
+    print("✅ Sentry configuration ready")
 
 
 def test_middleware_order():
@@ -542,50 +517,18 @@ def test_middleware_order():
             print(f"  ⚠ RequestTimingMiddleware before AuthenticationMiddleware")
             checks.append(True)  # Warning but not critical
 
-    if all(checks):
-        print("✅ Middleware properly ordered")
-        return True
-    else:
-        print(f"⚠ Middleware ordering has issues ({sum(checks)}/{len(checks)} checks passed)")
-        return all(checks)
+    assert all(checks), f"Middleware ordering has issues ({sum(checks)}/{len(checks)} checks passed)"
+    print("✅ Middleware properly ordered")
 
 
-def generate_summary_report(results):
+def generate_summary_report():
     """Generate final summary report."""
     print("\n" + "=" * 60)
     print("PRODUCTION READINESS SUMMARY")
     print("=" * 60)
-
-    total = len(results)
-    passed = sum(1 for _, result in results if result)
-
-    print(f"\nTests Run: {total}")
-    print(f"Passed: {passed}")
-    print(f"Failed: {total - passed}")
-    print(f"Success Rate: {(passed/total*100):.1f}%")
-
-    print("\nDetailed Results:")
-    print("-" * 60)
-
-    for test_name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{status}: {test_name}")
-
-    print("\n" + "=" * 60)
-
-    if passed == total:
-        print("🎉 ALL TESTS PASSED - PRODUCTION READY! 🎉")
-        print("\nThe system has passed all production readiness checks.")
-        print("Phase 2 fixes are complete and verified.")
-        return True
-    elif passed >= total * 0.8:  # 80% threshold
-        print("⚠ MOSTLY READY - SOME ISSUES DETECTED")
-        print(f"\n{passed}/{total} tests passed. Review failed tests before deploying.")
-        return False
-    else:
-        print("❌ NOT READY - CRITICAL ISSUES DETECTED")
-        print(f"\nOnly {passed}/{total} tests passed. Fix critical issues before deploying.")
-        return False
+    print("🎉 ALL TESTS PASSED - PRODUCTION READY! 🎉")
+    print("\nThe system has passed all production readiness checks.")
+    print("Phase 2 fixes are complete and verified.")
 
 
 if __name__ == '__main__':
@@ -596,23 +539,24 @@ if __name__ == '__main__':
         print("\nTesting Phase 2 fixes and production readiness...")
         print("This comprehensive test validates all recent improvements.\n")
 
-        results = []
+        # Run all tests - assertions will fail the test if something is wrong
+        test_database_indexes()
+        test_session_timeout()
+        test_phi_detection()
+        test_data_quality_reports()
+        test_caching_system()
+        test_monitoring_middleware()
+        test_sentry_configuration()
+        test_middleware_order()
 
-        # Run all tests
-        results.append(("Database Indexes", test_database_indexes()))
-        results.append(("Session Timeout", test_session_timeout()))
-        results.append(("PHI Detection", test_phi_detection()))
-        results.append(("Data Quality Reports", test_data_quality_reports()))
-        results.append(("Caching System", test_caching_system()))
-        results.append(("Monitoring Middleware", test_monitoring_middleware()))
-        results.append(("Sentry Configuration", test_sentry_configuration()))
-        results.append(("Middleware Order", test_middleware_order()))
+        # Generate summary if all tests passed
+        generate_summary_report()
 
-        # Generate summary
-        success = generate_summary_report(results)
+        sys.exit(0)
 
-        sys.exit(0 if success else 1)
-
+    except AssertionError as e:
+        print(f"\n❌ TEST FAILED: {str(e)}")
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ UNEXPECTED ERROR: {str(e)}")
         import traceback

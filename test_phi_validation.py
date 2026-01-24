@@ -90,13 +90,18 @@ def test_phi_validation():
     print(f"Passed: {passed_tests}")
     print(f"Failed: {total_tests - passed_tests}")
 
-    if passed_tests == total_tests:
-        print("\n🎉 All tests passed!")
-        return 0
-    else:
-        print(f"\n⚠️ {total_tests - passed_tests} test(s) failed")
-        return 1
+    assert passed_tests == total_tests, f"{total_tests - passed_tests} test(s) failed"
+    print("\n🎉 All tests passed!")
 
 if __name__ == '__main__':
-    exit_code = test_phi_validation()
-    sys.exit(exit_code)
+    try:
+        test_phi_validation()
+        sys.exit(0)
+    except AssertionError as e:
+        print(f"\n❌ TEST FAILED: {str(e)}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ UNEXPECTED ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

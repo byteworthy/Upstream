@@ -79,8 +79,7 @@ TriCare,99215,2024-01-24,2024-02-10,PAID,250.00"""
         upload.status = 'failed'
         upload.error_message = str(e)
         upload.save()
-        print(f"✗ Upload failed: {str(e)}")
-        return False
+        assert False, f"Upload failed: {str(e)}"
 
     # Refresh upload from database
     upload.refresh_from_db()
@@ -104,7 +103,7 @@ TriCare,99215,2024-01-24,2024-02-10,PAID,250.00"""
         all_reports_unfiltered = DataQualityReport.all_objects.all()
         for report in all_reports_unfiltered:
             print(f"  Debug (unfiltered): Report {report.id} -> Upload {report.upload_id} (Customer {report.customer_id})")
-        return False
+        assert False, "Quality report was NOT created"
 
     # Verify quality metrics
     print("\n" + "=" * 60)
@@ -207,14 +206,9 @@ TriCare,99215,2024-01-24,2024-02-10,PAID,250.00"""
     passed = sum(results)
     total = len(results)
 
-    if all(results):
-        print(f"✅ ALL TESTS PASSED ({passed}/{total})")
-        print("\nQuality report implementation is working correctly!")
-        return True
-    else:
-        print(f"❌ SOME TESTS FAILED ({passed}/{total} passed)")
-        print("\nPlease review the failures above.")
-        return False
+    assert all(results), f"SOME TESTS FAILED ({passed}/{total} passed)"
+    print(f"✅ ALL TESTS PASSED ({passed}/{total})")
+    print("\nQuality report implementation is working correctly!")
 
     # Cleanup
     print("\n" + "=" * 60)
@@ -229,8 +223,11 @@ TriCare,99215,2024-01-24,2024-02-10,PAID,250.00"""
 
 if __name__ == '__main__':
     try:
-        success = test_quality_report()
-        sys.exit(0 if success else 1)
+        test_quality_report()
+        sys.exit(0)
+    except AssertionError as e:
+        print(f"\n❌ TEST FAILED: {str(e)}")
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ UNEXPECTED ERROR: {str(e)}")
         import traceback

@@ -100,11 +100,8 @@ def test_delayguard_computation():
 
     # Verify aggregates
     aggregates = PaymentDelayAggregate.objects.filter(customer=customer)
-    if aggregates.count() > 0:
-        print(f"✓ Aggregates exist: {aggregates.count()} records")
-    else:
-        print("✗ No aggregates created")
-        return False
+    assert aggregates.count() > 0, "No aggregates created"
+    print(f"✓ Aggregates exist: {aggregates.count()} records")
 
     # Verify signals
     signals = PaymentDelaySignal.objects.filter(customer=customer)
@@ -119,11 +116,8 @@ def test_delayguard_computation():
         print(f"  Confidence: {signal.confidence:.2f}")
 
         # Verify delta is positive (payment got slower)
-        if signal.delta_days > 0:
-            print(f"✓ Delta is positive (slower payments)")
-        else:
-            print(f"✗ Delta should be positive, got {signal.delta_days}")
-            return False
+        assert signal.delta_days > 0, f"Delta should be positive, got {signal.delta_days}"
+        print(f"✓ Delta is positive (slower payments)")
 
     else:
         print("⚠ No signals created (may need more data)")
@@ -131,8 +125,6 @@ def test_delayguard_computation():
     # Cleanup
     Customer.objects.filter(id=customer.id).delete()
     print("✓ Cleanup complete")
-
-    return True
 
 
 def test_alert_integration():
@@ -194,21 +186,15 @@ def test_alert_integration():
         # Verify payload contains expected fields
         required_fields = ['product_name', 'signal_type', 'payer', 'delta_days', 'severity']
         missing_fields = [f for f in required_fields if f not in alert_event.payload]
-        if not missing_fields:
-            print(f"✓ All required payload fields present")
-        else:
-            print(f"✗ Missing payload fields: {missing_fields}")
-            return False
+        assert not missing_fields, f"Missing payload fields: {missing_fields}"
+        print(f"✓ All required payload fields present")
 
     else:
-        print("✗ No AlertEvent created")
-        return False
+        assert False, "No AlertEvent created"
 
     # Cleanup
     Customer.objects.filter(id=customer.id).delete()
     print("✓ Cleanup complete")
-
-    return True
 
 
 def test_dashboard_view():
@@ -228,50 +214,39 @@ def test_dashboard_view():
     except Exception as e:
         print(f"⚠ Could not create test user: {str(e)}")
         user = User.objects.filter(username='test_delayguard_staff').first()
-        if not user:
-            print("✗ Could not get test user")
-            return False
+        assert user, "Could not get test user"
 
     client = Client()
 
     # Test unauthenticated access (should redirect)
     response = client.get('/portal/products/delayguard/')
-    if response.status_code in [302, 301]:
-        print("✓ Dashboard requires authentication (redirect)")
-    else:
-        print(f"✗ Dashboard should redirect, got {response.status_code}")
-        User.objects.filter(username='test_delayguard_staff').delete()
-        return False
+    assert response.status_code in [302, 301], f"Dashboard should redirect, got {response.status_code}"
+    print("✓ Dashboard requires authentication (redirect)")
 
     # Test authenticated access
     client.force_login(user)
     response = client.get('/portal/products/delayguard/')
 
-    if response.status_code == 200:
-        print("✓ Dashboard accessible to staff users")
+    assert response.status_code == 200, f"Dashboard returned {response.status_code} for staff user"
+    print("✓ Dashboard accessible to staff users")
 
-        # Check response contains expected elements
-        content = response.content.decode('utf-8')
+    # Check response contains expected elements
+    content = response.content.decode('utf-8')
 
-        expected_elements = [
-            'DelayGuard',
-            'Payment delay drift detection',
-            'Active Delay Signals',
-        ]
+    expected_elements = [
+        'DelayGuard',
+        'Payment delay drift detection',
+        'Active Delay Signals',
+    ]
 
-        for element in expected_elements:
-            if element in content:
-                print(f"✓ Found '{element}' in response")
-            else:
-                print(f"⚠ Missing '{element}' in response (may be OK if no data)")
+    for element in expected_elements:
+        if element in content:
+            print(f"✓ Found '{element}' in response")
+        else:
+            print(f"⚠ Missing '{element}' in response (may be OK if no data)")
 
-        # Cleanup
-        User.objects.filter(username='test_delayguard_staff').delete()
-        return True
-    else:
-        print(f"✗ Dashboard returned {response.status_code} for staff user")
-        User.objects.filter(username='test_delayguard_staff').delete()
-        return False
+    # Cleanup
+    User.objects.filter(username='test_delayguard_staff').delete()
 
 
 def test_management_command():
@@ -327,9 +302,8 @@ def test_management_command():
             print(f"⚠ Command output: {output}")
 
     except Exception as e:
-        print(f"✗ Management command failed: {str(e)}")
         Customer.objects.filter(id=customer.id).delete()
-        return False
+        assert False, f"Management command failed: {str(e)}"
 
     # Verify signals were created
     signals = PaymentDelaySignal.objects.filter(customer=customer)
@@ -338,8 +312,6 @@ def test_management_command():
     # Cleanup
     Customer.objects.filter(id=customer.id).delete()
     print("✓ Cleanup complete")
-
-    return True
 
 
 def cleanup():
@@ -363,38 +335,25 @@ def cleanup():
 
 if __name__ == '__main__':
     try:
-        results = []
-
-        # Run tests
-        results.append(("DelayGuard Computation", test_delayguard_computation()))
-        results.append(("Alert Integration", test_alert_integration()))
-        results.append(("Dashboard View", test_dashboard_view()))
-        results.append(("Management Command", test_management_command()))
+        # Run tests - assertions will fail the test if something is wrong
+        test_delayguard_computation()
+        test_alert_integration()
+        test_dashboard_view()
+        test_management_command()
 
         # Summary
         print("\n" + "=" * 60)
         print("SUMMARY")
         print("=" * 60)
+        print("✅ ALL TESTS PASSED")
+        print("\nDelayGuard integration is working correctly!")
+        cleanup()
+        sys.exit(0)
 
-        passed = sum(1 for _, result in results if result)
-        total = len(results)
-
-        for test_name, result in results:
-            status = "✅ PASS" if result else "❌ FAIL"
-            print(f"{status}: {test_name}")
-
-        print("\n" + "=" * 60)
-
-        if passed == total:
-            print(f"✅ ALL TESTS PASSED ({passed}/{total})")
-            print("\nDelayGuard integration is working correctly!")
-            cleanup()
-            sys.exit(0)
-        else:
-            print(f"⚠ SOME TESTS FAILED ({passed}/{total} passed)")
-            cleanup()
-            sys.exit(1)
-
+    except AssertionError as e:
+        print(f"\n❌ TEST FAILED: {str(e)}")
+        cleanup()
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ UNEXPECTED ERROR: {str(e)}")
         import traceback

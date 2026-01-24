@@ -40,17 +40,12 @@ def test_cache_configuration():
         cache.set(test_key, test_value, 60)
         retrieved = cache.get(test_key)
 
-        if retrieved == test_value:
-            print("✓ Redis cache is configured and working")
-            cache.delete(test_key)
-            return True
-        else:
-            print("✗ Redis cache returned unexpected value")
-            return False
+        assert retrieved == test_value, "Redis cache returned unexpected value"
+        print("✓ Redis cache is configured and working")
+        cache.delete(test_key)
 
     except Exception as e:
-        print(f"✗ Redis cache configuration error: {str(e)}")
-        return False
+        assert False, f"Redis cache configuration error: {str(e)}"
 
 
 def test_payer_mappings_caching():
@@ -96,19 +91,14 @@ def test_payer_mappings_caching():
         print(f"⚠ Cache hit not significantly faster (may be due to test overhead)")
 
     # Verify data consistency
-    if mappings1 == mappings2:
-        print("✓ Cached data matches database data")
-    else:
-        print("✗ Cached data DOES NOT match database data")
-        return False
+    assert mappings1 == mappings2, "Cached data DOES NOT match database data"
+    print("✓ Cached data matches database data")
 
     # Verify cache key format
     expected_key_parts = [CACHE_KEYS['PAYER_MAPPINGS'], f"Customer_{customer.pk}"]
     print(f"\n3. Cache key verification:")
     print(f"   Expected parts: {expected_key_parts}")
     print(f"   Actual key: {cache_key}")
-
-    return True
 
 
 def test_cpt_mappings_caching():
@@ -148,12 +138,8 @@ def test_cpt_mappings_caching():
     print(f"   Retrieved {len(mappings2)} mappings in {time2:.2f}ms")
 
     # Verify data consistency
-    if mappings1 == mappings2:
-        print("✓ Cached data matches database data")
-        return True
-    else:
-        print("✗ Cached data DOES NOT match database data")
-        return False
+    assert mappings1 == mappings2, "Cached data DOES NOT match database data"
+    print("✓ Cached data matches database data")
 
 
 def test_cache_invalidation():
@@ -187,12 +173,8 @@ def test_cache_invalidation():
     count_after = len(mappings_after)
     print(f"✓ Updated payer mappings count: {count_after}")
 
-    if count_after == count_before + 1:
-        print("✓ Cache invalidation working correctly")
-        return True
-    else:
-        print(f"✗ Cache invalidation FAILED: expected {count_before + 1}, got {count_after}")
-        return False
+    assert count_after == count_before + 1, f"Cache invalidation FAILED: expected {count_before + 1}, got {count_after}"
+    print("✓ Cache invalidation working correctly")
 
 
 def test_csv_upload_performance():
@@ -241,11 +223,8 @@ UHC,99214,2024-01-19,2024-02-05,PAID,200.00"""
         print(f"  Rows processed: {upload.row_count}")
         print(f"  Mappings loaded from cache (no individual DB queries per row)")
 
-        return True
-
     except Exception as e:
-        print(f"✗ Upload failed: {str(e)}")
-        return False
+        assert False, f"Upload failed: {str(e)}"
 
 
 def test_cache_stats():
@@ -293,14 +272,12 @@ def cleanup():
 
 if __name__ == '__main__':
     try:
-        results = []
-
-        # Run tests
-        results.append(("Cache Configuration", test_cache_configuration()))
-        results.append(("Payer Mappings Caching", test_payer_mappings_caching()))
-        results.append(("CPT Mappings Caching", test_cpt_mappings_caching()))
-        results.append(("Cache Invalidation", test_cache_invalidation()))
-        results.append(("CSV Upload Performance", test_csv_upload_performance()))
+        # Run tests - assertions will fail the test if something is wrong
+        test_cache_configuration()
+        test_payer_mappings_caching()
+        test_cpt_mappings_caching()
+        test_cache_invalidation()
+        test_csv_upload_performance()
 
         # Show cache stats
         test_cache_stats()
@@ -309,26 +286,15 @@ if __name__ == '__main__':
         print("\n" + "=" * 60)
         print("SUMMARY")
         print("=" * 60)
+        print("✅ ALL TESTS PASSED")
+        print("\nRedis caching is working correctly!")
+        cleanup()
+        sys.exit(0)
 
-        passed = sum(1 for _, result in results if result)
-        total = len(results)
-
-        for test_name, result in results:
-            status = "✅ PASS" if result else "❌ FAIL"
-            print(f"{status}: {test_name}")
-
-        print("\n" + "=" * 60)
-
-        if passed == total:
-            print(f"✅ ALL TESTS PASSED ({passed}/{total})")
-            print("\nRedis caching is working correctly!")
-            cleanup()
-            sys.exit(0)
-        else:
-            print(f"❌ SOME TESTS FAILED ({passed}/{total} passed)")
-            cleanup()
-            sys.exit(1)
-
+    except AssertionError as e:
+        print(f"\n❌ TEST FAILED: {str(e)}")
+        cleanup()
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ UNEXPECTED ERROR: {str(e)}")
         import traceback

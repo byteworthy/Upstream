@@ -36,18 +36,12 @@ def test_health_check():
 
     # Test /health/
     response = client.get('/health/')
-    if response.status_code == 200:
-        print("✓ /health/ endpoint returns 200 OK")
-        data = response.json()
-        if 'status' in data and data['status'] == 'healthy':
-            print(f"✓ Health check response: {data}")
-            return True
-        else:
-            print(f"✗ Unexpected response format: {data}")
-            return False
-    else:
-        print(f"✗ /health/ returned {response.status_code}")
-        return False
+    assert response.status_code == 200, f"/health/ returned {response.status_code}"
+    print("✓ /health/ endpoint returns 200 OK")
+
+    data = response.json()
+    assert 'status' in data and data['status'] == 'healthy', f"Unexpected response format: {data}"
+    print(f"✓ Health check response: {data}")
 
 
 def test_request_timing_middleware():
@@ -65,11 +59,8 @@ def test_request_timing_middleware():
     # Process request (start timer)
     middleware.process_request(request)
 
-    if hasattr(request, '_request_start_time'):
-        print("✓ Request timer started")
-    else:
-        print("✗ Request timer NOT started")
-        return False
+    assert hasattr(request, '_request_start_time'), "Request timer NOT started"
+    print("✓ Request timer started")
 
     # Simulate some processing time
     import time
@@ -83,21 +74,16 @@ def test_request_timing_middleware():
     response = middleware.process_response(request, response)
 
     # Check for timing header
-    if 'X-Request-Duration-Ms' in response:
-        duration = response['X-Request-Duration-Ms']
-        print(f"✓ Request duration tracked: {duration}ms")
+    assert 'X-Request-Duration-Ms' in response, "Duration header NOT added to response"
+    duration = response['X-Request-Duration-Ms']
+    print(f"✓ Request duration tracked: {duration}ms")
 
-        # Verify metrics stored in cache
-        recent_requests = cache.get('metrics:recent_requests', [])
-        if len(recent_requests) > 0:
-            print(f"✓ Metrics stored in cache: {len(recent_requests)} requests")
-            return True
-        else:
-            print("⚠ Metrics not stored in cache (may be normal if cache unavailable)")
-            return True
+    # Verify metrics stored in cache
+    recent_requests = cache.get('metrics:recent_requests', [])
+    if len(recent_requests) > 0:
+        print(f"✓ Metrics stored in cache: {len(recent_requests)} requests")
     else:
-        print("✗ Duration header NOT added to response")
-        return False
+        print("⚠ Metrics not stored in cache (may be normal if cache unavailable)")
 
 
 def test_metrics_collection():
@@ -122,11 +108,8 @@ def test_metrics_collection():
 
     # Check request counter
     counter = cache.get('metrics:request_count:/test/', 0)
-    if counter > 0:
-        print(f"✓ Request counter incremented: {counter}")
-    else:
-        print("✗ Request counter NOT incremented")
-        return False
+    assert counter > 0, "Request counter NOT incremented"
+    print(f"✓ Request counter incremented: {counter}")
 
     # Test error request
     error_response = HttpResponse("Not Found", status=404)
@@ -135,10 +118,8 @@ def test_metrics_collection():
     error_counter = cache.get('metrics:error_count:/test/', 0)
     if error_counter > 0:
         print(f"✓ Error counter incremented: {error_counter}")
-        return True
     else:
         print("⚠ Error counter not incremented (may be normal if cache unavailable)")
-        return True
 
 
 def test_metrics_dashboard_view():
@@ -159,36 +140,28 @@ def test_metrics_dashboard_view():
         print(f"⚠ Could not create test user: {str(e)}")
         # Try to get existing user
         user = User.objects.filter(username='test_staff').first()
-        if not user:
-            print("✗ Could not get test user")
-            return False
+        assert user, "Could not get test user"
 
     client = Client()
 
     # Try to access without authentication
     response = client.get('/portal/admin/metrics/')
-    if response.status_code == 302:  # Redirect to login
-        print("✓ Metrics dashboard requires authentication")
-    else:
-        print(f"✗ Metrics dashboard returned {response.status_code} without auth")
-        return False
+    assert response.status_code == 302, f"Metrics dashboard returned {response.status_code} without auth (expected 302 redirect)"
+    print("✓ Metrics dashboard requires authentication")
 
     # Login and access
     client.force_login(user)
     response = client.get('/portal/admin/metrics/')
 
-    if response.status_code == 200:
-        print("✓ Metrics dashboard accessible to staff users")
-        # Check response contains expected elements
-        content = response.content.decode('utf-8')
-        if 'Metrics Dashboard' in content:
-            print("✓ Dashboard title found in response")
-        if 'Average Response Time' in content:
-            print("✓ Metrics content found in response")
-        return True
-    else:
-        print(f"✗ Metrics dashboard returned {response.status_code} for staff user")
-        return False
+    assert response.status_code == 200, f"Metrics dashboard returned {response.status_code} for staff user"
+    print("✓ Metrics dashboard accessible to staff users")
+
+    # Check response contains expected elements
+    content = response.content.decode('utf-8')
+    if 'Metrics Dashboard' in content:
+        print("✓ Dashboard title found in response")
+    if 'Average Response Time' in content:
+        print("✓ Metrics content found in response")
 
 
 def cleanup():
@@ -214,38 +187,25 @@ def cleanup():
 
 if __name__ == '__main__':
     try:
-        results = []
-
-        # Run tests
-        results.append(("Health Check Endpoint", test_health_check()))
-        results.append(("Request Timing Middleware", test_request_timing_middleware()))
-        results.append(("Metrics Collection", test_metrics_collection()))
-        results.append(("Metrics Dashboard View", test_metrics_dashboard_view()))
+        # Run tests - assertions will fail the test if something is wrong
+        test_health_check()
+        test_request_timing_middleware()
+        test_metrics_collection()
+        test_metrics_dashboard_view()
 
         # Summary
         print("\n" + "=" * 60)
         print("SUMMARY")
         print("=" * 60)
+        print("✅ ALL TESTS PASSED")
+        print("\nMonitoring middleware is working correctly!")
+        cleanup()
+        sys.exit(0)
 
-        passed = sum(1 for _, result in results if result)
-        total = len(results)
-
-        for test_name, result in results:
-            status = "✅ PASS" if result else "❌ FAIL"
-            print(f"{status}: {test_name}")
-
-        print("\n" + "=" * 60)
-
-        if passed == total:
-            print(f"✅ ALL TESTS PASSED ({passed}/{total})")
-            print("\nMonitoring middleware is working correctly!")
-            cleanup()
-            sys.exit(0)
-        else:
-            print(f"⚠ SOME TESTS FAILED ({passed}/{total} passed)")
-            cleanup()
-            sys.exit(1)
-
+    except AssertionError as e:
+        print(f"\n❌ TEST FAILED: {str(e)}")
+        cleanup()
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ UNEXPECTED ERROR: {str(e)}")
         import traceback
