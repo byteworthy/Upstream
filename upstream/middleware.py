@@ -295,3 +295,150 @@ class MetricsCollectionMiddleware(MiddlewareMixin):
         # Replace numeric IDs with {id}
         normalized = re.sub(r'/\d+/', '/{id}/', path)
         return normalized
+
+
+# =============================================================================
+# Structured Logging Middleware
+# =============================================================================
+
+class StructuredLoggingMiddleware:
+    """
+    Middleware that automatically injects request context into logs.
+
+    This middleware extracts information from the HTTP request (user, customer,
+    request ID, IP address) and adds it to the logging context. All logs
+    generated during the request will automatically include this context.
+
+    Configuration:
+        Add to MIDDLEWARE in settings.py:
+
+        MIDDLEWARE = [
+            'django.middleware.security.SecurityMiddleware',
+            # ... other middleware ...
+            'upstream.middleware.StructuredLoggingMiddleware',
+            # ... rest of middleware ...
+        ]
+
+    Benefits:
+        - Automatic context injection (no manual set_log_context calls)
+        - Every log message includes customer_id, user_id, request_id
+        - Easy filtering and debugging in production
+        - Consistent logging across the application
+    """
+
+    def __init__(self, get_response):
+        """Initialize middleware."""
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Process request and inject logging context."""
+        from upstream.logging_utils import (
+            extract_request_context,
+            set_log_context,
+            clear_log_context,
+            get_logger,
+        )
+
+        logger_local = get_logger(__name__)
+
+        # Clear any existing context
+        clear_log_context()
+
+        # Extract and set context from request
+        try:
+            context = extract_request_context(request)
+            set_log_context(**context)
+
+            # Log the incoming request
+            logger_local.debug(
+                "Request received",
+                extra={
+                    'method': request.method,
+                    'path': request.path,
+                }
+            )
+
+        except Exception as e:
+            # Don't fail the request if context extraction fails
+            logger_local.warning(
+                "Failed to extract request context",
+                extra={'error': str(e)}
+            )
+
+        # Process request
+        try:
+            response = self.get_response(request)
+
+            # Log the response
+            logger_local.debug(
+                "Request completed",
+                extra={'status_code': response.status_code}
+            )
+
+            return response
+
+        except Exception as e:
+            # Log unhandled exceptions
+            logger_local.error(
+                "Unhandled exception during request",
+                extra={'error': str(e), 'error_type': type(e).__name__},
+                exc_info=True
+            )
+            raise
+
+        finally:
+            # Clean up context after request
+            clear_log_context()
+
+
+class SlowRequestLoggingMiddleware:
+    """
+    Middleware that logs slow requests for performance monitoring.
+
+    Configuration:
+        Add to MIDDLEWARE in settings.py and configure threshold:
+
+        MIDDLEWARE = [
+            # ... other middleware ...
+            'upstream.middleware.SlowRequestLoggingMiddleware',
+            # ... rest of middleware ...
+        ]
+
+        SLOW_REQUEST_THRESHOLD_MS = 1000  # Log requests slower than 1 second
+    """
+
+    def __init__(self, get_response):
+        """Initialize middleware."""
+        self.get_response = get_response
+
+        # Get threshold from settings (default 1000ms)
+        self.threshold_ms = getattr(settings, 'SLOW_REQUEST_THRESHOLD_MS', 1000)
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Measure request duration and log if slow."""
+        from upstream.logging_utils import get_logger
+
+        logger_local = get_logger(__name__)
+
+        # Record start time
+        start_time = time.time()
+
+        # Process request
+        response = self.get_response(request)
+
+        # Calculate duration
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Log if slow
+        if duration_ms > self.threshold_ms:
+            logger_local.warning(
+                "Slow request detected",
+                extra={
+                    'duration_ms': round(duration_ms, 2),
+                    'threshold_ms': self.threshold_ms,
+                    'method': request.method,
+                    'path': request.path,
+                }
+            )
+
+        return response
