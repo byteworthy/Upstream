@@ -62,11 +62,8 @@ class CustomerScopedQuerySet(models.QuerySet):
         clone._auto_filter_applied = self._auto_filter_applied
         return clone
 
-    def _fetch_all(self):
-        """
-        Override _fetch_all to apply customer filter before executing query.
-        This is called by Django before any query execution.
-        """
+    def _apply_customer_filter(self):
+        """Apply customer filter if not already applied."""
         if not self._auto_filter_applied:
             customer = get_current_customer()
 
@@ -80,7 +77,28 @@ class CustomerScopedQuerySet(models.QuerySet):
 
             self._auto_filter_applied = True
 
+    def _fetch_all(self):
+        """
+        Override _fetch_all to apply customer filter before executing query.
+        This is called by Django before any query execution.
+        """
+        self._apply_customer_filter()
         super()._fetch_all()
+
+    def count(self):
+        """
+        Override count() to ensure customer filter is applied.
+        Django's count() optimization bypasses _fetch_all(), so we need this.
+        """
+        self._apply_customer_filter()
+        return super().count()
+
+    def exists(self):
+        """
+        Override exists() to ensure customer filter is applied.
+        """
+        self._apply_customer_filter()
+        return super().exists()
 
 
 class CustomerScopedManager(models.Manager):
@@ -109,7 +127,10 @@ class CustomerScopedManager(models.Manager):
         - Background tasks
         - Cross-customer queries (with proper authorization)
         """
-        return self.get_queryset().filter(customer=customer)
+        qs = self.get_queryset()
+        # Mark filter as already applied to prevent double-filtering
+        qs._auto_filter_applied = True
+        return qs.filter(customer=customer)
 
     def unscoped(self):
         """

@@ -241,14 +241,22 @@ class TenantIsolationTest(TestCase):
         request = factory.get('/')
         request.user = self.user_a
 
-        middleware = TenantIsolationMiddleware(lambda r: None)
+        # Track if customer was set during request processing
+        customer_during_request = [None]
+
+        def get_response(req):
+            # Check customer is set during request processing
+            customer_during_request[0] = get_current_customer()
+            return None
+
+        middleware = TenantIsolationMiddleware(get_response)
         middleware(request)
 
-        # Customer should be set after middleware
-        self.assertEqual(get_current_customer(), self.customer_a)
+        # Customer should have been set during request processing
+        self.assertEqual(customer_during_request[0], self.customer_a)
 
-        # Clean up
-        clear_current_customer()
+        # Customer should be cleared after request completes
+        self.assertIsNone(get_current_customer())
 
     def test_middleware_skips_superuser(self):
         """Test that middleware doesn't set customer for superusers."""
