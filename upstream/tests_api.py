@@ -34,6 +34,10 @@ class APITestBase(APITestCase):
     
     def setUp(self):
         """Set up test fixtures for API tests."""
+        # Clear cache to prevent test pollution
+        from django.core.cache import cache
+        cache.clear()
+
         # Create customers
         self.customer_a = Customer.objects.create(name='Customer A')
         self.customer_b = Customer.objects.create(name='Customer B')
@@ -255,10 +259,6 @@ class DashboardEndpointTests(APITestBase):
 
         customer_a_uploads = Upload.all_objects.filter(customer=self.customer_a).count()
         self.assertEqual(customer_a_uploads, 2, f"Expected 2 uploads for customer A, got {customer_a_uploads}")
-
-        # Clear dashboard cache to avoid stale data
-        from django.core.cache import cache
-        cache.delete(f'dashboard:customer:{self.customer_a.id}')
 
         self.authenticate_as(self.user_a)
         response = self.client.get(f'{API_BASE}/dashboard/')
