@@ -8,3 +8,13 @@ logs/
 
 # Diff artifacts
 .git_diff_*.txt
+
+# Google Cloud SDK - too large for GitHub
+google-cloud-cli-*.tar.gz
+google-cloud-sdk/platform/bundledpythonunix/
+
+# Agent directories (submodules or large binaries)
+.agents/anthropic-skills/
+.agents/claude-antigravity/
+.agents/ralph/
+.agents/superpowers/
