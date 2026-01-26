@@ -172,13 +172,24 @@ class UploadViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
     def stats(self, request):
         """Get upload statistics for the customer."""
         queryset = self.get_queryset()
+
+        # Optimize: Use single aggregate query instead of 4 separate COUNT queries
+        # Before: 4 queries (total, success, failed, processing)
+        # After: 1 query with conditional aggregation
+        aggregates = queryset.aggregate(
+            total=Count("id"),
+            success=Count("id", filter=Q(status="success")),
+            failed=Count("id", filter=Q(status="failed")),
+            processing=Count("id", filter=Q(status="processing")),
+            total_rows=Count("claim_records"),
+        )
+
         stats = {
-            "total": queryset.count(),
-            "success": queryset.filter(status="success").count(),
-            "failed": queryset.filter(status="failed").count(),
-            "processing": queryset.filter(status="processing").count(),
-            "total_rows": queryset.aggregate(total=Count("claim_records"))["total"]
-            or 0,
+            "total": aggregates["total"] or 0,
+            "success": aggregates["success"] or 0,
+            "failed": aggregates["failed"] or 0,
+            "processing": aggregates["processing"] or 0,
+            "total_rows": aggregates["total_rows"] or 0,
         }
         return Response(stats)
 

@@ -7,7 +7,7 @@ Reads from PaymentDelaySignal model.
 
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count, Avg, Max, Sum
+from django.db.models import Count, Avg, Max, Sum, Q
 from django.utils import timezone
 from datetime import timedelta
 
@@ -91,19 +91,23 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
                     }
                 )
 
-            # Summary metrics
-            total_signals = base_queryset.count()
-
-            # Average payment delay increase
-            avg_delta = (
-                base_queryset.aggregate(avg_delta=Avg("delta_days"))["avg_delta"] or 0
+            # Optimize: Combine multiple separate queries into single aggregate
+            # Before: 5 separate queries (total_signals, avg_delta, total_at_risk,
+            #         critical_count, high_count)
+            # After: 1 aggregate query with conditional aggregation
+            summary_metrics = base_queryset.aggregate(
+                total_signals=Count("id"),
+                avg_delta=Avg("delta_days"),
+                total_at_risk=Sum("estimated_dollars_at_risk"),
+                critical_count=Count("id", filter=Q(severity="critical")),
+                high_count=Count("id", filter=Q(severity="high")),
             )
 
-            # Total dollars at risk
-            total_at_risk = (
-                base_queryset.aggregate(total=Sum("estimated_dollars_at_risk"))["total"]
-                or 0
-            )
+            total_signals = summary_metrics["total_signals"] or 0
+            avg_delta = summary_metrics["avg_delta"] or 0
+            total_at_risk = summary_metrics["total_at_risk"] or 0
+            critical_count = summary_metrics["critical_count"] or 0
+            high_count = summary_metrics["high_count"] or 0
 
             # Top payers by delay frequency
             top_payers = (
@@ -116,10 +120,6 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
                 )
                 .order_by("-signal_count")[:5]
             )
-
-            # Critical signals (needs immediate attention)
-            critical_count = base_queryset.filter(severity="critical").count()
-            high_count = base_queryset.filter(severity="high").count()
 
             # Recovery ledger stats
             recovery_stats = self._get_recovery_stats(customer)
