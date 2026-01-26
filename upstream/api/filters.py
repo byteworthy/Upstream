@@ -27,12 +27,11 @@ class ClaimRecordFilter(filters.FilterSet):
     end_date = filters.DateFilter(field_name='decided_date', lookup_expr='lte')
 
     # Additional useful filters
-    claim_number = filters.CharFilter(field_name='claim_number', lookup_expr='icontains')
-    cpt_code = filters.CharFilter(field_name='cpt_code', lookup_expr='exact')
+    cpt = filters.CharFilter(field_name='cpt', lookup_expr='exact')
 
     class Meta:
         model = ClaimRecord
-        fields = ['payer', 'outcome', 'start_date', 'end_date', 'claim_number', 'cpt_code']
+        fields = ['payer', 'outcome', 'start_date', 'end_date', 'cpt']
 
 
 class DriftEventFilter(filters.FilterSet):

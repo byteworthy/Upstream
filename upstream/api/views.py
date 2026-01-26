@@ -601,7 +601,7 @@ class AlertEventViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     serializer_class = AlertEventSerializer
     permission_classes = [IsAuthenticated, IsCustomerMember]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'delivery_method']
+    filterset_fields = ['status']
     search_fields = ['drift_event__payer']
     ordering_fields = ['triggered_at', 'status']
     ordering = ["-triggered_at"]
