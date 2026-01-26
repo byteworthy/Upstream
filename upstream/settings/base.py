@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",  # HIGH-1: Enable JWT blacklist
     "corsheaders",
     "drf_spectacular",
+    "django_filters",
     # Third-party - Monitoring
     "django_prometheus",
     # Third-party - Development
@@ -154,6 +155,11 @@ REST_FRAMEWORK = {
         "anon_strict": "30/hour",  # Very strict for anonymous users
         "authentication": "5/15min",  # HIGH-2: Prevent brute-force attacks
     },
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
