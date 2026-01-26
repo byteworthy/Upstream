@@ -10,6 +10,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Avg, Max, Sum, Q
 from django.utils import timezone
 from datetime import timedelta
+from django.core.cache import cache
+import hashlib
+import json
 
 from upstream.utils import get_current_customer
 from upstream.alerts.models import AlertEvent, OperatorJudgment
@@ -21,6 +24,7 @@ from upstream.constants import (
     DELAYGUARD_HIGH_THRESHOLD_DAYS,
     DELAYGUARD_MEDIUM_THRESHOLD_DAYS,
     DELAYGUARD_LOW_THRESHOLD_DAYS,
+    CACHE_TTL_MEDIUM,  # 15 minutes
 )
 
 
@@ -220,7 +224,25 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
         }
 
     def _check_similar_alerts(self, customer, signal):
-        """Check if similar alerts have been previously judged."""
+        """
+        Check if similar alerts have been previously judged.
+
+        Uses Redis caching to avoid repeated DB queries for the same
+        customer/payer/signal_type combination.
+        Cache TTL: 15 minutes (CACHE_TTL_MEDIUM)
+        """
+        # Build cache key: alert_suppression:{customer_id}:{payer}:{signal_type}
+        cache_key_data = f"{customer.id}:{signal.payer}:{signal.signal_type}"
+        cache_key_hash = hashlib.md5(cache_key_data.encode()).hexdigest()
+        cache_key = f"alert_suppression:{cache_key_hash}"
+
+        # Try cache first
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            # Cached result is serialized JSON
+            return json.loads(cached_result) if cached_result != "null" else None
+
+        # Cache miss - query database
         # Look for similar signals: same payer, same signal type
         similar_signals = (
             PaymentDelaySignal.objects.filter(
@@ -231,6 +253,8 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
         )
 
         if not similar_signals.exists():
+            # Cache negative result to avoid repeated queries
+            cache.set(cache_key, "null", CACHE_TTL_MEDIUM)
             return None
 
         # Find alerts for these similar signals that have been judged
@@ -243,6 +267,8 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
         ).order_by("-created_at")
 
         if not similar_judgments.exists():
+            # Cache negative result
+            cache.set(cache_key, "null", CACHE_TTL_MEDIUM)
             return None
 
         # Get most recent judgment
@@ -251,23 +277,26 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
         # Determine context message
         days_ago = (timezone.now().date() - latest_similar.created_at.date()).days
 
+        result = None
         if latest_similar.verdict == "noise":
-            return {
+            result = {
                 "type": "noise",
                 "message": f"Similar alert marked as noise {days_ago} days ago",
                 "verdict": "noise",
                 "days_ago": days_ago,
             }
         elif latest_similar.verdict == "real":
-            return {
+            result = {
                 "type": "confirmed",
                 "message": f"Similar alert confirmed real {days_ago} days ago",
                 "verdict": "real",
                 "days_ago": days_ago,
-                "recovered_amount": latest_similar.recovered_amount,
+                "recovered_amount": float(latest_similar.recovered_amount)
+                if latest_similar.recovered_amount
+                else None,
             }
         elif latest_similar.verdict == "needs_followup":
-            return {
+            result = {
                 "type": "pending",
                 "message": (
                     f"Similar alert flagged for follow-up "
@@ -277,4 +306,9 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
                 "days_ago": days_ago,
             }
 
-        return None
+        # Cache result (serialize to JSON)
+        cache.set(
+            cache_key, json.dumps(result) if result else "null", CACHE_TTL_MEDIUM
+        )
+
+        return result
