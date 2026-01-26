@@ -1430,12 +1430,12 @@ Despite being essential for alert workflow, it had ZERO test coverage, creating 
 - ~~Missing API throttling tests~~ ✅ **RESOLVED**
 - Product stub tests (ContractIQ, AuthSignal)
 
-### Architecture (13 issues)
+### Architecture (12 issues)
 - Business logic in views
 - Direct ORM queries in views
 - Missing drift detection abstraction
 - Alert service coupled to products
-- Hardcoded business rules
+- ~~Hardcoded business rules~~ ✅ **RESOLVED (ARCH-3)**
 - Alert suppression uses DB queries in hot path
 - Missing interface segregation
 - Duplicate drift/delay logic
@@ -1603,15 +1603,15 @@ Despite being essential for alert workflow, it had ZERO test coverage, creating 
 
 ## Progress Tracking
 
-**Current Status**: Phase 2 - IN PROGRESS (26/43 Critical+High Issues Resolved - 60.5%) 🚧
+**Current Status**: Phase 2 - IN PROGRESS (27/43 Critical+High Issues Resolved - 62.8%) 🚧
 
 ### Issues by Status
 
 | Status | Count | % |
 |--------|-------|---|
-| To Do | 99 | 75.6% |
+| To Do | 98 | 74.8% |
 | In Progress | 0 | 0% |
-| Done | 32 | 24.4% |
+| Done | 33 | 25.2% |
 
 ### By Domain Completion
 
@@ -1620,7 +1620,7 @@ Despite being essential for alert workflow, it had ZERO test coverage, creating 
 | Security | 10 | 2 | 20.0% |
 | Performance | 18 | 11 | 61.1% |
 | Testing | 17 | 4 | 23.5% |
-| Architecture | 21 | 1 | 4.8% |
+| Architecture | 21 | 2 | 9.5% |
 | Database | 22 | 5 | 22.7% |
 | API | 23 | 2 | 8.7% |
 | DevOps | 30 | 7 | 23.3% |
@@ -1661,6 +1661,7 @@ Despite being essential for alert workflow, it had ZERO test coverage, creating 
 - ✅ **PERF-19**: Missing indexes for recovery stats (upstream/alerts/models.py, migrations/0009 - added partial index on customer+recovered_date)
 - ✅ **PERF-20**: Inefficient serializer method fields (upstream/api/views.py, serializers.py - annotate counts + use prefetched data, eliminated N+1 queries)
 - ✅ **TEST-1**: Missing tests for IngestionService (upstream/ingestion/tests.py - created 20 comprehensive tests covering idempotency, events, transactions, workflows)
+- ✅ **ARCH-3**: Hardcoded business rules (upstream/constants.py, upstream/products/delayguard/views.py, upstream/products/driftwatch/services.py - centralized DelayGuard urgency thresholds and processing time drift constants)
 
 ---
 
