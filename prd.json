@@ -1,93 +1,99 @@
 {
-  "branchName": "phase-03-api-documentation",
+  "branchName": "phase-06-database-indexes",
   "context": {
-    "phase": "03",
-    "phaseName": "OpenAPI Documentation & Error Standardization",
-    "phaseGoal": "Complete API documentation and consistent error handling across all endpoints",
+    "phase": "06",
+    "phaseName": "Database Indexes",
+    "phaseGoal": "Add missing database indexes to improve query performance for webhooks, alerts, and user lookups",
     "requirements": [
-      "API-03",
-      "API-04"
+      "PERF-02",
+      "DB-03"
     ],
-    "dependsOn": "Phase 2 (API Pagination & Filtering)",
+    "dependsOn": "Phase 5 (Performance Testing & Rollback Fix)",
     "successCriteria": [
-      "All endpoints return standardized error responses with status codes, detail messages, and field-level errors",
-      "drf-spectacular generates 100% OpenAPI documentation for all endpoints, actions, and filters",
-      "API documentation includes request/response examples for every endpoint",
-      "Validation errors, authentication errors, and permission errors use consistent format"
+      "UserProfile has indexes on user and customer foreign keys for faster lookups",
+      "AlertRule has composite index on (customer, enabled) for alert evaluation queries",
+      "NotificationChannel has composite index on (customer, enabled, channel_type) for channel lookups",
+      "WebhookDelivery has composite index on (status, next_attempt_at) for retry queries",
+      "IntegrationLog has composite index on (connection, -start_time) for connection history",
+      "Migration creates all 6 indexes without errors"
     ],
     "qualityGates": [
       "python manage.py check",
-      "python manage.py test upstream.tests_api -v 2",
-      "python manage.py spectacular --validate"
+      "python manage.py makemigrations --check --dry-run",
+      "python manage.py test upstream.tests_models -v 2"
     ]
   },
   "userStories": [
     {
       "id": 1,
-      "title": "Create custom exception handler for standardized error responses across all API endpoints",
-      "description": "Implement a custom exception handler in upstream/api/exceptions.py that catches DRF exceptions (ValidationError, NotFound, PermissionDenied, AuthenticationFailed) and returns consistent JSON structure: {\"error\": {\"code\": \"...\", \"message\": \"...\", \"details\": {...}}}. Configure in REST_FRAMEWORK settings. Update existing error responses to use new format.",
+      "title": "Add db_index to UserProfile foreign keys (user, customer)",
+      "description": "Add db_index=True to UserProfile.user and UserProfile.customer fields. These fields are used in WHERE clauses for user lookups (WHERE user_id=X) and customer filtering (WHERE customer_id=X). Without indexes, these become full table scans as UserProfile grows. Update upstream/models.py or the specific model file where UserProfile is defined.",
       "acceptanceCriteria": [
-        "Exception handler returns consistent error structure for all exception types",
-        "Validation errors include field-level details",
-        "HTTP status codes match exception types (400, 401, 403, 404, 500)",
-        "Tests verify error format for each exception type"
+        "UserProfile.user has db_index=True",
+        "UserProfile.customer has db_index=True",
+        "Migration generated with AddIndex operations",
+        "Django check passes",
+        "Indexes visible in database schema (sqlite_master or pg_indexes)"
       ],
       "files": [
-        "upstream/api/exceptions.py",
-        "upstream/settings/base.py",
-        "upstream/tests_api.py"
+        "upstream/models.py",
+        "upstream/migrations/00XX_add_userprofile_indexes.py"
       ],
       "passes": true
     },
     {
       "id": 2,
-      "title": "Add @extend_schema annotations to all ViewSet actions with request/response examples",
-      "description": "Use drf-spectacular's @extend_schema decorator on all ViewSet methods (list, retrieve, create, update, destroy) and custom actions (payer_summary, feedback, dashboard, active). Include summary, description, request_body examples, response examples with status codes, and parameter descriptions. Ensure all custom actions document pagination and filter parameters.",
+      "title": "Add composite index to AlertRule for (customer, enabled) lookups",
+      "description": "Create Meta.indexes with Index(fields=['customer', 'enabled'], name='idx_alertrule_customer_enabled') in AlertRule model. Alert evaluation queries filter by customer AND enabled status simultaneously: WHERE customer=X AND enabled=true. Composite index is more efficient than separate indexes. Located in upstream/alerts/models.py.",
       "acceptanceCriteria": [
-        "All ViewSet methods have @extend_schema annotations",
-        "Each action includes summary and description",
-        "Request/response examples provided for POST/PUT endpoints",
-        "Filter and pagination parameters documented on custom actions",
-        "python manage.py spectacular --validate passes"
+        "AlertRule.Meta.indexes includes composite (customer, enabled) index",
+        "Migration creates index with correct field order",
+        "Index name follows Django naming convention",
+        "Query plan shows index usage for customer+enabled filters",
+        "Tests pass"
       ],
       "files": [
-        "upstream/api/views.py",
-        "upstream/api/serializers.py"
+        "upstream/alerts/models.py",
+        "upstream/migrations/00XX_add_alertrule_composite_index.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 3,
-      "title": "Generate OpenAPI schema and verify 100% endpoint coverage with examples",
-      "description": "Run python manage.py spectacular --file schema.yaml and verify all endpoints are documented. Check that schema includes: all CRUD operations, custom actions, filter parameters, search parameters, pagination parameters, authentication requirements, and error response schemas. Add any missing @extend_schema annotations. Verify schema validation passes.",
+      "title": "Add composite indexes to NotificationChannel and WebhookDelivery",
+      "description": "Add two composite indexes: (1) NotificationChannel: Index(fields=['customer', 'enabled', 'channel_type'], name='idx_notificationchannel_lookup') for channel selection queries. (2) WebhookDelivery: Index(fields=['status', 'next_attempt_at'], name='idx_webhookdelivery_retry') for retry job queries WHERE status='retrying' AND next_attempt_at <= NOW(). These are in upstream/alerts/models.py and upstream/integrations/models.py.",
       "acceptanceCriteria": [
-        "schema.yaml generated without errors",
-        "All 20+ API endpoints present in schema",
-        "Filter/search/pagination parameters documented",
-        "Error response schemas included",
-        "Authentication/permission requirements specified",
-        "python manage.py spectacular --validate passes"
+        "NotificationChannel has 3-field composite index",
+        "WebhookDelivery has 2-field composite index on retry columns",
+        "Single migration creates both indexes",
+        "Index names follow Django conventions",
+        "Webhook retry queries use new index (verify with EXPLAIN)",
+        "All tests pass"
       ],
       "files": [
-        "schema.yaml"
+        "upstream/alerts/models.py",
+        "upstream/integrations/models.py",
+        "upstream/migrations/00XX_add_notification_webhook_indexes.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 4,
-      "title": "Add comprehensive API error handling tests for all exception types",
-      "description": "Create test class ErrorHandlingTests in upstream/tests_api.py that verifies standardized error format for: validation errors (invalid data), authentication errors (missing/invalid token), permission errors (unauthorized access), not found errors (invalid IDs), and server errors (unexpected exceptions). Test field-level error details in validation responses.",
+      "title": "Add composite index to IntegrationLog for connection history queries",
+      "description": "Create Meta.indexes with Index(fields=['connection', '-start_time'], name='idx_integrationlog_history') in IntegrationLog model. Connection monitoring queries need: WHERE connection=X ORDER BY start_time DESC. Descending index on start_time (-start_time) optimizes ORDER BY DESC queries. Located in upstream/integrations/models.py.",
       "acceptanceCriteria": [
-        "Tests cover all 5 exception types (validation, auth, permission, 404, 500)",
-        "Each test verifies error response structure matches standard format",
-        "Validation error test checks field-level details",
-        "All tests pass",
-        "Test coverage for error handling >= 90%"
+        "IntegrationLog has composite index with DESC ordering on start_time",
+        "Index uses Django's descending field syntax (-start_time)",
+        "Migration creates index correctly",
+        "Connection history queries use index (verify with EXPLAIN)",
+        "Tests verify index exists in schema",
+        "All quality gates pass"
       ],
       "files": [
-        "upstream/tests_api.py"
+        "upstream/integrations/models.py",
+        "upstream/migrations/00XX_add_integrationlog_index.py"
       ],
-      "passes": true
+      "passes": false
     }
   ]
 }
