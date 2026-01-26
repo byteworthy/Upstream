@@ -9,21 +9,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         python-version: ['3.12']
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
-    
+
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -33,30 +33,130 @@ jobs:
           libpangocairo-1.0-0 \
           libgdk-pixbuf2.0-0 \
           shared-mime-info
-    
+
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+
     - name: Set up environment
       run: |
         cp .env.example .env
         echo "SECRET_KEY=ci-test-secret-key-$(openssl rand -hex 32)" >> .env
         echo "DEBUG=True" >> .env
-    
+
     - name: Run migrations
       run: |
         python manage.py migrate --noinput
-    
+
     - name: Run Django system checks
       run: |
         python manage.py check
-    
+
     - name: Run tests
       run: |
         python manage.py test --verbosity=2
-    
+
     - name: Check for missing migrations
       run: |
         python manage.py makemigrations --check --dry-run --noinput
+
+  performance:
+    runs-on: ubuntu-latest
+    needs: test  # Only run if tests pass
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 shared-mime-info
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Set up environment
+      run: |
+        cp .env.example .env
+        echo "DEBUG=True" >> .env
+        # Generate random key for CI environment
+        python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" >> .env
+
+    - name: Run migrations and create test data
+      run: |
+        python manage.py migrate --noinput
+        python manage.py shell -c "
+        from django.contrib.auth.models import User
+        from upstream.models import Customer, UserProfile
+        customer = Customer.objects.create(name='Test Customer')
+        user = User.objects.create_user('user_a', 'user_a@test.com', 'testpass123')
+        UserProfile.objects.create(user=user, customer=customer)
+        print('Test user created')
+        "
+
+    - name: Start Django server
+      run: |
+        python manage.py runserver 0.0.0.0:8000 &
+        sleep 5
+
+    - name: Run Locust performance tests
+      run: |
+        locust -f upstream/tests_performance.py \
+          --headless \
+          -u 5 \
+          -r 1 \
+          -t 30s \
+          --host http://127.0.0.1:8000 \
+          --csv=perf_results \
+          --only-summary
+      continue-on-error: true
+
+    - name: Check performance thresholds
+      run: |
+        # Parse CSV results and check p95 < 500ms
+        python -c "
+        import csv
+        import sys
+
+        try:
+            with open('perf_results_stats.csv', 'r') as f:
+                reader = csv.DictReader(f)
+                failures = []
+                for row in reader:
+                    if row['Name'] == 'Aggregated':
+                        p95 = float(row['95%']) if row['95%'] else 0
+                        error_rate = float(row['Failure Count']) / max(float(row['Request Count']), 1) * 100
+
+                        if p95 > 500:
+                            failures.append(f'p95 latency {p95}ms exceeds 500ms threshold')
+                        if error_rate > 5:
+                            failures.append(f'Error rate {error_rate:.1f}% exceeds 5% threshold')
+
+                if failures:
+                    print('Performance check FAILED:')
+                    for f in failures:
+                        print(f'  - {f}')
+                    sys.exit(1)
+                else:
+                    print('Performance check PASSED')
+        except FileNotFoundError:
+            print('No performance results found - tests may have failed to run')
+            sys.exit(1)
+        "
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-results
+        path: perf_results*.csv
