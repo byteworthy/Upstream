@@ -75,7 +75,7 @@
         "upstream/integrations/models.py",
         "upstream/migrations/00XX_add_notification_webhook_indexes.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 4,
