@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.core.cache import cache
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # HIGH-2: JWT auth views with rate limiting
 from rest_framework_simplejwt.views import (
@@ -268,10 +268,31 @@ class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     @extend_schema(
         summary="Get payer summary statistics",
         responses={200: PayerSummarySerializer(many=True)},
+        parameters=[
+            {
+                "name": "start_date",
+                "in": "query",
+                "description": "Start date (YYYY-MM-DD). Defaults to 90 days ago.",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+            },
+            {
+                "name": "end_date",
+                "in": "query",
+                "description": "End date (YYYY-MM-DD). Defaults to today.",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+            },
+        ],
     )
     @action(detail=False, methods=["get"])
     def payer_summary(self, request):
-        """Get aggregated statistics by payer."""
+        """
+        Get aggregated statistics by payer.
+
+        Performance: Defaults to last 90 days to prevent expensive
+        full-table aggregation. Override with start_date/end_date params.
+        """
         customer = get_user_customer(request.user)
         if not customer:
             return Response(
@@ -279,13 +300,49 @@ class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Parse and validate date range parameters
+        # Performance: Default to last 90 days to avoid full-table scan
+        try:
+            end_date = request.query_params.get("end_date")
+            if end_date:
+                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            else:
+                end_date = timezone.now().date()
+
+            start_date = request.query_params.get("start_date")
+            if start_date:
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            else:
+                # Default to 90 days ago
+                start_date = end_date - timedelta(days=90)
+
+            if start_date > end_date:
+                return Response(
+                    {"error": "start_date must be before end_date"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD (e.g., 2024-01-15)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # QW-4: Cache payer summary for 15 minutes (rarely changes, expensive query)
-        cache_key = f"payer_summary:customer:{customer.id}"
+        # Include date range in cache key to avoid stale data
+        cache_key = (
+            f"payer_summary:customer:{customer.id}:"
+            f"{start_date.isoformat()}:{end_date.isoformat()}"
+        )
         cache_ttl = settings.CACHE_TTL.get("payer_mappings", 900)  # 15 minutes
 
         def compute_payer_summary():
             """Expensive aggregation query - cached to reduce DB load."""
             queryset = self.get_queryset()
+
+            # Performance: Filter by date range to prevent full-table aggregation
+            queryset = queryset.filter(
+                submitted_date__gte=start_date, submitted_date__lte=end_date
+            )
 
             payers = (
                 queryset.values("payer")
