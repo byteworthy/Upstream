@@ -38,15 +38,17 @@ class Upload(models.Model):
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, related_name="uploads"
     )
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    # HIGH-14: Add db_index for query performance on date filtering/ordering
+    uploaded_at = models.DateTimeField(auto_now_add=True, db_index=True)
     filename = models.CharField(max_length=255)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="processing"
     )
     error_message = models.TextField(blank=True, null=True)
     row_count = models.IntegerField(blank=True, null=True)
-    date_min = models.DateField(blank=True, null=True)
-    date_max = models.DateField(blank=True, null=True)
+    # HIGH-14: Add db_index for date range queries
+    date_min = models.DateField(blank=True, null=True, db_index=True)
+    date_max = models.DateField(blank=True, null=True, db_index=True)
 
     # Processing metadata (additive)
     processing_started_at = models.DateTimeField(blank=True, null=True)
@@ -284,8 +286,9 @@ class ClaimRecord(models.Model):
         default="OTHER",
         help_text="CPT code group for analytics",
     )
-    submitted_date = models.DateField()
-    decided_date = models.DateField()
+    # HIGH-14: Add db_index for analytics and date range filtering
+    submitted_date = models.DateField(db_index=True)
+    decided_date = models.DateField(db_index=True)
     outcome = models.CharField(max_length=20, choices=OUTCOME_CHOICES)
     allowed_amount = models.DecimalField(
         max_digits=12, decimal_places=2, blank=True, null=True
@@ -314,9 +317,11 @@ class ClaimRecord(models.Model):
         null=True,
         help_text="Amount actually paid (may differ from allowed)",
     )
+    # HIGH-14: Add db_index for payment tracking queries
     payment_date = models.DateField(
         blank=True,
         null=True,
+        db_index=True,
         help_text="Actual payment date (if different from decided_date)",
     )
 
