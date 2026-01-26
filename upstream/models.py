@@ -249,10 +249,12 @@ class DataQualityReport(models.Model):
                 check=models.Q(total_rows__gte=0), name="dqr_total_rows_nonnegative"
             ),
             models.CheckConstraint(
-                check=models.Q(accepted_rows__gte=0), name="dqr_accepted_rows_nonnegative"
+                check=models.Q(accepted_rows__gte=0),
+                name="dqr_accepted_rows_nonnegative",
             ),
             models.CheckConstraint(
-                check=models.Q(rejected_rows__gte=0), name="dqr_rejected_rows_nonnegative"
+                check=models.Q(rejected_rows__gte=0),
+                name="dqr_rejected_rows_nonnegative",
             ),
             models.CheckConstraint(
                 check=models.Q(phi_detections__gte=0),
@@ -838,10 +840,13 @@ class UserProfile(models.Model):
     ]
 
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+        db_index=True,
     )
     customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="user_profiles"
+        Customer, on_delete=models.CASCADE, related_name="user_profiles", db_index=True
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="viewer")
 
