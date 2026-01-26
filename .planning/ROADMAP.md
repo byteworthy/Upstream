@@ -76,11 +76,11 @@ Plans:
   2. RBAC tests confirm superuser can access all customers, customer admin can access own customer, regular user has read-only access
   3. RBAC tests validate customer isolation (user from Customer A cannot access Customer B data)
   4. Test suite fails if webhook delivery or retry logic breaks
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md — Webhook integration tests with responses library (delivery, retry, signature, idempotency)
+- [ ] 04-02-PLAN.md — RBAC customer isolation tests across all ViewSets (superuser, admin, viewer roles)
 
 ### Phase 5: Performance Testing & Rollback Fix
 **Goal**: Load testing validates production performance targets and deployment rollback automation works
@@ -107,5 +107,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Transaction Isolation & Unique Constraints | 2/2 | Complete | 2026-01-26 |
 | 2. API Pagination & Filtering | 0/2 | Not started | - |
 | 3. OpenAPI Documentation & Error Standardization | 0/TBD | Not started | - |
-| 4. Webhook & RBAC Testing | 0/TBD | Not started | - |
+| 4. Webhook & RBAC Testing | 0/2 | Not started | - |
 | 5. Performance Testing & Rollback Fix | 0/TBD | Not started | - |
