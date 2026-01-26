@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-26)
 Phase: 3 of 6 (OpenAPI Documentation & Error Standardization)
 Plan: 0 of TBD (ready to start)
 Status: Ready for execution
-Last activity: 2026-01-26 — Phase 4 complete (Webhook & RBAC testing delivered)
+Last activity: 2026-01-26 — Completed quick tasks 001-002 (Prometheus metrics + structured logging)
 
 Progress: [███████░░░] 67%
 
@@ -70,6 +70,13 @@ Recent decisions affecting current work:
 ### Pending Todos
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Add Prometheus metrics endpoint for production monitoring | 2026-01-26 | a1c9ce94, 9b49e8b2 | [001-add-prometheus-metrics-endpoint-for-pro](./quick/001-add-prometheus-metrics-endpoint-for-pro/) |
+| 002 | Enable structured JSON logging for better log aggregation | 2026-01-26 | 1c677db8, ea9884d3 | [002-enable-structured-json-logging-for-bett](./quick/002-enable-structured-json-logging-for-bett/) |
 
 ### Blockers/Concerns
 
