@@ -541,17 +541,56 @@ fi
 
 ---
 
-## Medium Priority Issues (78)
+### ~~HIGH-11: Missing Database Connection Pooling~~ ✅ RESOLVED
+**Domain**: Performance
+**File**: upstream/settings/prod.py:92-149
+**Impact**: Suboptimal database performance, connection overhead
+**Effort**: Medium
+**Status**: ✅ Fixed on 2026-01-26
+
+**Resolution**:
+- Enabled `CONN_HEALTH_CHECKS=True` in production database configuration
+- Validates connections before reuse to prevent "server closed connection unexpectedly" errors
+- Made `CONN_MAX_AGE` configurable via `DB_CONN_MAX_AGE` environment variable (default: 60 seconds)
+- Made `CONN_HEALTH_CHECKS` configurable via `DB_CONN_HEALTH_CHECKS` environment variable (default: True)
+- Added comprehensive connection pool sizing documentation and guidance
+- Documented PgBouncer setup for high-traffic scenarios (>1000 req/min)
+- Created test suite (`test_connection_pooling.py`) verifying:
+  * CONN_MAX_AGE configuration
+  * CONN_HEALTH_CHECKS enabled
+  * Connection reuse working correctly
+  * Gunicorn worker/thread sizing matches pool calculations
+  * Environment variable override support
+- Created detailed documentation (`docs/DATABASE_CONNECTION_POOLING.md`) covering:
+  * Current configuration and sizing formula
+  * Scaling guide (small to high traffic)
+  * PgBouncer setup and configuration
+  * Cloud Run deployment strategies
+  * Monitoring queries and alerting thresholds
+  * Troubleshooting common connection issues
+- **Expected Impact**:
+  * 5-10ms faster API response times (reduced connection overhead)
+  * 20-30% reduction in PostgreSQL CPU usage
+  * Fewer "too many clients" errors under load
+  * Better request throughput with stable connection counts
+- **Current Configuration**:
+  * Gunicorn: 2 workers × 4 threads = 8 Django connections
+  * PostgreSQL recommended max_connections: 10 (8 × 1.2 overhead)
+  * Connection reuse: 60 seconds per connection
+  * Health checks: Enabled before each connection reuse
+
+---
+
+## Medium Priority Issues (77)
 
 *(Categorized by domain, top items shown)*
 
-### Performance (9 issues)
+### Performance (8 issues)
 - Missing select_related in Upload views (3 N+1 patterns)
 - Expensive COUNT queries in dashboard (4 separate queries)
 - Unoptimized payer summary aggregation (no date limits)
 - Redundant drift event counting
 - Missing indexes for recovery stats
-- Database connection pooling not configured
 - Inefficient serializer method fields
 
 ### Database (12 issues)
@@ -744,22 +783,22 @@ fi
 
 ## Progress Tracking
 
-**Current Status**: Phase 2 - IN PROGRESS (19/43 Critical+High Issues Resolved - 44.2%) 🚧
+**Current Status**: Phase 2 - IN PROGRESS (20/43 Critical+High Issues Resolved - 46.5%) 🚧
 
 ### Issues by Status
 
 | Status | Count | % |
 |--------|-------|---|
-| To Do | 112 | 85.5% |
+| To Do | 111 | 84.7% |
 | In Progress | 0 | 0% |
-| Done | 19 | 14.5% |
+| Done | 20 | 15.3% |
 
 ### By Domain Completion
 
 | Domain | Issues | Fixed | % Complete |
 |--------|--------|-------|------------|
 | Security | 10 | 2 | 20.0% |
-| Performance | 18 | 4 | 22.2% |
+| Performance | 18 | 5 | 27.8% |
 | Testing | 17 | 1 | 5.9% |
 | Architecture | 21 | 1 | 4.8% |
 | Database | 22 | 2 | 9.1% |
@@ -780,7 +819,7 @@ fi
 - ✅ **CRIT-9**: Insecure .env file permissions (startup validation)
 - ✅ **CRIT-10**: No rollback strategy in deployments (cloudbuild.yaml, scripts/smoke_test.py)
 
-**Phase 2 - High Priority Issues (10/33 - 30.3%)** 🚧
+**Phase 2 - High Priority Issues (11/33 - 33.3%)** 🚧
 - ✅ **HIGH-1**: JWT token blacklist configuration (upstream/settings/base.py)
 - ✅ **HIGH-2**: Rate limiting on auth endpoints (upstream/api/throttling.py, views.py, urls.py)
 - ✅ **HIGH-3**: N+1 query in AlertEvent processing (upstream/products/delayguard/views.py)
@@ -791,6 +830,7 @@ fi
 - ✅ **HIGH-8**: AlertEventViewSet audit trail protection (upstream/api/views.py)
 - ✅ **HIGH-9**: Dependency pinning for reproducible deployments (requirements-lock.txt, Dockerfile)
 - ✅ **HIGH-10**: Container vulnerability scanning (.github/workflows/docker.yml)
+- ✅ **HIGH-11**: Database connection pooling configuration (upstream/settings/prod.py, docs/DATABASE_CONNECTION_POOLING.md)
 
 ---
 
