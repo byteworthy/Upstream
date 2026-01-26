@@ -44,11 +44,11 @@ Plans:
   2. Users can search API endpoints by key fields (claim numbers, payer names, date ranges)
   3. Users can filter list endpoints using DjangoFilterBackend (status, severity, date ranges)
   4. API documentation shows available filters and search fields for each endpoint
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Install django-filter, create FilterSet classes, add filter backends to ViewSets
+- [ ] 02-02-PLAN.md — Add pagination to custom actions, tests for filtering and pagination
 
 ### Phase 3: OpenAPI Documentation & Error Standardization
 **Goal**: Complete API documentation and consistent error handling across all endpoints
@@ -103,7 +103,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Transaction Isolation & Unique Constraints | 2/2 | Complete | 2026-01-26 |
-| 2. API Pagination & Filtering | 0/TBD | Not started | - |
+| 2. API Pagination & Filtering | 0/2 | Not started | - |
 | 3. OpenAPI Documentation & Error Standardization | 0/TBD | Not started | - |
 | 4. Webhook & RBAC Testing | 0/TBD | Not started | - |
 | 5. Performance Testing & Rollback Fix | 0/TBD | Not started | - |
