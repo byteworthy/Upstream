@@ -1,7 +1,7 @@
 """
 Tests for model indexes and database schema.
 
-Phase 6: Database Indexes - Verify that composite indexes are created correctly.
+Phase 6: Database Indexes - Verify composite indexes are created.
 """
 
 from django.test import TestCase
@@ -15,14 +15,16 @@ class AlertRuleIndexTest(TestCase):
         """Verify that AlertRule has composite index on (customer, enabled)."""
         # Get the table name for AlertRule
         from upstream.alerts.models import AlertRule
+
         table_name = AlertRule._meta.db_table
 
         # Query the database for indexes on the AlertRule table
         with connection.cursor() as cursor:
             # SQLite query to get indexes
             cursor.execute(
-                "SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name=%s",
-                [table_name]
+                "SELECT name, sql FROM sqlite_master "
+                "WHERE type='index' AND tbl_name=%s",
+                [table_name],
             )
             indexes = cursor.fetchall()
 
@@ -30,43 +32,224 @@ class AlertRuleIndexTest(TestCase):
         index_dict = {name: sql for name, sql in indexes if sql is not None}
 
         # Check that the composite index exists
+        index_name = "idx_alertrule_customer_enabled"
         self.assertIn(
-            "idx_alertrule_customer_enabled",
+            index_name,
             index_dict,
-            f"Expected index 'idx_alertrule_customer_enabled' not found. Available indexes: {list(index_dict.keys())}"
+            f"Expected index '{index_name}' not found. "
+            f"Available indexes: {list(index_dict.keys())}",
         )
 
         # Verify the index is on the correct columns
-        index_sql = index_dict["idx_alertrule_customer_enabled"]
-        self.assertIn("customer_id", index_sql.lower(), "Index should include customer_id column")
-        self.assertIn("enabled", index_sql.lower(), "Index should include enabled column")
+        index_sql = index_dict[index_name]
+        self.assertIn(
+            "customer_id",
+            index_sql.lower(),
+            "Index should include customer_id column",
+        )
+        self.assertIn(
+            "enabled", index_sql.lower(), "Index should include enabled column"
+        )
 
     def test_alertrule_index_column_order(self):
-        """Verify that the index has columns in the correct order (customer, enabled)."""
-        from upstream.alerts.models import AlertRule
-        table_name = AlertRule._meta.db_table
+        """Verify index has columns in correct order (customer, enabled)."""
+        index_name = "idx_alertrule_customer_enabled"
 
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_alertrule_customer_enabled'",
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='index' AND name=%s",
+                [index_name],
             )
             result = cursor.fetchone()
 
-        self.assertIsNotNone(result, "Index 'idx_alertrule_customer_enabled' not found")
+        self.assertIsNotNone(result, f"Index '{index_name}' not found")
 
         index_sql = result[0]
 
-        # Extract the column list from the SQL: ON table ("col1", "col2")
-        # Split by ON, get the part after it, then extract columns from parentheses
+        # Extract column list: ON table ("col1", "col2")
         import re
-        match = re.search(r'ON\s+\S+\s+\((.+?)\)', index_sql)
-        self.assertIsNotNone(match, f"Could not parse columns from SQL: {index_sql}")
+
+        match = re.search(r"ON\s+\S+\s+\((.+?)\)", index_sql)
+        self.assertIsNotNone(
+            match, f"Could not parse columns from SQL: {index_sql}"
+        )
 
         columns_str = match.group(1)
         # Remove quotes and split by comma
-        columns = [col.strip().strip('"').strip("'") for col in columns_str.split(',')]
+        columns = [
+            col.strip().strip('"').strip("'") for col in columns_str.split(",")
+        ]
 
         # Verify column order
-        self.assertEqual(len(columns), 2, "Index should have exactly 2 columns")
-        self.assertEqual(columns[0], "customer_id", "First column should be customer_id")
-        self.assertEqual(columns[1], "enabled", "Second column should be enabled")
+        self.assertEqual(
+            len(columns), 2, "Index should have exactly 2 columns"
+        )
+        self.assertEqual(
+            columns[0], "customer_id", "First column is customer_id"
+        )
+        self.assertEqual(
+            columns[1], "enabled", "Second column is enabled"
+        )
+
+
+class NotificationChannelIndexTest(TestCase):
+    """Test that NotificationChannel has the correct composite index."""
+
+    def test_notificationchannel_has_composite_index(self):
+        """Verify NotificationChannel has composite index on (customer, enabled, channel_type)."""
+        from upstream.alerts.models import NotificationChannel
+
+        table_name = NotificationChannel._meta.db_table
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT name, sql FROM sqlite_master "
+                "WHERE type='index' AND tbl_name=%s",
+                [table_name],
+            )
+            indexes = cursor.fetchall()
+
+        index_dict = {name: sql for name, sql in indexes if sql is not None}
+
+        index_name = "idx_notificationchannel_lookup"
+        self.assertIn(
+            index_name,
+            index_dict,
+            f"Expected index '{index_name}' not found. "
+            f"Available indexes: {list(index_dict.keys())}",
+        )
+
+        # Verify the index is on the correct columns
+        index_sql = index_dict[index_name]
+        self.assertIn(
+            "customer_id",
+            index_sql.lower(),
+            "Index should include customer_id column",
+        )
+        self.assertIn(
+            "enabled", index_sql.lower(), "Index should include enabled column"
+        )
+        self.assertIn(
+            "channel_type", index_sql.lower(), "Index should include channel_type column"
+        )
+
+    def test_notificationchannel_index_column_order(self):
+        """Verify index has columns in correct order (customer, enabled, channel_type)."""
+        index_name = "idx_notificationchannel_lookup"
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='index' AND name=%s",
+                [index_name],
+            )
+            result = cursor.fetchone()
+
+        self.assertIsNotNone(result, f"Index '{index_name}' not found")
+
+        index_sql = result[0]
+
+        # Extract column list
+        import re
+        match = re.search(r"ON\s+\S+\s+\((.+?)\)", index_sql)
+        self.assertIsNotNone(
+            match, f"Could not parse columns from SQL: {index_sql}"
+        )
+
+        columns_str = match.group(1)
+        columns = [
+            col.strip().strip('"').strip("'") for col in columns_str.split(",")
+        ]
+
+        # Verify column order
+        self.assertEqual(
+            len(columns), 3, "Index should have exactly 3 columns"
+        )
+        self.assertEqual(
+            columns[0], "customer_id", "First column is customer_id"
+        )
+        self.assertEqual(
+            columns[1], "enabled", "Second column is enabled"
+        )
+        self.assertEqual(
+            columns[2], "channel_type", "Third column is channel_type"
+        )
+
+
+class WebhookDeliveryIndexTest(TestCase):
+    """Test that WebhookDelivery has the correct composite index."""
+
+    def test_webhookdelivery_has_retry_index(self):
+        """Verify WebhookDelivery has composite index on (status, next_attempt_at)."""
+        from upstream.integrations.models import WebhookDelivery
+
+        table_name = WebhookDelivery._meta.db_table
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT name, sql FROM sqlite_master "
+                "WHERE type='index' AND tbl_name=%s",
+                [table_name],
+            )
+            indexes = cursor.fetchall()
+
+        index_dict = {name: sql for name, sql in indexes if sql is not None}
+
+        index_name = "idx_webhookdelivery_retry"
+        self.assertIn(
+            index_name,
+            index_dict,
+            f"Expected index '{index_name}' not found. "
+            f"Available indexes: {list(index_dict.keys())}",
+        )
+
+        # Verify the index is on the correct columns
+        index_sql = index_dict[index_name]
+        self.assertIn(
+            "status",
+            index_sql.lower(),
+            "Index should include status column",
+        )
+        self.assertIn(
+            "next_attempt_at", index_sql.lower(), "Index should include next_attempt_at column"
+        )
+
+    def test_webhookdelivery_index_column_order(self):
+        """Verify index has columns in correct order (status, next_attempt_at)."""
+        index_name = "idx_webhookdelivery_retry"
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='index' AND name=%s",
+                [index_name],
+            )
+            result = cursor.fetchone()
+
+        self.assertIsNotNone(result, f"Index '{index_name}' not found")
+
+        index_sql = result[0]
+
+        # Extract column list
+        import re
+        match = re.search(r"ON\s+\S+\s+\((.+?)\)", index_sql)
+        self.assertIsNotNone(
+            match, f"Could not parse columns from SQL: {index_sql}"
+        )
+
+        columns_str = match.group(1)
+        columns = [
+            col.strip().strip('"').strip("'") for col in columns_str.split(",")
+        ]
+
+        # Verify column order
+        self.assertEqual(
+            len(columns), 2, "Index should have exactly 2 columns"
+        )
+        self.assertEqual(
+            columns[0], "status", "First column is status"
+        )
+        self.assertEqual(
+            columns[1], "next_attempt_at", "Second column is next_attempt_at"
+        )

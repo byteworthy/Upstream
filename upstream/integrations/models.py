@@ -91,6 +91,12 @@ class WebhookDelivery(BaseModel):
         verbose_name = 'Webhook Delivery'
         verbose_name_plural = 'Webhook Deliveries'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(
+                fields=['status', 'next_attempt_at'],
+                name='idx_webhookdelivery_retry',
+            ),
+        ]
     def schedule_next_attempt(self):
         """Calculate next retry time with exponential backoff."""
         if self.attempts >= self.max_attempts:

@@ -142,6 +142,12 @@ class NotificationChannel(BaseModel):
         verbose_name = "Notification Channel"
         verbose_name_plural = "Notification Channels"
         unique_together = ("customer", "name")
+        indexes = [
+            models.Index(
+                fields=["customer", "enabled", "channel_type"],
+                name="idx_notificationchannel_lookup",
+            ),
+        ]
 
 
 class AlertEvent(BaseModel):
