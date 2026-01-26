@@ -16,6 +16,12 @@ from upstream.alerts.models import AlertEvent, OperatorJudgment
 from upstream.products.delayguard.models import PaymentDelaySignal
 from upstream.products.delayguard import DELAYGUARD_V1_SIGNAL_TYPE
 from upstream.permissions import ProductEnabledMixin
+from upstream.constants import (
+    DELAYGUARD_URGENT_THRESHOLD_DAYS,
+    DELAYGUARD_HIGH_THRESHOLD_DAYS,
+    DELAYGUARD_MEDIUM_THRESHOLD_DAYS,
+    DELAYGUARD_LOW_THRESHOLD_DAYS,
+)
 
 
 class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateView):
@@ -149,13 +155,22 @@ class DelayGuardDashboardView(LoginRequiredMixin, ProductEnabledMixin, TemplateV
 
         Returns (urgency_level, urgency_label) tuple.
         """
-        if signal.severity == "critical" or signal.delta_days >= 15:
+        if (
+            signal.severity == "critical"
+            or signal.delta_days >= DELAYGUARD_URGENT_THRESHOLD_DAYS
+        ):
             return 5, "URGENT"
-        elif signal.severity == "high" or signal.delta_days >= 10:
+        elif (
+            signal.severity == "high"
+            or signal.delta_days >= DELAYGUARD_HIGH_THRESHOLD_DAYS
+        ):
             return 4, "HIGH"
-        elif signal.severity == "medium" or signal.delta_days >= 5:
+        elif (
+            signal.severity == "medium"
+            or signal.delta_days >= DELAYGUARD_MEDIUM_THRESHOLD_DAYS
+        ):
             return 3, "MEDIUM"
-        elif signal.delta_days >= 3:
+        elif signal.delta_days >= DELAYGUARD_LOW_THRESHOLD_DAYS:
             return 2, "LOW"
         else:
             return 1, "INFO"
