@@ -6,8 +6,7 @@ which allows the index to be built without blocking reads or writes to the table
 
 Part of DB-02: Implement unique constraints for data integrity.
 """
-from django.contrib.postgres.operations import AddIndexConcurrently
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -18,20 +17,25 @@ class Migration(migrations.Migration):
     PostgreSQL cannot run CREATE INDEX CONCURRENTLY inside a transaction.
     """
 
-    atomic = False  # Required for AddIndexConcurrently
+    atomic = False  # Required for CONCURRENTLY operations
 
     dependencies = [
-        ("upstream", "0013_claimvalidationhistory_cvh_error_count_nonnegative_and_more"),
+        (
+            "upstream",
+            "0013_claimvalidationhistory_cvh_error_count_nonnegative_and_more",
+        ),
     ]
 
     operations = [
         # Create unique index concurrently (no table lock)
-        # Index name follows pattern: {table}_{columns}_uniq_idx
-        AddIndexConcurrently(
-            model_name="driftevent",
-            index=models.Index(
-                fields=["customer", "report_run", "payer", "cpt_group", "drift_type"],
-                name="driftevent_signal_uniq_idx",
-            ),
+        # Must use RunSQL because models.Index doesn't support unique=True
+        migrations.RunSQL(
+            sql="""
+                CREATE UNIQUE INDEX CONCURRENTLY driftevent_signal_uniq_idx
+                ON upstream_driftevent (customer_id, report_run_id, payer, cpt_group, drift_type);
+            """,
+            reverse_sql="""
+                DROP INDEX CONCURRENTLY IF EXISTS driftevent_signal_uniq_idx;
+            """,
         ),
     ]

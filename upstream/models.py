@@ -745,6 +745,13 @@ class DriftEvent(models.Model):
                 | models.Q(statistical_significance__isnull=True),
                 name="drift_significance_range",
             ),
+            # DB-02: Unique constraint prevents duplicate drift signals
+            # Each (customer, report_run, payer, cpt_group, drift_type) combination
+            # can only have one DriftEvent record
+            models.UniqueConstraint(
+                fields=["customer", "report_run", "payer", "cpt_group", "drift_type"],
+                name="driftevent_unique_signal",
+            ),
         ]
         indexes = [
             models.Index(
