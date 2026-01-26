@@ -1,0 +1,115 @@
+{
+  "branchName": "phase-08-service-layer-tests",
+  "context": {
+    "phase": "08",
+    "phaseName": "Service Layer Tests",
+    "phaseGoal": "Add comprehensive test coverage for critical service layer components (DataQualityService, IngestionService, DriftDetectionService)",
+    "requirements": ["TEST-05", "TEST-06", "TEST-07"],
+    "dependsOn": "Phase 7 (N+1 Query Optimization)",
+    "successCriteria": [
+      "DataQualityService has 10+ tests covering validation, anomaly detection, and reporting",
+      "IngestionService has 8+ tests covering CSV parsing, transformation, and error handling",
+      "DriftDetectionService has 12+ tests covering computation, thresholds, and edge cases",
+      "Service layer test coverage reaches 85%+",
+      "All tests are fast (<100ms each) and deterministic"
+    ],
+    "qualityGates": [
+      "python manage.py check",
+      "python manage.py test upstream.tests_services -v 2",
+      "coverage run --source=upstream/services manage.py test upstream.tests_services && coverage report"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create DataQualityService test suite with validation and anomaly detection tests",
+      "description": "Create upstream/services/tests_data_quality.py with DataQualityServiceTests class. Test: validate_claim_data() with valid/invalid inputs, detect_anomalies() with outliers, generate_quality_report() output structure, validation rule execution, threshold-based anomaly detection. Use factories for test data. Target: 10+ test methods covering all public methods.",
+      "acceptanceCriteria": [
+        "DataQualityServiceTests class created with 10+ test methods",
+        "Tests cover validate_claim_data with edge cases (null, invalid dates, negative amounts)",
+        "Tests verify detect_anomalies identifies outliers correctly",
+        "Tests validate quality report structure and metrics",
+        "All tests use factories/fixtures for consistent data",
+        "Tests are fast (<50ms each) and isolated"
+      ],
+      "files": [
+        "upstream/services/tests_data_quality.py",
+        "upstream/services/data_quality.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Create IngestionService test suite with CSV parsing and transformation tests",
+      "description": "Create upstream/services/tests_ingestion.py with IngestionServiceTests class. Test: parse_csv() with valid/malformed CSV, transform_row() with various data formats, handle_parsing_errors() error recovery, batch processing with large files, encoding detection (UTF-8, ISO-8859-1). Use StringIO for in-memory CSV testing. Target: 8+ test methods.",
+      "acceptanceCriteria": [
+        "IngestionServiceTests class created with 8+ test methods",
+        "Tests cover CSV parsing with headers, missing columns, extra columns",
+        "Tests verify row transformation (date parsing, amount normalization)",
+        "Tests validate error handling for malformed data",
+        "Tests verify batch processing with 1000+ row CSV",
+        "Tests use in-memory files (no disk I/O) for speed"
+      ],
+      "files": [
+        "upstream/services/tests_ingestion.py",
+        "upstream/services/ingestion.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Create DriftDetectionService test suite with computation and threshold tests",
+      "description": "Create upstream/services/tests_drift_detection.py with DriftDetectionServiceTests class. Test: compute_drift() with various payer outcomes, threshold detection (severity calculation), historical comparison logic, edge cases (no historical data, 100% drift, 0% drift), multi-payer scenarios. Use select_for_update() verification. Target: 12+ test methods covering all drift types.",
+      "acceptanceCriteria": [
+        "DriftDetectionServiceTests class created with 12+ test methods",
+        "Tests cover compute_drift for all drift types (denial_rate, payment_delay, cpt_changes)",
+        "Tests verify severity calculation (0.0 to 1.0 scale)",
+        "Tests validate threshold-based alert triggering",
+        "Tests cover edge cases (no baseline, 100% change, zero division)",
+        "Tests verify transaction isolation (concurrent drift detection)"
+      ],
+      "files": [
+        "upstream/services/tests_drift_detection.py",
+        "upstream/services/drift_detection.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Add integration tests for service layer collaboration",
+      "description": "Create upstream/services/tests_integration.py testing how services work together: IngestionService → DataQualityService → DriftDetectionService. Test complete flow: upload CSV → parse → validate → detect drift → create alerts. Use transaction.atomic() to ensure rollback. Verify data flow between services is correct. Target: 5+ integration test scenarios.",
+      "acceptanceCriteria": [
+        "ServiceIntegrationTests class with 5+ end-to-end scenarios",
+        "Tests verify full ingestion → quality → drift → alert pipeline",
+        "Tests validate service layer maintains data integrity",
+        "Tests cover failure scenarios (validation fails, drift computation errors)",
+        "Integration tests use realistic multi-record datasets",
+        "All tests rollback transactions (no test pollution)"
+      ],
+      "files": [
+        "upstream/services/tests_integration.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Add test coverage measurement and generate coverage report",
+      "description": "Install coverage.py in requirements-dev.txt if not present. Create upstream/services/tests_coverage.py that runs coverage analysis on service layer. Configure .coveragerc to focus on services/ directory. Generate HTML coverage report showing line-by-line coverage. Add pytest-cov integration for easier test running. Target: 85%+ service layer coverage.",
+      "acceptanceCriteria": [
+        "coverage.py installed and configured",
+        ".coveragerc file excludes tests/ and migrations/",
+        "Coverage report shows 85%+ for upstream/services/",
+        "HTML coverage report generated in htmlcov/",
+        "CI job added to .github/workflows/test.yml for coverage check",
+        "Coverage badge added to README.md"
+      ],
+      "files": [
+        "requirements-dev.txt",
+        ".coveragerc",
+        ".github/workflows/test.yml",
+        "README.md"
+      ],
+      "passes": false
+    }
+  ]
+}

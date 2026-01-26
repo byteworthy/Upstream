@@ -1,0 +1,110 @@
+{
+  "branchName": "phase-07-n1-query-optimization",
+  "context": {
+    "phase": "07",
+    "phaseName": "N+1 Query Optimization",
+    "phaseGoal": "Eliminate N+1 query patterns in drift computation, alert processing, and upload views",
+    "requirements": ["PERF-01", "PERF-03", "PERF-04"],
+    "dependsOn": "Phase 6 (Database Indexes)",
+    "successCriteria": [
+      "Drift computation uses select_related/prefetch_related reducing queries from 1000+ to <10",
+      "Alert processing loads related data in bulk reducing queries from 150+ to <5",
+      "Upload list view uses select_related for customer/user reducing queries from 50+ to 3",
+      "ClaimRecord list view prefetches related drift events reducing queries significantly",
+      "Query count tests verify optimization (assert query count < threshold)"
+    ],
+    "qualityGates": [
+      "python manage.py check",
+      "python manage.py test upstream.tests_performance -v 2",
+      "python manage.py test upstream.tests_api -k query_count -v 2"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Optimize drift computation N+1 queries with select_related and prefetch_related",
+      "description": "Fix N+1 queries in upstream/services/drift_detection.py where drift computation loads ClaimRecord and related payer/customer data. Current: 1 query per claim (1000+ queries for large datasets). Solution: Use queryset.select_related('customer', 'upload__customer').prefetch_related('drift_events') when loading claims for drift detection. Add query count assertion test.",
+      "acceptanceCriteria": [
+        "DriftDetectionService uses select_related for foreign keys",
+        "Drift computation prefetches existing drift_events",
+        "Query count test verifies <10 queries for 100 claims",
+        "Drift detection performance improves 10-50x",
+        "All existing drift tests still pass"
+      ],
+      "files": [
+        "upstream/services/drift_detection.py",
+        "upstream/tests_performance.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Optimize alert processing N+1 queries in AlertEvent and Signal views",
+      "description": "Fix N+1 in upstream/alerts/views.py and upstream/products/delayguard/views.py where alert lists load related data iteratively. Current: Separate queries for each alert's drift_events, operator_judgments, signals. Solution: Use prefetch_related('alert_events__operator_judgments', 'drift_events') in queryset. Already partially fixed in HIGH-3, extend to all alert-related views.",
+      "acceptanceCriteria": [
+        "AlertEvent list view prefetches operator_judgments",
+        "Signal list views prefetch related alerts and judgments",
+        "Query count test verifies <5 queries for 50 alerts",
+        "Dashboard loads 50 signals with <10 queries total",
+        "All alert tests pass"
+      ],
+      "files": [
+        "upstream/alerts/views.py",
+        "upstream/products/delayguard/views.py",
+        "upstream/tests_performance.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Optimize Upload list view N+1 queries with select_related",
+      "description": "Fix N+1 in upstream/api/views.py UploadViewSet where list view queries customer and uploaded_by user separately for each upload. Current: 1 + N customer queries + N user queries. Solution: Add select_related('customer', 'uploaded_by') to get_queryset(). Reduces from 50+ queries to 3 for 25 uploads.",
+      "acceptanceCriteria": [
+        "UploadViewSet.get_queryset() uses select_related",
+        "Query count test verifies 3 queries for 25 uploads (1 main + 2 JOINs)",
+        "Upload list API response time improves 5-10x",
+        "Pagination still works correctly",
+        "All upload tests pass"
+      ],
+      "files": [
+        "upstream/api/views.py",
+        "upstream/tests_api.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Optimize ClaimRecord list view with prefetch_related for drift events",
+      "description": "Fix N+1 in upstream/api/views.py ClaimRecordViewSet where accessing claim.drift_events.all() in serializer causes 1 query per claim. Current: 1 + N drift_event queries. Solution: Add prefetch_related('drift_events') to get_queryset(). Also consider prefetch for upload relationship if accessed in serializer.",
+      "acceptanceCriteria": [
+        "ClaimRecordViewSet prefetches drift_events",
+        "Query count test verifies significant reduction (target: <10 for 50 claims)",
+        "Serializer can access drift_events without additional queries",
+        "Claims API response time improves measurably",
+        "All claim tests pass"
+      ],
+      "files": [
+        "upstream/api/views.py",
+        "upstream/api/serializers.py",
+        "upstream/tests_api.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Add query count tests for all optimized endpoints",
+      "description": "Create comprehensive query count test suite in upstream/tests_performance.py that verifies optimization thresholds: drift computation <10 queries, alert processing <5 queries, upload list 3 queries, claim list <10 queries. Use django.test.utils.override_settings and assertNumQueries context manager. Tests fail if query counts exceed thresholds.",
+      "acceptanceCriteria": [
+        "QueryOptimizationTests class with 5 test methods",
+        "Each test uses assertNumQueries with documented threshold",
+        "Tests create realistic data (25-100 records per test)",
+        "All query count tests pass after optimizations",
+        "Tests serve as regression protection"
+      ],
+      "files": [
+        "upstream/tests_performance.py"
+      ],
+      "passes": false
+    }
+  ]
+}
