@@ -232,3 +232,83 @@ class WebhookDeliveryIndexTest(TestCase):
         self.assertEqual(
             columns[1], "next_attempt_at", "Second column is next_attempt_at"
         )
+
+
+class IntegrationLogIndexTest(TestCase):
+    """Test that IntegrationLog has the correct composite index with DESC ordering."""
+
+    def test_integrationlog_has_history_index(self):
+        """Verify IntegrationLog has composite index on (connection, -start_time)."""
+        from upstream.integrations.models import IntegrationLog
+
+        table_name = IntegrationLog._meta.db_table
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT name, sql FROM sqlite_master "
+                "WHERE type='index' AND tbl_name=%s",
+                [table_name],
+            )
+            indexes = cursor.fetchall()
+
+        index_dict = {name: sql for name, sql in indexes if sql is not None}
+
+        index_name = "idx_integrationlog_history"
+        self.assertIn(
+            index_name,
+            index_dict,
+            f"Expected index '{index_name}' not found. "
+            f"Available indexes: {list(index_dict.keys())}",
+        )
+
+        # Verify the index is on the correct columns
+        index_sql = index_dict[index_name]
+        self.assertIn(
+            "connection_id",
+            index_sql.lower(),
+            "Index should include connection_id column",
+        )
+        self.assertIn(
+            "start_time",
+            index_sql.lower(),
+            "Index should include start_time column",
+        )
+
+    def test_integrationlog_index_column_order_and_desc(self):
+        """Verify index has columns (connection, start_time DESC)."""
+        index_name = "idx_integrationlog_history"
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT sql FROM sqlite_master " "WHERE type='index' AND name=%s",
+                [index_name],
+            )
+            result = cursor.fetchone()
+
+        self.assertIsNotNone(result, f"Index '{index_name}' not found")
+
+        index_sql = result[0]
+
+        # Extract column list - handle DESC keyword
+        import re
+
+        match = re.search(r"ON\s+\S+\s+\((.+?)\)", index_sql)
+        self.assertIsNotNone(match, f"Could not parse columns from SQL: {index_sql}")
+
+        columns_str = match.group(1)
+        # Parse columns including DESC/ASC modifiers
+        columns = [col.strip().strip('"').strip("'") for col in columns_str.split(",")]
+
+        # Verify column order
+        self.assertEqual(len(columns), 2, "Index should have exactly 2 columns")
+        self.assertEqual(columns[0], "connection_id", "First column is connection_id")
+
+        # Verify second column is start_time with DESC modifier
+        self.assertTrue(
+            "start_time" in columns[1].lower(),
+            f"Second column should include start_time, got: {columns[1]}",
+        )
+        self.assertTrue(
+            "desc" in columns[1].lower(),
+            f"Second column should have DESC modifier, got: {columns[1]}",
+        )

@@ -105,6 +105,12 @@ class IntegrationLog(BaseModel):
         verbose_name = "Integration Log"
         verbose_name_plural = "Integration Logs"
         ordering = ["-start_time"]
+        indexes = [
+            models.Index(
+                fields=["connection", "-start_time"],
+                name="idx_integrationlog_history",
+            ),
+        ]
 
 
 class WebhookEndpoint(BaseModel):
