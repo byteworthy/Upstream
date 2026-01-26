@@ -10,11 +10,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 from django.db.models import Count, Avg, Q
 from django.utils import timezone
 from django.core.cache import cache
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
+from datetime import datetime
 
 # HIGH-2: JWT auth views with rate limiting
 from rest_framework_simplejwt.views import (
@@ -204,13 +206,37 @@ class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
         if outcome:
             queryset = queryset.filter(outcome=outcome.upper())
 
-        # Filter by date range
+        # Filter by date range (HIGH-7: Add input validation)
         start_date = self.request.query_params.get("start_date")
         end_date = self.request.query_params.get("end_date")
+
         if start_date:
-            queryset = queryset.filter(decided_date__gte=start_date)
+            try:
+                # Validate date format (YYYY-MM-DD)
+                datetime.strptime(start_date, "%Y-%m-%d")
+                queryset = queryset.filter(decided_date__gte=start_date)
+            except ValueError:
+                raise ValidationError(
+                    {
+                        "start_date": (
+                            "Invalid date format. Use YYYY-MM-DD (e.g., 2024-01-15)"
+                        )
+                    }
+                )
+
         if end_date:
-            queryset = queryset.filter(decided_date__lte=end_date)
+            try:
+                # Validate date format (YYYY-MM-DD)
+                datetime.strptime(end_date, "%Y-%m-%d")
+                queryset = queryset.filter(decided_date__lte=end_date)
+            except ValueError:
+                raise ValidationError(
+                    {
+                        "end_date": (
+                            "Invalid date format. Use YYYY-MM-DD (e.g., 2024-01-15)"
+                        )
+                    }
+                )
 
         return queryset
 
