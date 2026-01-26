@@ -990,16 +990,92 @@ low_count = severity_counts["low"]
 
 ---
 
+### ~~PERF-19: Missing Indexes for Recovery Stats~~ ✅ RESOLVED
+**Domain**: Performance
+**File**: upstream/alerts/models.py:196-201, upstream/products/delayguard/views.py:163-205
+**Impact**: Unoptimized recovery stats queries on OperatorJudgment table
+**Effort**: Small
+**Status**: ✅ Fixed on 2026-01-26
+
+**Problem**: The `_get_recovery_stats` method in DelayGuard dashboard executes multiple queries filtering by `customer`, `recovered_amount__isnull=False`, and `recovered_date__gte=...`, then ordering by `-recovered_date`. Without proper indexes, these queries perform full table scans.
+
+**Queries Affected** (upstream/products/delayguard/views.py:169-194):
+```python
+# This month's recoveries
+this_month = OperatorJudgment.objects.filter(
+    customer=customer,
+    recovered_amount__isnull=False,
+    recovered_date__gte=month_start.date(),
+).aggregate(total=Sum("recovered_amount"), count=Count("id"))
+
+# Last 30 days
+last_30_days = OperatorJudgment.objects.filter(
+    customer=customer,
+    recovered_amount__isnull=False,
+    recovered_date__gte=thirty_days_ago,
+).aggregate(total=Sum("recovered_amount"), count=Count("id"))
+
+# Recent recoveries - ORDER BY
+recent_recoveries = (
+    OperatorJudgment.objects.filter(
+        customer=customer, recovered_amount__isnull=False
+    )
+    .select_related("alert_event", "operator")
+    .order_by("-recovered_date")[:5]
+)
+```
+
+**Resolution**:
+Added composite partial index on `(customer, recovered_date)` with condition `recovered_amount IS NOT NULL`:
+
+**Migration Created**: upstream/migrations/0009_add_recovery_stats_index_perf19.py
+```python
+migrations.AddIndex(
+    model_name="operatorjudgment",
+    index=models.Index(
+        fields=["customer", "-recovered_date"],
+        name="opjudge_recovery_stats_idx",
+        condition=models.Q(recovered_amount__isnull=False),
+    ),
+)
+```
+
+**Model Updated**: upstream/alerts/models.py:196-208
+```python
+class Meta:
+    verbose_name = 'Operator Judgment'
+    verbose_name_plural = 'Operator Judgments'
+    ordering = ['-created_at']
+    unique_together = ('alert_event', 'operator')
+    indexes = [
+        # PERF-19: Optimize recovery stats queries (date filtering + ordering)
+        models.Index(
+            fields=['customer', '-recovered_date'],
+            name='opjudge_recovery_stats_idx',
+            condition=models.Q(recovered_amount__isnull=False),
+        ),
+    ]
+```
+
+**Expected Impact**:
+- **Partial index**: Only indexes rows where recovery occurred (reduced index size)
+- **Customer filtering**: Most selective field first
+- **Date ordering**: Descending for efficient ORDER BY -recovered_date
+- **3-5x faster dashboard load**: Recovery stats calculated on every dashboard view
+- **Scalable**: Index size grows only with recoveries, not all judgments
+
+---
+
 ## Medium Priority Issues (73)
 
 *(Categorized by domain, top items shown)*
 
-### Performance (4 issues)
+### Performance (3 issues)
 - ~~Missing select_related in Upload views (3 N+1 patterns)~~ ✅ **RESOLVED (HIGH-13)**
 - ~~Expensive COUNT queries in dashboard (4 separate queries)~~ ✅ **RESOLVED (HIGH-16)**
 - ~~Unoptimized payer summary aggregation (no date limits)~~ ✅ **RESOLVED (PERF-17)**
 - ~~Redundant drift event counting~~ ✅ **RESOLVED (PERF-18)**
-- Missing indexes for recovery stats
+- ~~Missing indexes for recovery stats~~ ✅ **RESOLVED (PERF-19)**
 - Inefficient serializer method fields
 
 ### Database (11 issues)
@@ -1197,16 +1273,16 @@ low_count = severity_counts["low"]
 
 | Status | Count | % |
 |--------|-------|---|
-| To Do | 104 | 79.4% |
+| To Do | 103 | 78.6% |
 | In Progress | 0 | 0% |
-| Done | 27 | 20.6% |
+| Done | 28 | 21.4% |
 
 ### By Domain Completion
 
 | Domain | Issues | Fixed | % Complete |
 |--------|--------|-------|------------|
 | Security | 10 | 2 | 20.0% |
-| Performance | 18 | 9 | 50.0% |
+| Performance | 18 | 10 | 55.6% |
 | Testing | 17 | 1 | 5.9% |
 | Architecture | 21 | 1 | 4.8% |
 | Database | 22 | 5 | 22.7% |
@@ -1246,6 +1322,7 @@ low_count = severity_counts["low"]
 - ✅ **HIGH-16**: Expensive COUNT queries in dashboard views (upstream/api/views.py, upstream/products/delayguard/views.py)
 - ✅ **PERF-17**: Unoptimized payer summary aggregation (upstream/api/views.py - added 90-day default window with date range params)
 - ✅ **PERF-18**: Redundant drift event counting (upstream/reporting/services.py - combined 4 COUNT queries into 1 aggregate)
+- ✅ **PERF-19**: Missing indexes for recovery stats (upstream/alerts/models.py, migrations/0009 - added partial index on customer+recovered_date)
 
 ---
 
