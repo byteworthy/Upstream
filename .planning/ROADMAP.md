@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Transaction Isolation & Unique Constraints** - Database correctness foundation
 - [x] **Phase 2: API Pagination & Filtering** - List endpoint usability
 - [ ] **Phase 3: OpenAPI Documentation & Error Standardization** - API developer experience
-- [ ] **Phase 4: Webhook & RBAC Testing** - Integration test coverage
+- [x] **Phase 4: Webhook & RBAC Testing** - Integration test coverage
 - [x] **Phase 5: Performance Testing & Rollback Fix** - Production reliability validation
 - [ ] **Phase 6: Database Indexes** - Query performance optimization
 
@@ -82,8 +82,10 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Webhook integration tests with responses library (delivery, retry, signature, idempotency)
-- [ ] 04-02-PLAN.md — RBAC customer isolation tests across all ViewSets (superuser, admin, viewer roles)
+- [x] 04-01-PLAN.md — Webhook integration tests with responses library (delivery, retry, signature, idempotency)
+- [x] 04-02-PLAN.md — RBAC customer isolation tests across all ViewSets (superuser, admin, viewer roles)
+
+**Completed:** 2026-01-26
 
 ### Phase 5: Performance Testing & Rollback Fix
 **Goal**: Load testing validates production performance targets and deployment rollback automation works
@@ -126,6 +128,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Transaction Isolation & Unique Constraints | 2/2 | Complete | 2026-01-26 |
 | 2. API Pagination & Filtering | 2/2 | Complete | 2026-01-26 |
 | 3. OpenAPI Documentation & Error Standardization | 0/TBD | Not started | - |
-| 4. Webhook & RBAC Testing | 0/2 | Not started | - |
+| 4. Webhook & RBAC Testing | 2/2 | Complete | 2026-01-26 |
 | 5. Performance Testing & Rollback Fix | 2/2 | Complete | 2026-01-26 |
 | 6. Database Indexes | 0/1 | Not started | - |
