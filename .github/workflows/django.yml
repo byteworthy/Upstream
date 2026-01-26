@@ -55,9 +55,18 @@ jobs:
         run: |
           python manage.py check
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_upstream
           REDIS_URL: redis://localhost:6379/0
         run: |
-          python manage.py test
+          pytest --cov=upstream --cov-report=xml --cov-report=term-missing --cov-fail-under=25
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-upstream
+          fail_ci_if_error: false

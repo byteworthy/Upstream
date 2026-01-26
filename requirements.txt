@@ -54,3 +54,8 @@ sentry-sdk[django]~=1.40.0
 # Performance & Load Testing
 locust~=2.20.0
 memory-profiler~=0.61.0
+
+# Testing & Code Coverage
+pytest~=8.3.3
+pytest-django~=4.9.0
+pytest-cov~=6.0.0

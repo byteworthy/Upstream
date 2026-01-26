@@ -25,3 +25,8 @@ google-cloud-sdk/
 
 # Marketing site (separate project)
 upstream-marketing/
+
+# Test coverage
+.coverage
+coverage.xml
+htmlcov/
