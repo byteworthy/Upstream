@@ -945,15 +945,60 @@ def compute_payer_summary():
 
 ---
 
-## Medium Priority Issues (74)
+### ~~PERF-18: Redundant Drift Event Counting~~ ✅ RESOLVED
+**Domain**: Performance
+**File**: upstream/reporting/services.py:88-91
+**Impact**: 4 separate COUNT queries in PDF generation
+**Effort**: Small
+**Status**: ✅ Fixed on 2026-01-26
+
+**Problem**: The `generate_weekly_drift_pdf` function executed **4 separate COUNT queries** on drift events to calculate severity statistics, causing unnecessary database round-trips.
+
+**Original Code** (upstream/reporting/services.py:88-91):
+```python
+# Calculate severity counts
+total_events = drift_events.count()
+high_count = drift_events.filter(severity__gte=0.7).count()
+medium_count = drift_events.filter(severity__gte=0.4, severity__lt=0.7).count()
+low_count = drift_events.filter(severity__lt=0.4).count()
+```
+
+**Resolution**:
+Replaced 4 separate queries with a single aggregate query using conditional Count(filter=Q(...)):
+
+**After** (upstream/reporting/services.py:88-99):
+```python
+# Calculate severity counts
+# Performance: Use single aggregate query instead of 4 separate COUNT queries
+severity_counts = drift_events.aggregate(
+    total=Count("id"),
+    high=Count("id", filter=Q(severity__gte=0.7)),
+    medium=Count("id", filter=Q(severity__gte=0.4, severity__lt=0.7)),
+    low=Count("id", filter=Q(severity__lt=0.4)),
+)
+total_events = severity_counts["total"]
+high_count = severity_counts["high"]
+medium_count = severity_counts["medium"]
+low_count = severity_counts["low"]
+```
+
+**Expected Impact**:
+- **75% reduction in queries**: 4 queries → 1 query
+- **2-3x faster PDF generation** for weekly drift reports
+- **Same pattern as HIGH-16**: Consistent with dashboard optimization
+- **Backward compatible**: Identical results, same variable names
+
+---
+
+## Medium Priority Issues (73)
 
 *(Categorized by domain, top items shown)*
 
-### Performance (5 issues)
+### Performance (4 issues)
 - ~~Missing select_related in Upload views (3 N+1 patterns)~~ ✅ **RESOLVED (HIGH-13)**
 - ~~Expensive COUNT queries in dashboard (4 separate queries)~~ ✅ **RESOLVED (HIGH-16)**
 - ~~Unoptimized payer summary aggregation (no date limits)~~ ✅ **RESOLVED (PERF-17)**
-- Redundant drift event counting
+- ~~Redundant drift event counting~~ ✅ **RESOLVED (PERF-18)**
 - Missing indexes for recovery stats
 - Inefficient serializer method fields
 
@@ -1152,16 +1197,16 @@ def compute_payer_summary():
 
 | Status | Count | % |
 |--------|-------|---|
-| To Do | 105 | 80.2% |
+| To Do | 104 | 79.4% |
 | In Progress | 0 | 0% |
-| Done | 26 | 19.8% |
+| Done | 27 | 20.6% |
 
 ### By Domain Completion
 
 | Domain | Issues | Fixed | % Complete |
 |--------|--------|-------|------------|
 | Security | 10 | 2 | 20.0% |
-| Performance | 18 | 8 | 44.4% |
+| Performance | 18 | 9 | 50.0% |
 | Testing | 17 | 1 | 5.9% |
 | Architecture | 21 | 1 | 4.8% |
 | Database | 22 | 5 | 22.7% |
@@ -1200,6 +1245,7 @@ def compute_payer_summary():
 - ✅ **HIGH-15**: Missing NOT NULL constraints on critical fields (upstream/models.py, migrations/0008)
 - ✅ **HIGH-16**: Expensive COUNT queries in dashboard views (upstream/api/views.py, upstream/products/delayguard/views.py)
 - ✅ **PERF-17**: Unoptimized payer summary aggregation (upstream/api/views.py - added 90-day default window with date range params)
+- ✅ **PERF-18**: Redundant drift event counting (upstream/reporting/services.py - combined 4 COUNT queries into 1 aggregate)
 
 ---
 
