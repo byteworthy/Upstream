@@ -84,3 +84,78 @@ Never modify test settings unless explicitly required by the story.
 ## Discovered Patterns
 
 (Ralph will append new patterns discovered during autonomous iterations)
+
+## OpenAPI/DRF Spectacular Documentation Patterns
+
+### @extend_schema Examples
+
+DRF Spectacular supports rich API examples via OpenApiExample:
+
+```python
+from drf_spectacular.utils import extend_schema, OpenApiExample
+
+@extend_schema(
+    examples=[
+        OpenApiExample(
+            "Example Name",
+            value={"key": "value"},
+            response_only=True,  # or request_only=True
+        ),
+    ],
+)
+```
+
+### Pagination Documentation
+
+Standard pattern for documenting paginated endpoints:
+
+```python
+parameters=[
+    OpenApiParameter(
+        name="page",
+        type=int,
+        description="Page number for pagination (default: 1)",
+        required=False,
+    ),
+    OpenApiParameter(
+        name="page_size",
+        type=int,
+        description="Number of results per page (default: 100)",
+        required=False,
+    ),
+],
+examples=[
+    OpenApiExample(
+        "Paginated Response",
+        value={
+            "count": 150,
+            "next": "https://api.example.com/api/resource/?page=2",
+            "previous": None,
+            "results": [...]
+        },
+        response_only=True,
+    ),
+],
+```
+
+### Line Length for Examples
+
+When example URLs exceed 88 characters (flake8 E501), split with parentheses:
+
+```python
+"next": (
+    "https://api.example.com/api/resource/"
+    "?param1=value1&param2=value2"
+),
+```
+
+### OpenAPI Schema Validation
+
+Always validate schema after adding documentation:
+
+```bash
+python manage.py spectacular --validate
+```
+
+This catches schema errors and ensures examples are valid.
+

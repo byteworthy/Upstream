@@ -54,7 +54,7 @@
         "upstream/api/views.py",
         "upstream/alerts/views.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 3,
