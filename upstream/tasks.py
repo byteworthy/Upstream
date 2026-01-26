@@ -3,20 +3,23 @@ Celery tasks for async processing in Upstream.
 
 These tasks allow drift detection, alert sending, webhook delivery,
 and report generation to run asynchronously.
+
+All tasks use MonitoredTask base class for automatic metrics tracking.
 """
 
 from typing import Dict, Any
 from celery import shared_task
 from decouple import config
 import logging
+from upstream.celery_monitoring import MonitoredTask
 
 logger = logging.getLogger(__name__)
 
 # Check if Celery is enabled
-CELERY_ENABLED = config('CELERY_ENABLED', default=False, cast=bool)
+CELERY_ENABLED = config("CELERY_ENABLED", default=False, cast=bool)
 
 
-@shared_task(name='upstream.tasks.run_drift_detection')
+@shared_task(name="upstream.tasks.run_drift_detection", base=MonitoredTask)
 def run_drift_detection_task(customer_id: int, **kwargs: Any) -> Dict[str, Any]:
     """
     Async task for running payer drift detection.
@@ -36,19 +39,22 @@ def run_drift_detection_task(customer_id: int, **kwargs: Any) -> Dict[str, Any]:
     try:
         customer = Customer.objects.get(id=customer_id)
         results = detect_drift_events(customer, **kwargs)
-        
-        logger.info(f"Completed drift detection for customer {customer_id}: {len(results)} events")
+
+        logger.info(
+            f"Completed drift detection for customer {customer_id}: "
+            f"{len(results)} events"
+        )
         return {
-            'customer_id': customer_id,
-            'events_detected': len(results),
-            'status': 'success'
+            "customer_id": customer_id,
+            "events_detected": len(results),
+            "status": "success",
         }
     except Exception as e:
         logger.error(f"Error in drift detection task for customer {customer_id}: {str(e)}")
         raise
 
 
-@shared_task(name='upstream.tasks.send_alert')
+@shared_task(name="upstream.tasks.send_alert", base=MonitoredTask)
 def send_alert_task(alert_id: int) -> Dict[str, Any]:
     """
     Async task for sending a single alert.
@@ -67,15 +73,17 @@ def send_alert_task(alert_id: int) -> Dict[str, Any]:
     try:
         alert = Alert.objects.get(id=alert_id)
         result = send_single_alert(alert)
-        
-        logger.info(f"Completed alert send for alert {alert_id}: {result.get('status')}")
+
+        logger.info(
+            f"Completed alert send for alert {alert_id}: {result.get('status')}"
+        )
         return result
     except Exception as e:
         logger.error(f"Error sending alert {alert_id}: {str(e)}")
         raise
 
 
-@shared_task(name='upstream.tasks.send_webhook')
+@shared_task(name="upstream.tasks.send_webhook", base=MonitoredTask)
 def send_webhook_task(webhook_delivery_id: int) -> Dict[str, Any]:
     """
     Async task for sending a webhook.
@@ -94,16 +102,21 @@ def send_webhook_task(webhook_delivery_id: int) -> Dict[str, Any]:
     try:
         delivery = WebhookDelivery.objects.get(id=webhook_delivery_id)
         result = deliver_webhook(delivery)
-        
-        logger.info(f"Completed webhook delivery {webhook_delivery_id}: {result.get('status')}")
+
+        logger.info(
+            f"Completed webhook delivery {webhook_delivery_id}: "
+            f"{result.get('status')}"
+        )
         return result
     except Exception as e:
         logger.error(f"Error delivering webhook {webhook_delivery_id}: {str(e)}")
         raise
 
 
-@shared_task(name='upstream.tasks.generate_report_artifact')
-def generate_report_artifact_task(report_run_id: int, artifact_type: str = 'pdf') -> Dict[str, Any]:
+@shared_task(name="upstream.tasks.generate_report_artifact", base=MonitoredTask)
+def generate_report_artifact_task(
+    report_run_id: int, artifact_type: str = "pdf"
+) -> Dict[str, Any]:
     """
     Async task for generating report artifacts.
 
@@ -114,35 +127,45 @@ def generate_report_artifact_task(report_run_id: int, artifact_type: str = 'pdf'
     Returns:
         dict: Generation result
     """
-    from upstream.reporting.services import generate_weekly_drift_pdf, export_drift_events_csv
+    from upstream.reporting.services import (
+        generate_weekly_drift_pdf,
+        export_drift_events_csv,
+    )
     from upstream.reporting.models import ReportRun
-    
-    logger.info(f"Starting async report artifact generation for run {report_run_id}, type {artifact_type}")
+
+    logger.info(
+        f"Starting async report artifact generation for run {report_run_id}, "
+        f"type {artifact_type}"
+    )
 
     try:
         report_run = ReportRun.all_objects.get(id=report_run_id)
 
-        if artifact_type == 'pdf':
+        if artifact_type == "pdf":
             artifact = generate_weekly_drift_pdf(report_run_id)
-        elif artifact_type == 'csv':
-            artifact = export_drift_events_csv(report_run.customer, report_run.period_start, report_run.period_end)
+        elif artifact_type == "csv":
+            artifact = export_drift_events_csv(
+                report_run.customer, report_run.period_start, report_run.period_end
+            )
         else:
             raise ValueError(f"Unsupported artifact type: {artifact_type}")
-        
+
         logger.info(f"Completed artifact generation for run {report_run_id}")
         return {
-            'report_run_id': report_run_id,
-            'artifact_type': artifact_type,
-            'artifact_id': artifact.id if artifact else None,
-            'status': 'success'
+            "report_run_id": report_run_id,
+            "artifact_type": artifact_type,
+            "artifact_id": artifact.id if artifact else None,
+            "status": "success",
         }
     except Exception as e:
         logger.error(f"Error generating artifact for run {report_run_id}: {str(e)}")
         raise
 
 
-@shared_task(name='upstream.tasks.send_scheduled_report')
-def send_scheduled_report_task(customer_id: int, report_type: str = 'weekly_drift') -> Dict[str, Any]:
+@shared_task(name="upstream.tasks.send_scheduled_report", base=MonitoredTask)
+def send_scheduled_report_task(
+    customer_id: int, report_type: str = "weekly_drift"
+) -> Dict[str, Any]:
     """
     Async task for generating and sending scheduled reports.
 
@@ -156,7 +179,10 @@ def send_scheduled_report_task(customer_id: int, report_type: str = 'weekly_drif
     from upstream.reporting.services import generate_and_send_weekly_report
     from upstream.models import Customer
 
-    logger.info(f"Starting scheduled report generation for customer {customer_id}, type {report_type}")
+    logger.info(
+        f"Starting scheduled report generation for customer {customer_id}, "
+        f"type {report_type}"
+    )
 
     try:
         customer = Customer.objects.get(id=customer_id)
@@ -169,7 +195,7 @@ def send_scheduled_report_task(customer_id: int, report_type: str = 'weekly_drif
         raise
 
 
-@shared_task(name='upstream.tasks.compute_report_drift')
+@shared_task(name="upstream.tasks.compute_report_drift", base=MonitoredTask)
 def compute_report_drift_task(report_run_id: int) -> Dict[str, Any]:
     """
     Async task for computing drift for a specific report run.
@@ -189,33 +215,40 @@ def compute_report_drift_task(report_run_id: int) -> Dict[str, Any]:
         report_run = ReportRun.all_objects.get(id=report_run_id)
 
         # Compute drift for this report run
-        report_run = compute_weekly_payer_drift(report_run.customer, report_run=report_run)
+        report_run = compute_weekly_payer_drift(
+            report_run.customer, report_run=report_run
+        )
 
         # Update report run status
-        report_run.status = 'completed'
+        report_run.status = "completed"
         report_run.save()
 
         # Count drift events for this report
         drift_event_count = report_run.drift_events.count()
-        logger.info(f"Completed drift computation for report run {report_run_id}: {drift_event_count} events")
+        logger.info(
+            f"Completed drift computation for report run {report_run_id}: "
+            f"{drift_event_count} events"
+        )
         return {
-            'report_run_id': report_run_id,
-            'events_detected': drift_event_count,
-            'status': 'success'
+            "report_run_id": report_run_id,
+            "events_detected": drift_event_count,
+            "status": "success",
         }
     except Exception as e:
-        logger.error(f"Error computing drift for report run {report_run_id}: {str(e)}")
+        logger.error(
+            f"Error computing drift for report run {report_run_id}: {str(e)}"
+        )
         # Mark report as failed
         try:
             report_run = ReportRun.all_objects.get(id=report_run_id)
-            report_run.status = 'failed'
+            report_run.status = "failed"
             report_run.save()
         except Exception:
             pass
         raise
 
 
-@shared_task(name='upstream.tasks.process_ingestion')
+@shared_task(name="upstream.tasks.process_ingestion", base=MonitoredTask)
 def process_ingestion_task(ingestion_id: int) -> Dict[str, Any]:
     """
     Async task for processing an ingestion record.
@@ -238,17 +271,13 @@ def process_ingestion_task(ingestion_id: int) -> Dict[str, Any]:
         result = process_ingestion_record(ingestion)
 
         logger.info(f"Completed ingestion processing for record {ingestion_id}")
-        return {
-            'ingestion_id': ingestion_id,
-            'status': 'success',
-            'result': result
-        }
+        return {"ingestion_id": ingestion_id, "status": "success", "result": result}
     except Exception as e:
         logger.error(f"Error processing ingestion {ingestion_id}: {str(e)}")
         # Mark ingestion as failed
         try:
             ingestion = Ingestion.objects.get(id=ingestion_id)
-            ingestion.status = 'failed'
+            ingestion.status = "failed"
             ingestion.error_message = str(e)
             ingestion.save()
         except Exception:

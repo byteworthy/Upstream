@@ -30,6 +30,11 @@ from .views import (
     HealthCheckView,
     WebhookIngestionView,
 )
+from upstream.views.celery_health import (
+    celery_health_check,
+    celery_tasks,
+    celery_stats,
+)
 
 # Create router and register viewsets
 router = DefaultRouter()
@@ -46,6 +51,10 @@ router.register(r"alerts", AlertEventViewSet, basename="alert-event")
 urlpatterns = [
     # Health check (no auth)
     path("health/", HealthCheckView.as_view(), name="api-health"),
+    # Celery health checks (no auth - for monitoring tools)
+    path("celery/health/", celery_health_check, name="celery-health"),
+    path("celery/tasks/", celery_tasks, name="celery-tasks"),
+    path("celery/stats/", celery_stats, name="celery-stats"),
     # Webhook ingestion (token auth)
     path("ingest/webhook/", WebhookIngestionView.as_view(), name="api-webhook-ingest"),
     # Dashboard
