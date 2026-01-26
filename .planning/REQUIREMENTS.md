@@ -14,8 +14,8 @@ Requirements for Phase 3 completion. Each maps to roadmap phases.
 
 ### API Improvements
 
-- [ ] **API-01**: Add pagination to custom actions - All custom ViewSet @action methods return paginated responses
-- [ ] **API-02**: Implement SearchFilter and DjangoFilterBackend - Users can search and filter API list endpoints by key fields
+- [x] **API-01**: Add pagination to custom actions - All custom ViewSet @action methods return paginated responses
+- [x] **API-02**: Implement SearchFilter and DjangoFilterBackend - Users can search and filter API list endpoints by key fields
 - [ ] **API-03**: Standardize error responses - All endpoints return consistent error format with status codes, detail messages, and field-level errors
 - [ ] **API-04**: Add complete OpenAPI documentation - drf-spectacular generates 100% API docs with examples for all endpoints
 
@@ -68,8 +68,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DB-01 | Phase 1 | Complete |
 | DB-02 | Phase 1 | Complete |
-| API-01 | Phase 2 | Pending |
-| API-02 | Phase 2 | Pending |
+| API-01 | Phase 2 | Complete |
+| API-02 | Phase 2 | Complete |
 | API-03 | Phase 3 | Pending |
 | API-04 | Phase 3 | Pending |
 | TEST-01 | Phase 4 | Pending |
