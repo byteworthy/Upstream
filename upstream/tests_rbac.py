@@ -194,3 +194,122 @@ class RBACViewPermissionTests(TestCase):
         self.assertTrue(has_permission(self.analyst_user, 'manage_mappings'))
         # Viewer should not
         self.assertFalse(has_permission(self.viewer_user, 'manage_mappings'))
+
+
+class RBACAPIEndpointTests(TestCase):
+    """
+    Test RBAC enforcement at API endpoint level.
+
+    Verifies that users cannot access endpoints they don't have permissions for,
+    preventing privilege escalation and unauthorized access.
+    """
+
+    def setUp(self):
+        """Create users with different roles for testing."""
+        from rest_framework.test import APIClient
+
+        self.customer = Customer.objects.create(name='RBAC Test Customer')
+
+        # Viewer (read-only)
+        self.viewer_user = User.objects.create_user(
+            username='rbac_viewer', email='viewer@test.com', password='testpass123'
+        )
+        self.viewer_profile = UserProfile.objects.create(
+            user=self.viewer_user,
+            customer=self.customer,
+            role='viewer'
+        )
+
+        # Analyst (can upload/manage data)
+        self.analyst_user = User.objects.create_user(
+            username='rbac_analyst', email='analyst@test.com', password='testpass123'
+        )
+        self.analyst_profile = UserProfile.objects.create(
+            user=self.analyst_user,
+            customer=self.customer,
+            role='analyst'
+        )
+
+        # Admin (can manage alerts/webhooks/users)
+        self.admin_user = User.objects.create_user(
+            username='rbac_admin', email='admin@test.com', password='testpass123'
+        )
+        self.admin_profile = UserProfile.objects.create(
+            user=self.admin_user,
+            customer=self.customer,
+            role='admin'
+        )
+
+        self.client = APIClient()
+
+    def test_viewer_cannot_create_upload(self):
+        """Test that viewers cannot POST to uploads endpoint."""
+        self.client.force_authenticate(user=self.viewer_user)
+
+        response = self.client.post('/api/uploads/', {
+            'filename': 'test.csv',
+            'file_type': 'claims_data'
+        }, format='json')
+
+        # Viewers are read-only - should get 403 Forbidden
+        self.assertEqual(
+            response.status_code, 403,
+            f"Viewer should not be able to create uploads. Got {response.status_code}: {response.data}"
+        )
+
+    def test_viewer_can_list_uploads(self):
+        """Test that viewers CAN GET uploads (read-only access)."""
+        self.client.force_authenticate(user=self.viewer_user)
+
+        response = self.client.get('/api/uploads/')
+
+        # Viewers can read data - should succeed
+        self.assertEqual(response.status_code, 200)
+
+    def test_analyst_can_create_upload(self):
+        """Test that analysts can POST to uploads endpoint."""
+        self.client.force_authenticate(user=self.analyst_user)
+
+        response = self.client.post('/api/uploads/', {
+            'filename': 'analyst_test.csv',
+            'file_type': 'claims_data'
+        }, format='json')
+
+        # Analysts can upload - should succeed or validation error
+        self.assertIn(
+            response.status_code, [200, 201, 400],
+            f"Analyst should be able to create uploads. Got {response.status_code}: {response.data}"
+        )
+
+    def test_viewer_cannot_create_payer_mapping(self):
+        """Test that viewers cannot create payer mappings."""
+        self.client.force_authenticate(user=self.viewer_user)
+
+        response = self.client.post('/api/payer-mappings/', {
+            'raw_name': 'Aetna Corporation',
+            'canonical_name': 'Aetna'
+        }, format='json')
+
+        # Viewers cannot modify mappings
+        self.assertEqual(response.status_code, 403)
+
+    def test_analyst_can_create_payer_mapping(self):
+        """Test that analysts can create payer mappings."""
+        self.client.force_authenticate(user=self.analyst_user)
+
+        response = self.client.post('/api/payer-mappings/', {
+            'raw_name': 'Aetna Corporation',
+            'canonical_name': 'Aetna'
+        }, format='json')
+
+        # Analysts can manage mappings
+        self.assertIn(response.status_code, [200, 201, 400])
+
+    def test_unauthenticated_user_denied(self):
+        """Test that unauthenticated users cannot access API."""
+        # Don't authenticate
+
+        response = self.client.get('/api/uploads/')
+
+        # Should be 401 Unauthorized or 403 Forbidden
+        self.assertIn(response.status_code, [401, 403])
