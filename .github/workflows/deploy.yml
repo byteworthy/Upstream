@@ -46,11 +46,11 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t payrixa:${{ github.sha }} .
+        docker build -t upstream:${{ github.sha }} .
 
     - name: Deploy notification
       run: |
-        echo "🚀 Ready to deploy Payrixa"
+        echo "🚀 Ready to deploy Upstream"
         echo "Environment: ${{ github.event.inputs.environment || 'staging' }}"
         echo "Commit: ${{ github.sha }}"
         echo "Tag: ${{ github.ref_name }}"

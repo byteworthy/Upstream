@@ -19,7 +19,7 @@ from upstream.products.denialscope.ml_services import (
     DenialClusteringService,
     CascadeDetectionService,
     PreDenialWarningService,
-    AppealGenerationService
+    AppealGenerationService,
 )
 
 # Import models
@@ -29,6 +29,7 @@ from upstream.models import Customer, Upload, ClaimRecord, ReportRun
 # ============================================================================
 # Example 1: Complete Upload Processing with Quality Validation
 # ============================================================================
+
 
 def process_upload_with_quality(customer: Customer, file_path: str, filename: str):
     """
@@ -42,10 +43,10 @@ def process_upload_with_quality(customer: Customer, file_path: str, filename: st
     upload = Upload.objects.create(
         customer=customer,
         filename=filename,
-        status='processing',
+        status="processing",
         processing_started_at=timezone.now(),
         uploaded_by=None,  # Set to current user
-        upload_source='web_ui'
+        upload_source="web_ui",
     )
 
     try:
@@ -59,17 +60,17 @@ def process_upload_with_quality(customer: Customer, file_path: str, filename: st
         validation_result = quality_service.validate_upload(upload, rows_data)
 
         # Step 4: Check validation results
-        summary = validation_result['summary']
+        summary = validation_result["summary"]
         print(f"Validation complete:")
         print(f"  - Total rows: {summary['total_rows']}")
         print(f"  - Accepted: {summary['accepted_rows']}")
         print(f"  - Rejected: {summary['rejected_rows']}")
 
         # Step 5: Handle anomalies
-        if validation_result['anomalies']:
+        if validation_result["anomalies"]:
             print(f"⚠️  Detected {len(validation_result['anomalies'])} anomalies")
-            for anomaly in validation_result['anomalies']:
-                if anomaly['severity'] == 'critical':
+            for anomaly in validation_result["anomalies"]:
+                if anomaly["severity"] == "critical":
                     print(f"  🚨 CRITICAL: {anomaly['description']}")
                     # Optionally halt processing or alert operator
 
@@ -79,29 +80,29 @@ def process_upload_with_quality(customer: Customer, file_path: str, filename: st
             row_number = row_idx + 1
 
             # Check if this row was rejected
-            if row_number in validation_result['summary']['rejection_details']:
+            if row_number in validation_result["summary"]["rejection_details"]:
                 continue  # Skip rejected rows
 
             # Create ClaimRecord
             claim = ClaimRecord.objects.create(
                 customer=customer,
                 upload=upload,
-                payer=row_data['payer'],
-                cpt=row_data['cpt'],
-                cpt_group=row_data.get('cpt_group', 'OTHER'),
-                submitted_date=row_data['submitted_date'],
-                decided_date=row_data['decided_date'],
-                outcome=row_data['outcome'],
-                allowed_amount=row_data.get('allowed_amount'),
+                payer=row_data["payer"],
+                cpt=row_data["cpt"],
+                cpt_group=row_data.get("cpt_group", "OTHER"),
+                submitted_date=row_data["submitted_date"],
+                decided_date=row_data["decided_date"],
+                outcome=row_data["outcome"],
+                allowed_amount=row_data.get("allowed_amount"),
                 # New amplified fields
-                billed_amount=row_data.get('billed_amount'),
-                paid_amount=row_data.get('paid_amount'),
-                payment_date=row_data.get('payment_date'),
-                authorization_required=row_data.get('auth_required', False),
-                authorization_number=row_data.get('auth_number'),
-                authorization_obtained=row_data.get('auth_obtained', False),
-                denial_reason_code=row_data.get('denial_reason_code'),
-                denial_reason_text=row_data.get('denial_reason_text'),
+                billed_amount=row_data.get("billed_amount"),
+                paid_amount=row_data.get("paid_amount"),
+                payment_date=row_data.get("payment_date"),
+                authorization_required=row_data.get("auth_required", False),
+                authorization_number=row_data.get("auth_number"),
+                authorization_obtained=row_data.get("auth_obtained", False),
+                denial_reason_code=row_data.get("denial_reason_code"),
+                denial_reason_text=row_data.get("denial_reason_text"),
                 # Quality tracking
                 validation_passed=True,
                 validation_timestamp=timezone.now(),
@@ -110,7 +111,7 @@ def process_upload_with_quality(customer: Customer, file_path: str, filename: st
             accepted_claims.append(claim)
 
         # Step 7: Finalize upload
-        upload.status = 'success' if summary['accepted_rows'] > 0 else 'failed'
+        upload.status = "success" if summary["accepted_rows"] > 0 else "failed"
         upload.processing_completed_at = timezone.now()
         upload.processing_duration_seconds = (
             upload.processing_completed_at - upload.processing_started_at
@@ -125,15 +126,15 @@ def process_upload_with_quality(customer: Customer, file_path: str, filename: st
         print(f"Quality Grade: {quality_summary['quality_grade']}")
         print(f"Acceptance Rate: {quality_summary['acceptance_rate']:.1f}%")
 
-        if quality_summary['recommendations']:
+        if quality_summary["recommendations"]:
             print(f"\n💡 Recommendations:")
-            for rec in quality_summary['recommendations']:
+            for rec in quality_summary["recommendations"]:
                 print(f"  - {rec}")
 
         return upload, accepted_claims
 
     except Exception as e:
-        upload.status = 'failed'
+        upload.status = "failed"
         upload.error_message = str(e)
         upload.processing_completed_at = timezone.now()
         upload.save()
@@ -143,6 +144,7 @@ def process_upload_with_quality(customer: Customer, file_path: str, filename: st
 # ============================================================================
 # Example 2: Weekly Drift Detection & Alert Generation
 # ============================================================================
+
 
 def run_weekly_drift_detection(customer: Customer):
     """
@@ -155,9 +157,9 @@ def run_weekly_drift_detection(customer: Customer):
     # Step 1: Create report run
     report_run = ReportRun.objects.create(
         customer=customer,
-        run_type='weekly',
-        status='running',
-        started_at=timezone.now()
+        run_type="weekly",
+        status="running",
+        started_at=timezone.now(),
     )
 
     try:
@@ -168,7 +170,7 @@ def run_weekly_drift_detection(customer: Customer):
         print(f"\n📊 DriftWatch Results:")
         print(f"  Total signals: {drift_results['signals_created']}")
         print(f"  By type:")
-        for signal_type, count in drift_results['by_type'].items():
+        for signal_type, count in drift_results["by_type"].items():
             print(f"    - {signal_type}: {count}")
 
         # Step 3: Check for high-value underpayment signals
@@ -177,8 +179,8 @@ def run_weekly_drift_detection(customer: Customer):
         underpayments = DriftEvent.objects.filter(
             customer=customer,
             report_run=report_run,
-            drift_type='PAYMENT_AMOUNT',
-            severity__gte=0.7
+            drift_type="PAYMENT_AMOUNT",
+            severity__gte=0.7,
         )
 
         if underpayments.exists():
@@ -191,11 +193,11 @@ def run_weekly_drift_detection(customer: Customer):
                 send_underpayment_alert(customer, signal)
 
         # Step 4: Finalize report
-        report_run.status = 'success'
+        report_run.status = "success"
         report_run.finished_at = timezone.now()
         report_run.summary_json = {
-            'drift_signals': drift_results['signals_created'],
-            'by_type': drift_results['by_type'],
+            "drift_signals": drift_results["signals_created"],
+            "by_type": drift_results["by_type"],
         }
         report_run.save()
 
@@ -203,7 +205,7 @@ def run_weekly_drift_detection(customer: Customer):
         return report_run
 
     except Exception as e:
-        report_run.status = 'failed'
+        report_run.status = "failed"
         report_run.finished_at = timezone.now()
         report_run.save()
         raise
@@ -212,6 +214,7 @@ def run_weekly_drift_detection(customer: Customer):
 # ============================================================================
 # Example 3: Monthly Denial Analysis with ML
 # ============================================================================
+
 
 def run_monthly_denial_analysis(customer: Customer):
     """
@@ -251,19 +254,17 @@ def run_monthly_denial_analysis(customer: Customer):
         print(f"  Claims: {cascade.claim_count}")
         print(f"  Pattern: {cascade.pattern_summary}")
 
-        if cascade.cascade_type == 'payer_systemic':
+        if cascade.cascade_type == "payer_systemic":
             # Alert management about systematic payer issue
             send_payer_systemic_alert(customer, cascade)
 
-    return {
-        'clusters': clusters,
-        'cascades': cascades
-    }
+    return {"clusters": clusters, "cascades": cascades}
 
 
 # ============================================================================
 # Example 4: Pre-Denial Warning for New Claims
 # ============================================================================
+
 
 def check_claim_for_denial_risk(claim: ClaimRecord):
     """
@@ -300,6 +301,7 @@ def check_claim_for_denial_risk(claim: ClaimRecord):
 # Example 5: Auto-Generate Appeals for Denied Claims
 # ============================================================================
 
+
 def generate_appeals_for_denials(customer: Customer, days_back: int = 30):
     """
     Automatically generate appeals for recently denied claims.
@@ -311,12 +313,8 @@ def generate_appeals_for_denials(customer: Customer, days_back: int = 30):
     # Get recently denied claims without appeals
     cutoff_date = date.today() - timedelta(days=days_back)
     denied_claims = ClaimRecord.objects.filter(
-        customer=customer,
-        outcome='DENIED',
-        decided_date__gte=cutoff_date
-    ).exclude(
-        appeals__isnull=False
-    )
+        customer=customer, outcome="DENIED", decided_date__gte=cutoff_date
+    ).exclude(appeals__isnull=False)
 
     print(f"Found {denied_claims.count()} denied claims without appeals")
 
@@ -330,7 +328,9 @@ def generate_appeals_for_denials(customer: Customer, days_back: int = 30):
 
             print(f"\n✅ Generated appeal for claim {claim.id}")
             print(f"  Appeal ID: {appeal.appeal_id}")
-            print(f"  Template: {appeal.template_used.template_name if appeal.template_used else 'Generic'}")
+            print(
+                f"  Template: {appeal.template_used.template_name if appeal.template_used else 'Generic'}"
+            )
             print(f"  Confidence: {appeal.generation_confidence:.0%}")
 
             generated_appeals.append(appeal)
@@ -348,6 +348,7 @@ def generate_appeals_for_denials(customer: Customer, days_back: int = 30):
 # Example 6: Quality Scorecard for Executive Dashboard
 # ============================================================================
 
+
 def get_executive_quality_dashboard(customer: Customer):
     """
     Generate executive-level quality dashboard.
@@ -361,15 +362,19 @@ def get_executive_quality_dashboard(customer: Customer):
 
     print(f"\n📊 Executive Quality Dashboard")
     print(f"=" * 50)
-    print(f"Overall Health Score: {scorecard['overall_health_score']}/100 ({scorecard['overall_health_grade']})")
+    print(
+        f"Overall Health Score: {scorecard['overall_health_score']}/100 ({scorecard['overall_health_grade']})"
+    )
     print(f"Status: {scorecard['status'].upper()}")
     print(f"\nKey Metrics:")
     print(f"  - Average Quality: {scorecard['average_acceptance_rate']:.1f}%")
     print(f"  - Uploads Processed: {scorecard['uploads_count']}")
     print(f"  - Total Rows: {scorecard['total_rows_processed']:,}")
     print(f"\nQuality Dimensions:")
-    for metric_type, metric_data in scorecard['quality_metrics'].items():
-        print(f"  - {metric_type.title()}: {metric_data['grade']} ({metric_data['score']:.2f})")
+    for metric_type, metric_data in scorecard["quality_metrics"].items():
+        print(
+            f"  - {metric_type.title()}: {metric_data['grade']} ({metric_data['score']:.2f})"
+        )
 
     print(f"\nOpen Issues:")
     print(f"  - Critical: {scorecard['open_issues']['critical']}")
@@ -382,6 +387,7 @@ def get_executive_quality_dashboard(customer: Customer):
 # ============================================================================
 # Example 7: Quality Trend Analysis
 # ============================================================================
+
 
 def analyze_quality_trends(customer: Customer, days: int = 90):
     """
@@ -398,13 +404,13 @@ def analyze_quality_trends(customer: Customer, days: int = 90):
     print(f"=" * 50)
 
     # Overall trend
-    if trend_report.get('trends'):
-        trends = trend_report['trends']
+    if trend_report.get("trends"):
+        trends = trend_report["trends"]
         print(f"Trend: {trends['description']}")
         print(f"Direction: {trends['trend'].upper()}")
         print(f"Change: {trends['change_percentage']:+.1f}%")
 
-        if trends['trend'] == 'degrading':
+        if trends["trend"] == "degrading":
             print(f"\n⚠️  ALERT: Data quality is degrading")
             # Send alert to operations team
             send_quality_degradation_alert(customer, trends)
@@ -413,8 +419,10 @@ def analyze_quality_trends(customer: Customer, days: int = 90):
     failure_report = reporting_service.generate_validation_failure_report(days=days)
 
     print(f"\nTop Validation Failures:")
-    for failure in failure_report['top_failing_rules'][:5]:
-        print(f"  - {failure['validation_rule__code']}: {failure['failure_count']} failures")
+    for failure in failure_report["top_failing_rules"][:5]:
+        print(
+            f"  - {failure['validation_rule__code']}: {failure['failure_count']} failures"
+        )
 
     return trend_report
 
@@ -422,6 +430,7 @@ def analyze_quality_trends(customer: Customer, days: int = 90):
 # ============================================================================
 # Helper Functions (implement these based on your notification system)
 # ============================================================================
+
 
 def parse_csv_file(file_path: str):
     """Parse CSV file - implement based on your format."""
@@ -469,15 +478,15 @@ def send_quality_degradation_alert(customer, trends):
 # Main Integration Example
 # ============================================================================
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     Example workflow integrating all features.
     """
     # Get customer
-    customer = Customer.objects.get(name='Demo Customer')
+    customer = Customer.objects.get(name="Demo Customer")
 
     print("=" * 70)
-    print("PAYRIXA DATA QUALITY & AMPLIFICATION - INTEGRATION DEMO")
+    print("UPSTREAM DATA QUALITY & AMPLIFICATION - INTEGRATION DEMO")
     print("=" * 70)
 
     # 1. Initialize data quality (run once)

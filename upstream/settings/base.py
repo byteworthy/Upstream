@@ -24,25 +24,20 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     # Third-party - Security & Compliance
     "auditlog",
     "encrypted_model_fields",
-
     # Third-party - API
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
     "drf_spectacular",
-
     # Third-party - Monitoring
     "django_prometheus",
-
     # Third-party - Development
     "django_browser_reload",
-
     # Upstream application
-    "upstream.apps.PayrixaConfig",
+    "upstream.apps.UpstreamConfig",
 ]
 
 MIDDLEWARE = [
@@ -110,61 +105,61 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Login settings
-LOGIN_URL = '/portal/login/'
-LOGIN_REDIRECT_URL = '/portal/'
-LOGOUT_REDIRECT_URL = '/portal/login/'
+LOGIN_URL = "/portal/login/"
+LOGIN_REDIRECT_URL = "/portal/"
+LOGOUT_REDIRECT_URL = "/portal/login/"
 
 # =============================================================================
 # DJANGO REST FRAMEWORK
 # =============================================================================
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
     ],
-    'DEFAULT_THROTTLE_RATES': {
+    "DEFAULT_THROTTLE_RATES": {
         # Default rates
-        'anon': '100/hour',
-        'user': '1000/hour',
+        "anon": "100/hour",
+        "user": "1000/hour",
         # QW-5: Granular rate limiting for different operation types
-        'burst': '60/minute',                    # High-frequency bursts (1 req/sec)
-        'sustained': '10000/day',                # Daily limit for sustained usage
-        'report_generation': '10/hour',          # Expensive: report generation
-        'bulk_operation': '20/hour',             # Expensive: file uploads, batch ops
-        'read_only': '2000/hour',                # Liberal: read operations
-        'write_operation': '500/hour',           # Moderate: write operations
-        'anon_strict': '30/hour',                # Very strict for anonymous users
+        "burst": "60/minute",  # High-frequency bursts (1 req/sec)
+        "sustained": "10000/day",  # Daily limit for sustained usage
+        "report_generation": "10/hour",  # Expensive: report generation
+        "bulk_operation": "20/hour",  # Expensive: file uploads, batch ops
+        "read_only": "2000/hour",  # Liberal: read operations
+        "write_operation": "500/hour",  # Moderate: write operations
+        "anon_strict": "30/hour",  # Very strict for anonymous users
     },
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 50,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
 }
 
 # JWT Settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': None,  # Will be set in environment-specific settings
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": None,  # Will be set in environment-specific settings
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 # API Documentation
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Upstream API',
-    'DESCRIPTION': 'Early-warning intelligence for healthcare revenue operations',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
+    "TITLE": "Upstream API",
+    "DESCRIPTION": "Early-warning intelligence for healthcare revenue operations",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
     # Note: Multiple models use 'status' field with different choice sets.
     # drf-spectacular auto-generates enum names (StatusB74Enum, StatusDcfEnum).
     # This doesn't affect functionality - API schema works correctly.
@@ -175,9 +170,8 @@ SPECTACULAR_SETTINGS = {
 # =============================================================================
 
 CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000'
-).split(',')
+    "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -221,49 +215,49 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============================================================================
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
         },
-        'audit': {
-            'format': '{asctime} | {levelname} | {name} | {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'audit_file': {
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'audit.log',
-            'formatter': 'audit',
+        "audit": {
+            "format": "{asctime} | {levelname} | {name} | {message}",
+            "style": "{",
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
-        'upstream': {
-            'handlers': ['console', 'audit_file'],
-            'level': 'INFO',
-            'propagate': False,
+        "audit_file": {
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs" / "audit.log",
+            "formatter": "audit",
         },
-        'auditlog': {
-            'handlers': ['console', 'audit_file'],
-            'level': 'INFO',
-            'propagate': False,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "upstream": {
+            "handlers": ["console", "audit_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "auditlog": {
+            "handlers": ["console", "audit_file"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }
 
 # Create logs directory if it doesn't exist
-(BASE_DIR / 'logs').mkdir(exist_ok=True)
+(BASE_DIR / "logs").mkdir(exist_ok=True)
 
 # =============================================================================
 # CACHE SETTINGS
@@ -272,10 +266,11 @@ LOGGING = {
 # Cache Configuration
 # Production: Use Redis for high-performance distributed caching
 # Development/Testing: Falls back to local memory cache if Redis unavailable
-REDIS_URL = config('REDIS_URL', default='redis://localhost:6379')
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379")
 
 # Try Redis first, fall back to local memory cache if unavailable
 import redis
+
 try:
     # Test Redis connection
     r = redis.Redis.from_url(f"{REDIS_URL}/1", socket_connect_timeout=1)
@@ -284,11 +279,11 @@ try:
 
     # Redis available - use it
     CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': f"{REDIS_URL}/1",  # Use database 1 for cache
-            'KEY_PREFIX': 'upstream',
-            'TIMEOUT': 300,  # 5 minutes default
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": f"{REDIS_URL}/1",  # Use database 1 for cache
+            "KEY_PREFIX": "upstream",
+            "TIMEOUT": 300,  # 5 minutes default
         }
     }
     print("✓ Using Redis cache")
@@ -296,26 +291,26 @@ try:
 except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError, Exception):
     # Redis not available - fall back to local memory cache
     CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'upstream-cache',
-            'OPTIONS': {
-                'MAX_ENTRIES': 10000,
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "upstream-cache",
+            "OPTIONS": {
+                "MAX_ENTRIES": 10000,
             },
-            'TIMEOUT': 300,  # 5 minutes default
+            "TIMEOUT": 300,  # 5 minutes default
         }
     }
     print("⚠ Redis unavailable - using local memory cache (development only)")
 
 # Cache timeouts for different data types
 CACHE_TTL = {
-    'payer_mappings': 60 * 15,  # 15 minutes (frequently accessed, rarely changes)
-    'cpt_mappings': 60 * 15,    # 15 minutes (frequently accessed, rarely changes)
-    'drift_events': 60 * 5,      # 5 minutes (real-time data, update frequently)
-    'alert_events': 60 * 5,      # 5 minutes (real-time data, update frequently)
-    'report_runs': 60 * 10,      # 10 minutes (moderate update frequency)
-    'quality_reports': 60 * 30,  # 30 minutes (historical data, rarely changes)
-    'user_profile': 60 * 60,     # 1 hour (rarely changes during session)
+    "payer_mappings": 60 * 15,  # 15 minutes (frequently accessed, rarely changes)
+    "cpt_mappings": 60 * 15,  # 15 minutes (frequently accessed, rarely changes)
+    "drift_events": 60 * 5,  # 5 minutes (real-time data, update frequently)
+    "alert_events": 60 * 5,  # 5 minutes (real-time data, update frequently)
+    "report_runs": 60 * 10,  # 10 minutes (moderate update frequency)
+    "quality_reports": 60 * 30,  # 30 minutes (historical data, rarely changes)
+    "user_profile": 60 * 60,  # 1 hour (rarely changes during session)
 }
 
 # =============================================================================
@@ -323,11 +318,11 @@ CACHE_TTL = {
 # =============================================================================
 
 # Celery Configuration
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_URL}/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_URL}/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=f"{REDIS_URL}/0")
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=f"{REDIS_URL}/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
@@ -343,17 +338,17 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # Enable Celery (can be disabled in development)
-CELERY_ENABLED = config('CELERY_ENABLED', default=False, cast=bool)
+CELERY_ENABLED = config("CELERY_ENABLED", default=False, cast=bool)
 
 # =============================================================================
 # V1 FEATURE FLAGS
 # =============================================================================
 
 # V1 ships with email-only alerts. Slack is disabled by default.
-SLACK_ENABLED = config('SLACK_ENABLED', default=False, cast=bool)
+SLACK_ENABLED = config("SLACK_ENABLED", default=False, cast=bool)
 
 # V1 ships without PDF attachments due to rendering issues. Can be enabled later.
-ALERT_ATTACH_PDF = config('ALERT_ATTACH_PDF', default=False, cast=bool)
+ALERT_ATTACH_PDF = config("ALERT_ATTACH_PDF", default=False, cast=bool)
 
 # =============================================================================
 # PORTAL SETTINGS
@@ -364,29 +359,30 @@ ALERT_ATTACH_PDF = config('ALERT_ATTACH_PDF', default=False, cast=bool)
 # Uses os.environ first (for tests), then config (for .env file)
 # Default to localhost for dev/test - production should explicitly set this
 PORTAL_BASE_URL = os.environ.get(
-    'PORTAL_BASE_URL',
-    config('PORTAL_BASE_URL', default='http://localhost:8000')
-).rstrip('/')
+    "PORTAL_BASE_URL", config("PORTAL_BASE_URL", default="http://localhost:8000")
+).rstrip("/")
 
 # =============================================================================
 # SECURITY SETTINGS (Common)
 # =============================================================================
 
 # Field-level encryption key for PHI data (generate with: Fernet.generate_key())
-FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default='')
+FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="")
 
 # Session security - HIPAA-conscious configuration
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'  # Use Redis for session storage
-SESSION_CACHE_ALIAS = 'default'  # Use default cache (Redis)
+SESSION_ENGINE = (
+    "django.contrib.sessions.backends.cache"  # Use Redis for session storage
+)
+SESSION_CACHE_ALIAS = "default"  # Use default cache (Redis)
 SESSION_COOKIE_AGE = 1800  # 30 minutes idle timeout (healthcare standard)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Close browser = logout
 SESSION_SAVE_EVERY_REQUEST = True  # Refresh timeout on each request
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
-SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection (Lax allows normal navigation)
+SESSION_COOKIE_SAMESITE = "Lax"  # CSRF protection (Lax allows normal navigation)
 # SESSION_COOKIE_SECURE set in prod.py (requires HTTPS)
 
 # Codespaces configuration
-if 'CODESPACE_NAME' in os.environ:
+if "CODESPACE_NAME" in os.environ:
     codespace_name = config("CODESPACE_NAME")
     codespace_domain = config("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
-    CSRF_TRUSTED_ORIGINS = [f'https://{codespace_name}-8000.{codespace_domain}']
+    CSRF_TRUSTED_ORIGINS = [f"https://{codespace_name}-8000.{codespace_domain}"]

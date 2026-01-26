@@ -3,7 +3,7 @@ from django.conf import settings
 from pathlib import Path
 
 
-class PayrixaConfig(AppConfig):
+class UpstreamConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "upstream"
 
