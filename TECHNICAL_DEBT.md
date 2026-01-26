@@ -394,13 +394,20 @@ fi
 
 ---
 
-### HIGH-3: N+1 Query in AlertEvent Processing
+### ~~HIGH-3: N+1 Query in AlertEvent Processing~~ ✅ RESOLVED
 **Domain**: Performance
-**File**: upstream/products/delayguard/views.py:51-54
+**File**: upstream/products/delayguard/views.py:46-64
 **Impact**: 150+ queries per page load
 **Effort**: Small
+**Status**: ✅ Fixed on 2026-01-26
 
-**Fix**: Add select_related/prefetch_related
+**Resolution**:
+- Added `prefetch_related('alert_events', 'alert_events__operator_judgments')` to base queryset
+- Changed from querying AlertEvent for each signal to using prefetched data
+- Changed from querying operator_judgments for each alert to using prefetched data
+- Sort judgments in Python (max by created_at) since already loaded in memory
+- **Expected Performance**: Query count reduced from 150+ to just 3 for 50 signals (98% reduction)
+- **Impact**: Significantly faster dashboard page loads, especially with many signals
 
 ---
 
@@ -690,22 +697,22 @@ fi
 
 ## Progress Tracking
 
-**Current Status**: Phase 2 - IN PROGRESS (15/43 Critical+High Issues Resolved - 34.9%) 🚧
+**Current Status**: Phase 2 - IN PROGRESS (16/43 Critical+High Issues Resolved - 37.2%) 🚧
 
 ### Issues by Status
 
 | Status | Count | % |
 |--------|-------|---|
-| To Do | 116 | 88.5% |
+| To Do | 115 | 87.8% |
 | In Progress | 0 | 0% |
-| Done | 15 | 11.5% |
+| Done | 16 | 12.2% |
 
 ### By Domain Completion
 
 | Domain | Issues | Fixed | % Complete |
 |--------|--------|-------|------------|
 | Security | 10 | 2 | 20.0% |
-| Performance | 18 | 3 | 16.7% |
+| Performance | 18 | 4 | 22.2% |
 | Testing | 17 | 1 | 5.9% |
 | Architecture | 21 | 0 | 0% |
 | Database | 22 | 2 | 9.1% |
@@ -726,9 +733,10 @@ fi
 - ✅ **CRIT-9**: Insecure .env file permissions (startup validation)
 - ✅ **CRIT-10**: No rollback strategy in deployments (cloudbuild.yaml, scripts/smoke_test.py)
 
-**Phase 2 - High Priority Issues (5/33 - 15.2%)** 🚧
+**Phase 2 - High Priority Issues (6/33 - 18.2%)** 🚧
 - ✅ **HIGH-1**: JWT token blacklist configuration (upstream/settings/base.py)
 - ✅ **HIGH-2**: Rate limiting on auth endpoints (upstream/api/throttling.py, views.py, urls.py)
+- ✅ **HIGH-3**: N+1 query in AlertEvent processing (upstream/products/delayguard/views.py)
 - ✅ **HIGH-6**: Security scanners block CI (.github/workflows/security.yml)
 - ✅ **HIGH-8**: AlertEventViewSet audit trail protection (upstream/api/views.py)
 - ✅ **HIGH-10**: Container vulnerability scanning (.github/workflows/docker.yml)
