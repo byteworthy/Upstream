@@ -1,7 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
-from django.utils import timezone
 from upstream.core.tenant import CustomerScopedManager
 
 
@@ -511,6 +510,21 @@ class ReportRun(models.Model):
     # Tenant isolation
     objects = CustomerScopedManager()
     all_objects = models.Manager()  # Unfiltered access for superusers
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["customer", "status", "-started_at"],
+                name="reportrun_cust_status_idx",
+            ),
+            models.Index(
+                fields=["customer", "run_type", "-started_at"],
+                name="reportrun_cust_type_idx",
+            ),
+            models.Index(
+                fields=["status", "-started_at"], name="reportrun_status_date_idx"
+            ),
+        ]
 
     def __str__(self):
         return f"Report {self.id} - {self.run_type} ({self.status})"
