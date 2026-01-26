@@ -2,8 +2,7 @@
 Tests for factory_boy factories to ensure they generate valid model instances.
 """
 
-import pytest
-from django.core.exceptions import ValidationError
+import pytest  # noqa: F401
 from django.test import TestCase
 
 from upstream.tests.factories import (

@@ -2,11 +2,11 @@
 Factory classes for generating test data for core models.
 
 Uses factory_boy to create valid test instances with sensible defaults.
-Supports trait customization for common scenarios (e.g., processing/complete/failed states).
+Supports trait customization for common scenarios
+(e.g., processing/complete/failed states).
 """
 
 import factory
-from factory import fuzzy
 from factory.django import DjangoModelFactory
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -167,14 +167,22 @@ class DataQualityReportFactory(DjangoModelFactory):
     upload = factory.SubFactory(UploadFactory)
     customer = factory.LazyAttribute(lambda obj: obj.upload.customer)
     total_rows = factory.LazyAttribute(lambda obj: obj.upload.row_count or 100)
-    accepted_rows = factory.LazyAttribute(lambda obj: obj.upload.accepted_row_count or 90)
-    rejected_rows = factory.LazyAttribute(lambda obj: obj.upload.rejected_row_count or 10)
+    accepted_rows = factory.LazyAttribute(
+        lambda obj: obj.upload.accepted_row_count or 90
+    )
+    rejected_rows = factory.LazyAttribute(
+        lambda obj: obj.upload.rejected_row_count or 10
+    )
     rejection_details = {"1": "Missing required field"}
     warnings = [{"row": 5, "message": "Potential data quality issue"}]
     phi_detections = 0
-    missing_fields = factory.LazyAttribute(lambda obj: max(0, obj.rejected_rows // 2) if obj.rejected_rows else 0)
+    missing_fields = factory.LazyAttribute(
+        lambda obj: max(0, obj.rejected_rows // 2) if obj.rejected_rows else 0
+    )
     invalid_dates = factory.LazyAttribute(
-        lambda obj: max(0, obj.rejected_rows - obj.missing_fields) if obj.rejected_rows else 0
+        lambda obj: (
+            max(0, obj.rejected_rows - obj.missing_fields) if obj.rejected_rows else 0
+        )
     )
     invalid_values = 0
 
@@ -188,19 +196,33 @@ class ClaimRecordFactory(DjangoModelFactory):
     upload = factory.SubFactory(UploadFactory)
     customer = factory.LazyAttribute(lambda obj: obj.upload.customer)
     payer = factory.Faker("company")
-    cpt = factory.Faker("random_element", elements=["99213", "99214", "99215", "99385", "99386"])
+    cpt = factory.Faker(
+        "random_element", elements=["99213", "99214", "99215", "99385", "99386"]
+    )
     cpt_group = factory.LazyAttribute(lambda obj: f"Group-{obj.cpt[:3]}")
     submitted_date = factory.Faker("date_between", start_date="-1y", end_date="-30d")
     decided_date = factory.LazyAttribute(
-        lambda obj: obj.submitted_date + timedelta(days=30) if obj.submitted_date else None
+        lambda obj: (
+            obj.submitted_date + timedelta(days=30) if obj.submitted_date else None
+        )
     )
     outcome = "PAID"
-    billed_amount = factory.Faker("pydecimal", left_digits=4, right_digits=2, positive=True)
+    billed_amount = factory.Faker(
+        "pydecimal", left_digits=4, right_digits=2, positive=True
+    )
     allowed_amount = factory.LazyAttribute(
-        lambda obj: (obj.billed_amount * Decimal("0.9")).quantize(Decimal("0.01")) if obj.billed_amount else None
+        lambda obj: (
+            (obj.billed_amount * Decimal("0.9")).quantize(Decimal("0.01"))
+            if obj.billed_amount
+            else None
+        )
     )
     paid_amount = factory.LazyAttribute(
-        lambda obj: (obj.billed_amount * Decimal("0.8")).quantize(Decimal("0.01")) if obj.billed_amount else None
+        lambda obj: (
+            (obj.billed_amount * Decimal("0.8")).quantize(Decimal("0.01"))
+            if obj.billed_amount
+            else None
+        )
     )
     validation_passed = True
 
@@ -213,7 +235,12 @@ class ClaimRecordFactory(DjangoModelFactory):
             ),
             denial_reason_text=factory.Faker(
                 "random_element",
-                elements=["Medical necessity", "Prior authorization required", "Coding error", "Timely filing limit"],
+                elements=[
+                    "Medical necessity",
+                    "Prior authorization required",
+                    "Coding error",
+                    "Timely filing limit",
+                ],
             ),
             paid_amount=Decimal("0.00"),
             allowed_amount=Decimal("0.00"),
@@ -251,7 +278,9 @@ class DriftEventFactory(DjangoModelFactory):
         model = DriftEvent
 
     customer = factory.SubFactory(CustomerFactory)
-    report_run = factory.SubFactory(ReportRunFactory, customer=factory.SelfAttribute("..customer"))
+    report_run = factory.SubFactory(
+        ReportRunFactory, customer=factory.SelfAttribute("..customer")
+    )
     drift_type = "DENIAL_RATE"
     payer = factory.Sequence(lambda n: f"Payer-{n}")
     cpt_group = factory.Sequence(lambda n: f"Group-{n % 100}")
@@ -261,7 +290,9 @@ class DriftEventFactory(DjangoModelFactory):
     current_end = factory.Faker("date_between", start_date="-29d", end_date="today")
     baseline_value = 0.25
     current_value = 0.40
-    delta_value = factory.LazyAttribute(lambda obj: obj.current_value - obj.baseline_value)
+    delta_value = factory.LazyAttribute(
+        lambda obj: obj.current_value - obj.baseline_value
+    )
     severity = factory.LazyAttribute(lambda obj: min(abs(obj.delta_value) * 2, 1.0))
     confidence = 0.95
     baseline_sample_size = factory.Faker("random_int", min=100, max=1000)
@@ -301,7 +332,10 @@ class CPTGroupMappingFactory(DjangoModelFactory):
         model = CPTGroupMapping
 
     customer = factory.SubFactory(CustomerFactory)
-    cpt_code = factory.Faker("random_element", elements=["99213", "99214", "99215", "99385", "99386", "99395", "99396"])
+    cpt_code = factory.Faker(
+        "random_element",
+        elements=["99213", "99214", "99215", "99385", "99386", "99395", "99396"],
+    )
     cpt_group = factory.LazyAttribute(lambda obj: f"Group-{obj.cpt_code[:3]}")
 
 
@@ -352,7 +386,9 @@ class NotificationChannelFactory(DjangoModelFactory):
         )
         slack = factory.Trait(
             channel_type="slack",
-            config=factory.Dict({"webhook_url": "https://hooks.slack.com/services/XXX"}),
+            config=factory.Dict(
+                {"webhook_url": "https://hooks.slack.com/services/XXX"}
+            ),
         )
 
 
@@ -363,8 +399,12 @@ class AlertEventFactory(DjangoModelFactory):
         model = AlertEvent
 
     customer = factory.SubFactory(CustomerFactory)
-    alert_rule = factory.SubFactory(AlertRuleFactory, customer=factory.SelfAttribute("..customer"))
-    drift_event = factory.SubFactory(DriftEventFactory, customer=factory.SelfAttribute("..customer"))
+    alert_rule = factory.SubFactory(
+        AlertRuleFactory, customer=factory.SelfAttribute("..customer")
+    )
+    drift_event = factory.SubFactory(
+        DriftEventFactory, customer=factory.SelfAttribute("..customer")
+    )
     triggered_at = factory.LazyFunction(timezone.now)
     status = "pending"
     payload = factory.Dict({})
@@ -410,7 +450,9 @@ class OperatorJudgmentFactory(DjangoModelFactory):
         model = OperatorJudgment
 
     customer = factory.SubFactory(CustomerFactory)
-    alert_event = factory.SubFactory(AlertEventFactory, customer=factory.SelfAttribute("..customer"))
+    alert_event = factory.SubFactory(
+        AlertEventFactory, customer=factory.SelfAttribute("..customer")
+    )
     verdict = "real"
     reason_codes_json = factory.List([])
     notes = factory.Faker("paragraph")
