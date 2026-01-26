@@ -24,7 +24,45 @@ steps:
       - 'push'
       - 'gcr.io/$PROJECT_ID/upstream:latest'
 
-  # Step 4: Deploy to Cloud Run
+  # Step 4: Migration safety checks
+  - name: 'gcr.io/$PROJECT_ID/upstream:$BUILD_ID'
+    entrypoint: 'python'
+    args:
+      - 'manage.py'
+      - 'makemigrations'
+      - '--check'
+      - '--dry-run'
+      - '--noinput'
+    env:
+      - 'DJANGO_SETTINGS_MODULE=upstream.settings.prod'
+    secretEnv:
+      - 'SECRET_KEY'
+      - 'DATABASE_URL'
+
+  - name: 'gcr.io/$PROJECT_ID/upstream:$BUILD_ID'
+    entrypoint: 'python'
+    args:
+      - 'manage.py'
+      - 'migrate'
+      - '--plan'
+    env:
+      - 'DJANGO_SETTINGS_MODULE=upstream.settings.prod'
+    secretEnv:
+      - 'SECRET_KEY'
+      - 'DATABASE_URL'
+
+  - name: 'gcr.io/$PROJECT_ID/upstream:$BUILD_ID'
+    entrypoint: 'python'
+    args:
+      - 'manage.py'
+      - 'check'
+      - '--deploy'
+    env:
+      - 'DJANGO_SETTINGS_MODULE=upstream.settings.prod'
+    secretEnv:
+      - 'SECRET_KEY'
+
+  # Step 5: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -54,6 +92,13 @@ steps:
       - 'SECRET_KEY=django-secret-key:latest,DATABASE_URL=database-url:latest,REDIS_URL=redis-url:latest'
 
 timeout: 1800s
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/django-secret-key/versions/latest
+      env: 'SECRET_KEY'
+    - versionName: projects/$PROJECT_ID/secrets/database-url/versions/latest
+      env: 'DATABASE_URL'
 
 options:
   machineType: 'N1_HIGHCPU_8'

@@ -19,16 +19,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'staging' }}
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    
+
     - name: Run tests before deploy
       run: |
         pip install -r requirements.txt
@@ -36,11 +36,18 @@ jobs:
       env:
         SECRET_KEY: ci-test-secret-key
         DEBUG: 'True'
-    
+
+    - name: Check migration safety
+      run: |
+        python scripts/validate_migrations.py --strict
+      env:
+        SECRET_KEY: ci-test-secret-key
+        DEBUG: 'False'
+
     - name: Build Docker image
       run: |
         docker build -t payrixa:${{ github.sha }} .
-    
+
     - name: Deploy notification
       run: |
         echo "🚀 Ready to deploy Payrixa"
