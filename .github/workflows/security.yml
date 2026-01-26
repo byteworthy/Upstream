@@ -29,12 +29,12 @@ jobs:
 
     - name: Run Bandit security linter
       run: |
-        bandit -r upstream -f json -o bandit-report.json || true
+        bandit -r upstream -f json -o bandit-report.json
         cat bandit-report.json
 
     - name: Check dependencies for vulnerabilities
       run: |
-        pip-audit --format json --output pip-audit-report.json || true
+        pip-audit --format json --output pip-audit-report.json
         cat pip-audit-report.json
 
     - name: Upload security reports

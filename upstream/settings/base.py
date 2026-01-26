@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+import redis
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -30,6 +31,7 @@ INSTALLED_APPS = [
     # Third-party - API
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # HIGH-1: Enable JWT blacklist
     "corsheaders",
     "drf_spectacular",
     # Third-party - Monitoring
@@ -44,7 +46,8 @@ MIDDLEWARE = [
     "upstream.middleware.HealthCheckMiddleware",  # Early exit for health checks
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "django.middleware.gzip.GZipMiddleware",  # QW-3: Compress responses (60-80% size reduction)
+    # QW-3: Compress responses (60-80% size reduction)
+    "django.middleware.gzip.GZipMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.http.ConditionalGetMiddleware",  # QW-3: ETag support for caching
@@ -90,7 +93,10 @@ WSGI_APPLICATION = "hello_world.wsgi.application"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -137,6 +143,7 @@ REST_FRAMEWORK = {
         "read_only": "2000/hour",  # Liberal: read operations
         "write_operation": "500/hour",  # Moderate: write operations
         "anon_strict": "30/hour",  # Very strict for anonymous users
+        "authentication": "5/15min",  # HIGH-2: Prevent brute-force attacks
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
@@ -269,8 +276,6 @@ LOGGING = {
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379")
 
 # Try Redis first, fall back to local memory cache if unavailable
-import redis
-
 try:
     # Test Redis connection
     r = redis.Redis.from_url(f"{REDIS_URL}/1", socket_connect_timeout=1)
