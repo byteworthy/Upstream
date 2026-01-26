@@ -344,6 +344,12 @@ class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
         # Get from cache or compute and store
         results = cache.get_or_set(cache_key, compute_payer_summary, cache_ttl)
 
+        # Apply pagination to results list
+        page = self.paginate_queryset(results)
+        if page is not None:
+            serializer = PayerSummarySerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
         serializer = PayerSummarySerializer(results, many=True)
         return Response(serializer.data)
 
