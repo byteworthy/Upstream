@@ -143,6 +143,11 @@ class Upload(models.Model):
             ),
             models.Index(fields=["customer", "status"], name="upload_cust_status_idx"),
             models.Index(fields=["customer", "file_hash"], name="upload_file_hash_idx"),
+            # Covering index for customer + uploaded_at + status queries
+            models.Index(
+                fields=["customer", "-uploaded_at", "status"],
+                name="upload_cust_date_status_cov",
+            ),
         ]
 
     @property
@@ -541,6 +546,11 @@ class ClaimRecord(models.Model):
                 fields=["customer", "upload", "source_data_hash"],
                 name="claim_source_hash_idx",
             ),
+            # Covering index for customer + decided_date + outcome queries
+            models.Index(
+                fields=["customer", "-decided_date", "outcome"],
+                name="claim_cust_date_outcome_cov",
+            ),
         ]
 
     def __str__(self):
@@ -784,6 +794,11 @@ class DriftEvent(models.Model):
             models.Index(
                 fields=["payer", "cpt_group", "-created_at"],
                 name="drift_hist_trend_idx",
+            ),
+            # Covering index for customer + created_at + severity queries
+            models.Index(
+                fields=["customer", "-created_at", "severity"],
+                name="drift_cust_date_sev_cov",
             ),
         ]
 
