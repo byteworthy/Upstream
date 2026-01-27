@@ -260,14 +260,13 @@ if SENTRY_DSN:
         ],
         environment=config("ENVIRONMENT", default="production"),
         # Performance monitoring: 10% of transactions tracked
+        # traces_sample_rate=0.1 means 10% of transactions are sampled
         # Adjust based on volume/budget (0.1 = 10%, 0.5 = 50%, 1.0 = 100%)
         traces_sample_rate=0.1,
-        # Send only errors and warnings (not info/debug)
-        # This reduces noise and focuses on actionable issues
-        # Note: Django DEBUG=False already filters debug logs
-        # HIPAA Compliance: Scrub PHI before sending
+        # HIPAA Compliance: Scrub PHI before sending to Sentry
         before_send=filter_phi_from_errors,
-        # Never send PII (required for HIPAA compliance)
+        # HIPAA Compliance: Never send PII (personally identifiable information)
+        # send_default_pii=False prevents automatic inclusion of user data, cookies, etc.
         send_default_pii=False,
         # Release tracking for deployment correlation
         release=config("SENTRY_RELEASE", default=None),
