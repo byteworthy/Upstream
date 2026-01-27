@@ -198,9 +198,7 @@ class RulesEngine:
         For Week 1, this is a stub that logs the action.
         Week 2-4 will implement actual payer portal automation.
         """
-        logger.info(
-            f"Executing action: {action.action_type} for rule {action.rule.id}"
-        )
+        logger.info(f"Executing action: {action.action_type} for rule {action.rule.id}")
 
         # Stub implementation - Week 2+ will add actual execution
         return ExecutionResult(

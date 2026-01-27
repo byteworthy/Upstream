@@ -7,10 +7,17 @@ from upstream.products.denialscope.views import DenialScopeDashboardView
 from upstream.products.driftwatch.views import DriftWatchDashboardView
 from upstream.products.delayguard.views import DelayGuardDashboardView
 from upstream.views.metrics import MetricsDashboardView
+from upstream.views.webhooks import ehr_webhook
 
 urlpatterns = [
     # Root redirect to Axis hub
     path("", RedirectView.as_view(pattern_name="axis_hub"), name="portal_root"),
+    # API Webhooks (unauthenticated - signature validation in view)
+    path(
+        "api/v1/webhooks/ehr/<str:provider>/",
+        ehr_webhook,
+        name="ehr_webhook",
+    ),
     # Axis Hub - Primary entry point (Hub v1)
     path("axis/", login_required(views.AxisHubView.as_view()), name="axis_hub"),
     # Backward compatibility redirect

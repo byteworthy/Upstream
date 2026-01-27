@@ -16,12 +16,15 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def ehr_webhook(request):
+def ehr_webhook(request, provider):
     """
     EHR webhook receiver for FHIR R4 claim notifications.
 
     Accepts claim data from EHR systems (Epic, Cerner, athenahealth) and
     triggers async processing with risk scoring and rules evaluation.
+
+    Authentication:
+        Requires X-API-Key header with customer API key.
 
     Expected payload format (FHIR R4 Claim resource):
     {
@@ -41,10 +44,32 @@ def ehr_webhook(request):
     Returns:
         - 202 Accepted: Claim queued for async processing
         - 400 Bad Request: Invalid FHIR format
-        - 401 Unauthorized: No customer authentication
+        - 401 Unauthorized: Invalid or missing API key
         - 500 Internal Server Error: Processing failure
     """
     try:
+        # Authenticate via API key
+        api_key = request.headers.get("X-API-Key") or request.headers.get("X-Api-Key")
+
+        if not api_key:
+            logger.warning("EHR webhook request missing X-API-Key header")
+            return JsonResponse(
+                {"error": "Missing X-API-Key header"}, status=401
+            )
+
+        # Authenticate customer
+        # TODO: Replace with proper API key model field + secure token generation
+        # For Week 1: Use customer name as API key (basic auth)
+        from upstream.models import Customer
+
+        try:
+            customer = Customer.objects.get(name=api_key)
+        except Customer.DoesNotExist:
+            logger.warning(f"EHR webhook invalid API key: {api_key}")
+            return JsonResponse(
+                {"error": "Invalid API key"}, status=401
+            )
+
         # Parse FHIR R4 payload
         payload = json.loads(request.body.decode("utf-8"))
 
@@ -52,17 +77,6 @@ def ehr_webhook(request):
         if payload.get("resourceType") != "Claim":
             return JsonResponse(
                 {"error": 'Invalid resourceType. Expected "Claim"'}, status=400
-            )
-
-        # Extract customer from API key header or auth
-        # For now, use test customer (TODO: implement API key auth)
-        from upstream.models import Customer
-
-        customer = Customer.objects.first()
-
-        if not customer:
-            return JsonResponse(
-                {"error": "No customer found for authentication"}, status=401
             )
 
         # Queue async processing
