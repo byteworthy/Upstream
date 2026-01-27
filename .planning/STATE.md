@@ -72,6 +72,8 @@ Recent decisions affecting current work:
 - Use Django's built-in password reset views: Battle-tested security, proper token validation (quick-009)
 - 24-hour password reset token expiration: HIPAA-conscious security (quick-009)
 - Standalone templates for password reset: Avoids auth requirements in base.html (quick-009)
+- Session fixation prevention via session.flush(): Regenerates session key on logout to prevent attack (quick-012)
+- Instance variable context preservation: Store logout context before flush() to maintain UX (quick-012)
 - Use ConditionalGetMiddleware for ETag generation: Django's built-in middleware automatically generates MD5-based ETags (quick-010)
 - 60-second max-age for GET responses: Balances client-side caching benefits with data freshness (quick-010)
 - no-cache, no-store for mutations: POST/PUT/DELETE responses never cached to prevent stale data (quick-010)
@@ -140,7 +142,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-27 15:49:10 (quick task execution)
-Stopped at: Completed quick task 013 (Sentry error tracking enhancement)
+Stopped at: Completed quick task 012 (session fixation fix)
 Resume file: None
 
 ---
