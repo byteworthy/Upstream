@@ -66,6 +66,7 @@ MIDDLEWARE = [
     "auditlog.middleware.AuditlogMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
     "upstream.middleware.ApiVersionMiddleware",
+    "upstream.middleware.RateLimitHeadersMiddleware",
     # Request validation middleware - validates JSON payloads before view execution
     "upstream.middleware.RequestValidationMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -363,6 +364,56 @@ FLOWER_BASIC_AUTH_PASSWORD = config(
 FLOWER_PORT = config("FLOWER_PORT", default="5555", cast=int)
 # Note: In production, use strong password and consider additional security
 # (VPN, firewall rules, OAuth)
+
+# =============================================================================
+# MONITORING ALERTS (Platform Health)
+# =============================================================================
+
+# Alert notification channels for platform health monitoring
+# These are OPERATOR alerts (system health), distinct from business alerts
+MONITORING_ALERTS = {
+    "enabled": config("MONITORING_ALERTS_ENABLED", default=True, cast=bool),
+    "evaluation_interval": 300,  # seconds (5 minutes)
+    "cooldown_period": 300,  # seconds (5 min) - suppress duplicate alerts
+    # Email notifications
+    "email": {
+        "enabled": config("ALERT_EMAIL_ENABLED", default=True, cast=bool),
+        "recipients": config(
+            "ALERT_EMAIL_RECIPIENTS",
+            default="ops@example.com",
+            cast=lambda v: [
+                email.strip() for email in v.split(",") if email.strip()
+            ],
+        ),
+        "from_email": config("ALERT_FROM_EMAIL", default="alerts@example.com"),
+    },
+    # Slack notifications
+    "slack": {
+        "enabled": config("ALERT_SLACK_ENABLED", default=False, cast=bool),
+        "webhook_url": config("ALERT_SLACK_WEBHOOK_URL", default=""),
+        "channel": config("ALERT_SLACK_CHANNEL", default="#alerts"),
+        "username": "Upstream Monitoring",
+        "icon_emoji": ":rotating_light:",
+    },
+    # Alert thresholds (can be overridden via env vars)
+    "thresholds": {
+        "error_rate": config(
+            "ALERT_THRESHOLD_ERROR_RATE", default=0.05, cast=float
+        ),  # 5%
+        "response_time_p95": config(
+            "ALERT_THRESHOLD_RESPONSE_TIME", default=2000, cast=int
+        ),  # ms
+        "db_pool_utilization": config(
+            "ALERT_THRESHOLD_DB_POOL", default=0.90, cast=float
+        ),  # 90%
+        "celery_failure_rate": config(
+            "ALERT_THRESHOLD_CELERY_FAILURES", default=0.10, cast=float
+        ),  # 10%
+    },
+}
+
+# Prometheus metrics endpoint (for alert rule queries)
+PROMETHEUS_METRICS_PATH = "/metrics"
 
 # =============================================================================
 # V1 FEATURE FLAGS
