@@ -734,6 +734,7 @@ class QualityMetricsTests(TestCase):
                     decided_date=timezone.now().date(),
                     outcome="PAID",
                     processed_at=timezone.now(),
+                    submitted_via="csv_upload",
                 )
 
             for i in range(2):
@@ -747,6 +748,7 @@ class QualityMetricsTests(TestCase):
                     decided_date=timezone.now().date(),
                     outcome="PAID",
                     processed_at=timezone.now(),
+                    submitted_via="csv_upload",
                 )
 
             start_date = timezone.now().date()
@@ -786,6 +788,7 @@ class QualityMetricsTests(TestCase):
                     outcome="PAID",
                     validation_passed=True,
                     processed_at=timezone.now(),
+                    submitted_via="csv_upload",
                 )
 
             for i in range(3):
@@ -800,6 +803,7 @@ class QualityMetricsTests(TestCase):
                     outcome="DENIED",
                     validation_passed=False,
                     processed_at=timezone.now(),
+                    submitted_via="csv_upload",
                 )
 
             start_date = timezone.now().date()

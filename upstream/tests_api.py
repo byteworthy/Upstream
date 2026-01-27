@@ -104,6 +104,7 @@ class APITestBase(APITestCase):
             decided_date=timezone.now().date() - timedelta(days=5),
             outcome="PAID",
             allowed_amount=100.00,
+            submitted_via='csv_upload',
         )
 
     def create_report_run_for_customer(self, customer):
@@ -420,6 +421,7 @@ class PayerSummaryEndpointTests(APITestBase):
                 decided_date=timezone.now().date() - timedelta(days=5),
                 outcome="PAID" if i < 3 else "DENIED",
                 allowed_amount=100.00,
+                submitted_via="csv_upload",
             )
 
         for i in range(3):
@@ -432,6 +434,7 @@ class PayerSummaryEndpointTests(APITestBase):
                 decided_date=timezone.now().date() - timedelta(days=5),
                 outcome="DENIED",
                 allowed_amount=100.00,
+                submitted_via="csv_upload",
             )
 
         self.authenticate_as(self.user_a)
@@ -689,6 +692,7 @@ class ClaimRecordEndpointTests(APITestBase):
             submitted_date=timezone.now().date(),
             decided_date=timezone.now().date(),
             outcome="PAID",
+            submitted_via="csv_upload",
         )
         ClaimRecord.objects.create(
             customer=self.customer_a,
@@ -698,6 +702,7 @@ class ClaimRecordEndpointTests(APITestBase):
             submitted_date=timezone.now().date(),
             decided_date=timezone.now().date(),
             outcome="PAID",
+            submitted_via="csv_upload",
         )
 
         self.authenticate_as(self.user_a)
@@ -719,6 +724,7 @@ class ClaimRecordEndpointTests(APITestBase):
             submitted_date=timezone.now().date(),
             decided_date=timezone.now().date(),
             outcome="PAID",
+            submitted_via="csv_upload",
         )
         ClaimRecord.objects.create(
             customer=self.customer_a,
@@ -728,6 +734,7 @@ class ClaimRecordEndpointTests(APITestBase):
             submitted_date=timezone.now().date(),
             decided_date=timezone.now().date(),
             outcome="DENIED",
+            submitted_via="csv_upload",
         )
 
         self.authenticate_as(self.user_a)
@@ -754,6 +761,7 @@ class ClaimRecordFilterTests(APITestBase):
             decided_date="2024-06-15",
             submitted_date="2024-06-01",
             allowed_amount=100.00,
+            submitted_via="csv_upload",
         )
         self.claim2 = ClaimRecord.objects.create(
             customer=self.customer_a,
@@ -764,6 +772,7 @@ class ClaimRecordFilterTests(APITestBase):
             decided_date="2024-07-20",
             submitted_date="2024-07-01",
             allowed_amount=200.00,
+            submitted_via="csv_upload",
         )
 
     def test_filter_by_payer_icontains(self):
@@ -907,6 +916,7 @@ class PaginationTests(APITestBase):
                 decided_date="2024-06-15",
                 submitted_date="2024-06-01",
                 allowed_amount=100.00,
+                submitted_via="csv_upload",
             )
 
         self.authenticate_as(self.user_a)
