@@ -11,11 +11,59 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from django.core.cache import cache
+from django.middleware.gzip import GZipMiddleware
 
 logger = logging.getLogger(__name__)
 
 # Thread-local storage for request_id
 _request_id_storage = threading.local()
+
+
+class ConfigurableGZipMiddleware(GZipMiddleware):
+    """
+    Configurable GZip compression middleware with optimized min_length setting.
+
+    Django's default GZipMiddleware hardcodes min_length=200 bytes, which is too
+    aggressive - compression overhead on small responses (10-20 bytes of headers,
+    CPU time) often exceeds the bandwidth savings.
+
+    This middleware uses min_length=500 by default, which provides better balance:
+    - Responses < 500 bytes: Skip compression (overhead > savings)
+    - Responses > 500 bytes: Compress with gzip (typically 60-80% size reduction)
+
+    Configuration:
+        Add to MIDDLEWARE in settings.py:
+
+        MIDDLEWARE = [
+            'django.middleware.security.SecurityMiddleware',
+            'upstream.middleware.ConfigurableGZipMiddleware',
+            # ... rest of middleware ...
+        ]
+
+    Parameters:
+        min_length (int): Minimum response size in bytes to compress. Default: 500
+        compresslevel (int): Gzip compression level (1-9). Default: 6 (balanced)
+
+    Performance notes:
+        - compresslevel=6: Balanced speed/compression (Django default)
+        - Higher levels (7-9): Better compression, slower CPU
+        - Lower levels (1-5): Faster, less compression
+    """
+
+    def __init__(self, get_response=None, min_length=500, compresslevel=6):
+        """
+        Initialize middleware with configurable compression settings.
+
+        Args:
+            get_response: Django middleware callback
+            min_length: Minimum response size in bytes to compress (default: 500)
+            compresslevel: Gzip compression level 1-9 (default: 6)
+        """
+        # Set instance attributes before calling parent __init__
+        # This overrides the hardcoded min_length=200 in Django's GZipMiddleware
+        self.min_length = min_length
+        self.compresslevel = compresslevel
+        super().__init__(get_response)
 
 
 def get_request_id() -> Optional[str]:
