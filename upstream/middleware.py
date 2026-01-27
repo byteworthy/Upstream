@@ -6,14 +6,19 @@ import uuid
 import threading
 import time
 import logging
+import re
 from collections import defaultdict
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from django.core.cache import cache
-from django.middleware.gzip import GZipMiddleware
+from django.middleware.gzip import GZipMiddleware, compress_string, compress_sequence
+from django.utils.cache import patch_vary_headers
 
 logger = logging.getLogger(__name__)
+
+# Regex from Django's GZipMiddleware
+re_accepts_gzip = re.compile(r"\bgzip\b")
 
 # Thread-local storage for request_id
 _request_id_storage = threading.local()
@@ -50,6 +55,11 @@ class ConfigurableGZipMiddleware(GZipMiddleware):
         - Lower levels (1-5): Faster, less compression
     """
 
+    # Class-level attributes that override Django's GZipMiddleware defaults
+    min_length = 500  # Override Django's default of 200
+    max_random_bytes = 100  # Keep Django's default
+    compresslevel = 6  # Keep Django's default
+
     def __init__(self, get_response=None, min_length=500, compresslevel=6):
         """
         Initialize middleware with configurable compression settings.
@@ -59,11 +69,75 @@ class ConfigurableGZipMiddleware(GZipMiddleware):
             min_length: Minimum response size in bytes to compress (default: 500)
             compresslevel: Gzip compression level 1-9 (default: 6)
         """
-        # Set instance attributes before calling parent __init__
-        # This overrides the hardcoded min_length=200 in Django's GZipMiddleware
+        # Set instance attributes for compression configuration
+        # Django's GZipMiddleware reads these attributes via getattr
         self.min_length = min_length
         self.compresslevel = compresslevel
         super().__init__(get_response)
+
+    def process_response(self, request, response):
+        """
+        Override Django's process_response to use configurable min_length.
+
+        Django's GZipMiddleware hardcodes min_length=200 in the process_response
+        method, so we need to override it to use our configurable min_length.
+        """
+        # It's not worth attempting to compress really short responses.
+        if not response.streaming and len(response.content) < self.min_length:
+            return response
+
+        # Avoid gzipping if we've already got a content-encoding.
+        if response.has_header("Content-Encoding"):
+            return response
+
+        patch_vary_headers(response, ("Accept-Encoding",))
+
+        ae = request.META.get("HTTP_ACCEPT_ENCODING", "")
+        if not re_accepts_gzip.search(ae):
+            return response
+
+        if response.streaming:
+            if response.is_async:
+                # pull to lexical scope to capture fixed reference in case
+                # streaming_content is set again later.
+                orignal_iterator = response.streaming_content
+
+                async def gzip_wrapper():
+                    async for chunk in orignal_iterator:
+                        yield compress_string(
+                            chunk,
+                            max_random_bytes=self.max_random_bytes,
+                        )
+
+                response.streaming_content = gzip_wrapper()
+            else:
+                response.streaming_content = compress_sequence(
+                    response.streaming_content,
+                    max_random_bytes=self.max_random_bytes,
+                )
+            # Delete the `Content-Length` header for streaming content, because
+            # we won't know the compressed size until we stream it.
+            del response.headers["Content-Length"]
+        else:
+            # Return the compressed content only if it's actually shorter.
+            compressed_content = compress_string(
+                response.content,
+                max_random_bytes=self.max_random_bytes,
+            )
+            if len(compressed_content) >= len(response.content):
+                return response
+            response.content = compressed_content
+            response.headers["Content-Length"] = str(len(response.content))
+
+        # If there is a strong ETag, make it weak to fulfill the requirements
+        # of RFC 9110 Section 8.8.1 while also allowing conditional request
+        # matches on ETags.
+        etag = response.get("ETag")
+        if etag and etag.startswith('"'):
+            response.headers["ETag"] = "W/" + etag
+        response.headers["Content-Encoding"] = "gzip"
+
+        return response
 
 
 def get_request_id() -> Optional[str]:
