@@ -30,3 +30,6 @@ upstream-marketing/
 .coverage
 coverage.xml
 htmlcov/
+
+# Hypothesis test cache
+.hypothesis/
