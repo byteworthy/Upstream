@@ -93,6 +93,7 @@ None yet.
 | 007 | Add API versioning headers via middleware | 2026-01-26 | 0c2df206, 81a56c5f, 275a343b | [007-add-api-versioning-headers-via-middlewar](./quick/007-add-api-versioning-headers-via-middlewar/) |
 | 008 | Add deployment notifications via GitHub Actions webhooks | 2026-01-27 | c102444e, 4ad490d0 | [008-add-deployment-notifications-via-github-](./quick/008-add-deployment-notifications-via-github-/) |
 | 009 | Add password reset flow with email tokens | 2026-01-27 | 8a759e6f, 5ee2c1a2, f44c56fa, 72d15b51 | [009-add-password-reset-flow-with-email-token](./quick/009-add-password-reset-flow-with-email-token/) |
+| 010 | Add ETag support for API responses | 2026-01-27 | f83ccfdb, 225c9666, 9e5264eb | [010-add-etag-support-for-api-responses-imple](./quick/010-add-etag-support-for-api-responses-imple/) |
 | 010 | Add ETag support for API responses implementation | 2026-01-27 | f83ccfdb, 225c9666 | [010-add-etag-support-for-api-responses-imple](./quick/010-add-etag-support-for-api-responses-imple/) |
 
 ### Blockers/Concerns

@@ -971,3 +971,55 @@ class ReportArtifactTests(TestCase):
                 file_path="/tmp/test2.pdf",
                 content_hash="hash2",
             )
+
+
+class TestSessionFixationPrevention(TestCase):
+    """Test session fixation vulnerability is prevented in logout."""
+
+    def setUp(self):
+        from django.test import Client
+
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="testuser",
+            password="testpass123",  # pragma: allowlist secret
+        )
+
+    def test_logout_regenerates_session_key(self):
+        """Session key should change after logout to prevent fixation."""
+        # Login and capture session key
+        self.client.login(
+            username="testuser",
+            password="testpass123",  # pragma: allowlist secret
+        )
+        session_key_before = self.client.session.session_key
+
+        # Logout
+        response = self.client.get("/portal/logout/")
+
+        # Session key should be different after logout
+        session_key_after = self.client.session.session_key
+        self.assertNotEqual(
+            session_key_before,
+            session_key_after,
+            "Session key must change after logout to prevent fixation",
+        )
+
+    def test_logout_context_still_displays(self):
+        """Logout page should still show user context despite session.flush()."""
+        # Create superuser for testing operator context
+        superuser = User.objects.create_superuser(
+            username="admin",
+            password="admin123",  # pragma: allowlist secret
+            email="admin@example.com",
+        )
+
+        self.client.login(
+            username="admin",
+            password="admin123",  # pragma: allowlist secret
+        )
+        response = self.client.get("/portal/logout/")
+
+        # Context should be passed to template
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "admin")  # Username should appear
