@@ -601,3 +601,124 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         response["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         return response
+
+
+class RequestValidationMiddleware(MiddlewareMixin):
+    """
+    Middleware for centralized JSON validation before view layer execution.
+
+    This middleware provides request-level validation to catch malformed payloads
+    early in the request processing cycle, before they reach view logic. This:
+    - Protects against malformed JSON payloads
+    - Provides consistent error responses across all API endpoints
+    - Reduces boilerplate validation code in views
+    - Prevents JSON parsing errors from crashing view logic
+
+    Validation scope:
+        - Validates only POST/PUT/PATCH requests (methods that accept request bodies)
+        - Checks Content-Type header is application/json
+        - Parses JSON and catches JSONDecodeError
+        - Attaches parsed data to request.validated_data for view access
+
+    Error response format:
+        {
+            "error": "Invalid JSON",
+            "detail": "Expecting ',' delimiter: line 1 column 15 (char 14)"
+        }
+
+    Configuration:
+        Add to MIDDLEWARE in settings.py after ApiVersionMiddleware:
+
+        MIDDLEWARE = [
+            # ... other middleware ...
+            'upstream.middleware.ApiVersionMiddleware',
+            'upstream.middleware.RequestValidationMiddleware',
+            'django_prometheus.middleware.PrometheusAfterMiddleware',
+        ]
+
+    Note: This middleware validates JSON syntax only. Schema validation
+    (required fields, data types, business rules) is still handled by
+    DRF serializers in view layer.
+
+    Why process_view instead of process_request:
+        process_view runs after URL routing, giving access to view_func and
+        view_args. This allows future extension for view-specific validation
+        rules. process_request runs before routing, so we can't determine
+        which endpoint is being called.
+    """
+
+    def process_view(
+        self, request: HttpRequest, view_func, view_args, view_kwargs
+    ) -> Optional[HttpResponse]:
+        """
+        Validate JSON payloads before view execution.
+
+        Args:
+            request: HttpRequest object
+            view_func: View function being called
+            view_args: Positional args for view
+            view_kwargs: Keyword args for view
+
+        Returns:
+            None if validation passes (allows request to continue)
+            JsonResponse with 400/415 status if validation fails
+        """
+        import json
+
+        # Only validate POST/PUT/PATCH requests (methods with request bodies)
+        if request.method not in ["POST", "PUT", "PATCH"]:
+            return None
+
+        # Skip validation for admin paths (admin has its own validation)
+        if request.path.startswith("/admin/"):
+            return None
+
+        # Check Content-Type header
+        content_type = request.META.get("CONTENT_TYPE", "")
+        if not content_type.startswith("application/json"):
+            # Non-JSON content type - return 415 Unsupported Media Type
+            return JsonResponse(
+                {
+                    "error": "Unsupported Media Type",
+                    "detail": f"Expected 'application/json', got '{content_type}'",
+                },
+                status=415,
+            )
+
+        # Parse JSON body
+        try:
+            # Read and decode request body
+            body = request.body.decode("utf-8")
+
+            # Empty body is valid for some endpoints (let view decide)
+            if not body.strip():
+                request.validated_data = None
+                return None
+
+            # Parse JSON
+            data = json.loads(body)
+
+            # Attach parsed data to request for view access
+            request.validated_data = data
+
+            return None
+
+        except json.JSONDecodeError as e:
+            # Invalid JSON - return 400 Bad Request with detailed error
+            return JsonResponse(
+                {
+                    "error": "Invalid JSON",
+                    "detail": str(e),
+                },
+                status=400,
+            )
+
+        except UnicodeDecodeError as e:
+            # Body is not valid UTF-8
+            return JsonResponse(
+                {
+                    "error": "Invalid encoding",
+                    "detail": f"Request body must be UTF-8 encoded: {str(e)}",
+                },
+                status=400,
+            )
