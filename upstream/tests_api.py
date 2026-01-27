@@ -1313,3 +1313,190 @@ class ETagCachingTests(APITestBase):
         response3 = self.client.get(f"{API_BASE}/uploads/", HTTP_IF_NONE_MATCH=etag1)
         self.assertEqual(response3.status_code, 200)
         self.assertGreater(len(response3.content), 0)
+
+
+class TestHATEOASLinks(APITestBase):
+    """Tests for HATEOAS link generation across all API ViewSets (quick-011)."""
+
+    def setUp(self):
+        """Set up test fixtures for HATEOAS tests."""
+        super().setUp()
+        # Create test data
+        self.upload_a = self.create_upload_for_customer(self.customer_a)
+        self.claim_a = self.create_claim_record_for_customer(
+            self.customer_a, self.upload_a
+        )
+        self.report_a = self.create_report_run_for_customer(self.customer_a)
+        self.drift_a = self.create_drift_event_for_customer(
+            self.customer_a, self.report_a
+        )
+
+    def test_upload_detail_links(self):
+        """Test that upload detail view includes proper HATEOAS links."""
+        self.authenticate_as(self.user_a)
+        response = self.client.get(f"{API_BASE}/uploads/{self.upload_a.id}/")
+
+        self.assertEqual(response.status_code, 200)
+
+        # Assert _links field exists
+        self.assertIn("_links", response.data)
+        links = response.data["_links"]
+
+        # Assert self link exists and is absolute
+        self.assertIn("self", links)
+        self.assertTrue(links["self"].startswith("http"))
+        self.assertIn(f"/uploads/{self.upload_a.id}/", links["self"])
+
+        # Assert collection link exists
+        self.assertIn("collection", links)
+        self.assertTrue(links["collection"].startswith("http"))
+        self.assertIn("/uploads/", links["collection"])
+
+        # Assert claims link exists (related resource)
+        self.assertIn("claims", links)
+        self.assertTrue(links["claims"].startswith("http"))
+        self.assertIn(f"/claims/?upload={self.upload_a.id}", links["claims"])
+
+    def test_upload_list_links(self):
+        """Test that upload list view includes HATEOAS links for each item."""
+        # Create additional uploads
+        for i in range(3):
+            self.create_upload_for_customer(self.customer_a)
+
+        self.authenticate_as(self.user_a)
+        response = self.client.get(f"{API_BASE}/uploads/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("results", response.data)
+        self.assertGreater(len(response.data["results"]), 0)
+
+        # Check each result has _links
+        for upload in response.data["results"]:
+            self.assertIn("_links", upload)
+            self.assertIn("self", upload["_links"])
+            self.assertTrue(upload["_links"]["self"].startswith("http"))
+
+        # Verify self links are unique
+        self_links = [u["_links"]["self"] for u in response.data["results"]]
+        self.assertEqual(
+            len(self_links), len(set(self_links)), "Self links should be unique"
+        )
+
+    def test_claim_detail_links(self):
+        """Test that claim detail view includes upload link."""
+        self.authenticate_as(self.user_a)
+        response = self.client.get(f"{API_BASE}/claims/{self.claim_a.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("_links", response.data)
+        links = response.data["_links"]
+
+        # Assert self link
+        self.assertIn("self", links)
+        self.assertTrue(links["self"].startswith("http"))
+        self.assertIn(f"/claims/{self.claim_a.id}/", links["self"])
+
+        # Assert upload link (related resource)
+        self.assertIn("upload", links)
+        self.assertTrue(links["upload"].startswith("http"))
+        self.assertIn(f"/uploads/{self.upload_a.id}/", links["upload"])
+
+    def test_drift_event_detail_links(self):
+        """Test that drift event detail view includes report link."""
+        self.authenticate_as(self.user_a)
+        response = self.client.get(f"{API_BASE}/drift-events/{self.drift_a.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("_links", response.data)
+        links = response.data["_links"]
+
+        # Assert self link
+        self.assertIn("self", links)
+        self.assertTrue(links["self"].startswith("http"))
+
+        # Assert report link (related resource)
+        self.assertIn("report", links)
+        self.assertTrue(links["report"].startswith("http"))
+        self.assertIn(f"/reports/{self.report_a.id}/", links["report"])
+
+    def test_report_detail_links(self):
+        """Test that report detail view includes drift-events link."""
+        self.authenticate_as(self.user_a)
+        response = self.client.get(f"{API_BASE}/reports/{self.report_a.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("_links", response.data)
+        links = response.data["_links"]
+
+        # Assert self link
+        self.assertIn("self", links)
+        self.assertTrue(links["self"].startswith("http"))
+
+        # Assert drift-events link (related resource)
+        self.assertIn("drift-events", links)
+        self.assertTrue(links["drift-events"].startswith("http"))
+        self.assertIn(
+            f"/drift-events/?report_run={self.report_a.id}", links["drift-events"]
+        )
+
+    def test_pagination_links(self):
+        """Test that paginated responses include next/previous links."""
+        # Create 60 uploads to exceed PAGE_SIZE (50)
+        for i in range(60):
+            self.create_upload_for_customer(self.customer_a)
+
+        self.authenticate_as(self.user_a)
+
+        # Page 1 should have next link
+        response = self.client.get(f"{API_BASE}/uploads/?page=1")
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.data.get("next"))
+        if response.data.get("next"):
+            self.assertTrue(response.data["next"].startswith("http"))
+
+        # Page 2 should have previous link
+        response = self.client.get(f"{API_BASE}/uploads/?page=2")
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.data.get("previous"))
+        if response.data.get("previous"):
+            self.assertTrue(response.data["previous"].startswith("http"))
+
+    def test_links_respect_tenant_isolation(self):
+        """Test that HATEOAS links respect tenant isolation."""
+        # Create uploads for both customers
+        upload_b = self.create_upload_for_customer(self.customer_b)
+
+        # Authenticate as Customer A user
+        self.authenticate_as(self.user_a)
+        response = self.client.get(f"{API_BASE}/uploads/")
+
+        self.assertEqual(response.status_code, 200)
+
+        # Extract all self links from results
+        self_links = [u["_links"]["self"] for u in response.data["results"]]
+
+        # Verify Customer A's upload is included
+        customer_a_link = any(
+            f"/uploads/{self.upload_a.id}/" in link for link in self_links
+        )
+        self.assertTrue(customer_a_link, "Customer A's upload should be in results")
+
+        # Verify Customer B's upload is NOT included
+        customer_b_link = any(f"/uploads/{upload_b.id}/" in link for link in self_links)
+        self.assertFalse(
+            customer_b_link, "Customer B's upload should NOT be in results"
+        )
+
+    def test_customer_serializer_includes_links(self):
+        """Test that customer serializer includes HATEOAS links."""
+        self.authenticate_as(self.user_a)
+        response = self.client.get(f"{API_BASE}/customers/{self.customer_a.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("_links", response.data)
+        links = response.data["_links"]
+
+        # Assert self link
+        self.assertIn("self", links)
+        self.assertTrue(links["self"].startswith("http"))
+        self.assertIn(f"/customers/{self.customer_a.id}/", links["self"])

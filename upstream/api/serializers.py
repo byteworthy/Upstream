@@ -6,6 +6,7 @@ and security considerations for PHI data.
 """
 
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 from ..models import (
@@ -22,7 +23,177 @@ from ..models import (
 from upstream.alerts.models import AlertEvent, OperatorJudgment
 
 
-class CustomerSerializer(serializers.ModelSerializer):
+# =============================================================================
+# HATEOAS Mixin for Link Generation
+# =============================================================================
+
+
+class HATEOASMixin(serializers.Serializer):
+    """
+    Mixin to add HATEOAS links to serialized API responses.
+
+    Provides hypermedia controls for resource navigation following REST
+    best practices. Generates absolute URLs for self, collection, related
+    resources, and pagination links.
+
+    Usage: Add to any ModelSerializer class definition:
+        class MySerializer(HATEOASMixin, serializers.ModelSerializer):
+            ...
+
+    Requires:
+    - Request object in serializer context (pass via context={'request': request})
+    - View name convention: {model_name}-list, {model_name}-detail
+    """
+
+    _links = serializers.SerializerMethodField(method_name="get__links")
+
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "self": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "http://localhost:8000/api/v1/uploads/123/",
+                },
+                "collection": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "http://localhost:8000/api/v1/uploads/",
+                },
+                "next": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "http://localhost:8000/api/v1/uploads/?page=2",
+                },
+                "previous": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "http://localhost:8000/api/v1/uploads/?page=1",
+                },
+            },
+            "description": "HATEOAS links for resource navigation and discoverability",
+        }
+    )
+    def get__links(self, obj):
+        """Generate HATEOAS links for the serialized resource."""
+        request = self.context.get("request")
+        if not request:
+            return {}
+
+        links = {}
+
+        # Determine model name and view basename
+        model_name = obj.__class__.__name__.lower()
+
+        # Map model names to view basenames (DRF router convention)
+        basename_map = {
+            "customer": "customer",
+            "settings": "settings",
+            "upload": "upload",
+            "claimrecord": "claim",
+            "driftevent": "drift-event",
+            "reportrun": "report",
+            "alertevent": "alert-event",
+            "payermapping": "payer-mapping",
+            "cptgroupmapping": "cpt-mapping",
+            "operatorjudgment": "operator-judgment",
+        }
+        basename = basename_map.get(model_name)
+
+        if not basename:
+            return {}
+
+        # Generate self link (detail view)
+        try:
+            detail_url = reverse(
+                f"{basename}-detail", kwargs={"pk": obj.pk}, request=request
+            )
+            links["self"] = request.build_absolute_uri(detail_url)
+        except Exception:
+            pass
+
+        # Generate collection link (list view)
+        try:
+            list_url = reverse(f"{basename}-list", request=request)
+            links["collection"] = request.build_absolute_uri(list_url)
+        except Exception:
+            pass
+
+        # Add pagination links if available
+        # Check if view has paginator and pagination data
+        view = (
+            request.parser_context.get("view")
+            if hasattr(request, "parser_context")
+            else None
+        )
+        if view and hasattr(view, "paginator"):
+            # For list views, pagination links are added at response level
+            # For detail views in paginated context, we can add them here
+            pass
+
+        # Add related resource links based on model type
+        links.update(self._get_related_links(obj, request))
+
+        return links
+
+    def _get_related_links(self, obj, request):
+        """Generate related resource links based on model type."""
+        links = {}
+        model_name = obj.__class__.__name__
+
+        try:
+            if model_name == "Upload":
+                # Upload -> Claims
+                claims_url = (
+                    reverse("claim-list", request=request) + f"?upload={obj.pk}"
+                )
+                links["claims"] = request.build_absolute_uri(claims_url)
+
+            elif model_name == "ClaimRecord":
+                # Claim -> Upload
+                if obj.upload_id:
+                    upload_url = reverse(
+                        "upload-detail", kwargs={"pk": obj.upload_id}, request=request
+                    )
+                    links["upload"] = request.build_absolute_uri(upload_url)
+
+            elif model_name == "DriftEvent":
+                # DriftEvent -> Report
+                if obj.report_run_id:
+                    report_url = reverse(
+                        "report-detail",
+                        kwargs={"pk": obj.report_run_id},
+                        request=request,
+                    )
+                    links["report"] = request.build_absolute_uri(report_url)
+
+            elif model_name == "ReportRun":
+                # Report -> DriftEvents
+                drift_url = (
+                    reverse("drift-event-list", request=request)
+                    + f"?report_run={obj.pk}"
+                )
+                links["drift-events"] = request.build_absolute_uri(drift_url)
+
+            elif model_name == "AlertEvent":
+                # AlertEvent -> DriftEvent
+                if obj.drift_event_id:
+                    drift_url = reverse(
+                        "drift-event-detail",
+                        kwargs={"pk": obj.drift_event_id},
+                        request=request,
+                    )
+                    links["drift-event"] = request.build_absolute_uri(drift_url)
+
+        except Exception:
+            # If reverse fails (e.g., URL not configured), skip that link
+            pass
+
+        return links
+
+
+class CustomerSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for Customer model.
 
@@ -32,18 +203,22 @@ class CustomerSerializer(serializers.ModelSerializer):
     ```json
     {
         "id": 1,
-        "name": "Memorial Hospital System"
+        "name": "Memorial Hospital System",
+        "_links": {
+            "self": "http://localhost:8000/api/v1/customers/1/",
+            "collection": "http://localhost:8000/api/v1/customers/"
+        }
     }
     ```
     """
 
     class Meta:
         model = Customer
-        fields = ["id", "name"]
+        fields = ["id", "name", "_links"]
         read_only_fields = ["id"]
 
 
-class SettingsSerializer(serializers.ModelSerializer):
+class SettingsSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for Settings model.
 
@@ -65,18 +240,22 @@ class SettingsSerializer(serializers.ModelSerializer):
         "customer": 1,
         "to_email": "billing@hospital.com",
         "cc_email": "manager@hospital.com",
-        "attach_pdf": true
+        "attach_pdf": true,
+        "_links": {
+            "self": "http://localhost:8000/api/v1/settings/5/",
+            "collection": "http://localhost:8000/api/v1/settings/"
+        }
     }
     ```
     """
 
     class Meta:
         model = Settings
-        fields = ["id", "customer", "to_email", "cc_email", "attach_pdf"]
+        fields = ["id", "customer", "to_email", "cc_email", "attach_pdf", "_links"]
         read_only_fields = ["id", "customer"]
 
 
-class UploadSerializer(serializers.ModelSerializer):
+class UploadSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for Upload model.
 
@@ -103,7 +282,12 @@ class UploadSerializer(serializers.ModelSerializer):
         "error_message": null,
         "row_count": 8543,
         "date_min": "2025-01-01",
-        "date_max": "2025-03-31"
+        "date_max": "2025-03-31",
+        "_links": {
+            "self": "http://localhost:8000/api/v1/uploads/567/",
+            "collection": "http://localhost:8000/api/v1/uploads/",
+            "claims": "http://localhost:8000/api/v1/claims/?upload=567"
+        }
     }
     ```
 
@@ -134,6 +318,7 @@ class UploadSerializer(serializers.ModelSerializer):
             "row_count",
             "date_min",
             "date_max",
+            "_links",
         ]
         read_only_fields = [
             "id",
@@ -145,15 +330,15 @@ class UploadSerializer(serializers.ModelSerializer):
         ]
 
 
-class UploadSummarySerializer(serializers.ModelSerializer):
+class UploadSummarySerializer(HATEOASMixin, serializers.ModelSerializer):
     """Lightweight serializer for Upload listings."""
 
     class Meta:
         model = Upload
-        fields = ["id", "filename", "uploaded_at", "status", "row_count"]
+        fields = ["id", "filename", "uploaded_at", "status", "row_count", "_links"]
 
 
-class ClaimRecordSerializer(serializers.ModelSerializer):
+class ClaimRecordSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for ClaimRecord model.
 
@@ -185,7 +370,12 @@ class ClaimRecordSerializer(serializers.ModelSerializer):
         "submitted_date": "2025-01-15",
         "decided_date": "2025-02-01",
         "outcome": "paid",
-        "allowed_amount": "125.50"
+        "allowed_amount": "125.50",
+        "_links": {
+            "self": "http://localhost:8000/api/v1/claims/12345/",
+            "collection": "http://localhost:8000/api/v1/claims/",
+            "upload": "http://localhost:8000/api/v1/uploads/567/"
+        }
     }
     ```
 
@@ -213,19 +403,20 @@ class ClaimRecordSerializer(serializers.ModelSerializer):
             "decided_date",
             "outcome",
             "allowed_amount",
+            "_links",
         ]
         read_only_fields = ["id", "customer", "upload"]
 
 
-class ClaimRecordSummarySerializer(serializers.ModelSerializer):
+class ClaimRecordSummarySerializer(HATEOASMixin, serializers.ModelSerializer):
     """Lightweight serializer for ClaimRecord listings."""
 
     class Meta:
         model = ClaimRecord
-        fields = ["id", "payer", "cpt", "outcome", "decided_date"]
+        fields = ["id", "payer", "cpt", "outcome", "decided_date", "_links"]
 
 
-class DriftEventSerializer(serializers.ModelSerializer):
+class DriftEventSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for DriftEvent model with computed fields.
 
@@ -252,7 +443,12 @@ class DriftEventSerializer(serializers.ModelSerializer):
         "baseline_end": "2024-12-31",
         "current_start": "2025-01-01",
         "current_end": "2025-01-25",
-        "created_at": "2025-01-26T10:30:00Z"
+        "created_at": "2025-01-26T10:30:00Z",
+        "_links": {
+            "self": "http://localhost:8000/api/v1/drift-events/789/",
+            "collection": "http://localhost:8000/api/v1/drift-events/",
+            "report": "http://localhost:8000/api/v1/reports/456/"
+        }
     }
     ```
 
@@ -292,6 +488,7 @@ class DriftEventSerializer(serializers.ModelSerializer):
             "current_start",
             "current_end",
             "created_at",
+            "_links",
         ]
         read_only_fields = ["id", "created_at"]
 
@@ -315,7 +512,7 @@ class DriftEventSerializer(serializers.ModelSerializer):
             return "LOW"
 
 
-class ReportRunSerializer(serializers.ModelSerializer):
+class ReportRunSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for ReportRun model with nested drift events.
 
@@ -352,7 +549,12 @@ class ReportRunSerializer(serializers.ModelSerializer):
                 "severity_label": "CRITICAL"
             }
         ],
-        "drift_event_count": 12
+        "drift_event_count": 12,
+        "_links": {
+            "self": "http://localhost:8000/api/v1/reports/456/",
+            "collection": "http://localhost:8000/api/v1/reports/",
+            "drift-events": "http://localhost:8000/api/v1/drift-events/?report_run=456"
+        }
     }
     ```
 
@@ -379,6 +581,7 @@ class ReportRunSerializer(serializers.ModelSerializer):
             "summary_json",
             "drift_events",
             "drift_event_count",
+            "_links",
         ]
         read_only_fields = ["id", "started_at", "finished_at", "status", "summary_json"]
 
@@ -388,14 +591,21 @@ class ReportRunSerializer(serializers.ModelSerializer):
         return getattr(obj, "drift_event_count", obj.drift_events.count())
 
 
-class ReportRunSummarySerializer(serializers.ModelSerializer):
+class ReportRunSummarySerializer(HATEOASMixin, serializers.ModelSerializer):
     """Lightweight serializer for ReportRun listings."""
 
     drift_event_count = serializers.SerializerMethodField()
 
     class Meta:
         model = ReportRun
-        fields = ["id", "run_type", "started_at", "status", "drift_event_count"]
+        fields = [
+            "id",
+            "run_type",
+            "started_at",
+            "status",
+            "drift_event_count",
+            "_links",
+        ]
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_drift_event_count(self, obj):
@@ -431,7 +641,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "username", "email"]
 
 
-class PayerMappingSerializer(serializers.ModelSerializer):
+class PayerMappingSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for PayerMapping model.
 
@@ -452,7 +662,11 @@ class PayerMappingSerializer(serializers.ModelSerializer):
         "id": 42,
         "customer": 1,
         "raw_name": "BCBS of California",
-        "normalized_name": "Blue Cross Blue Shield"
+        "normalized_name": "Blue Cross Blue Shield",
+        "_links": {
+            "self": "http://localhost:8000/api/v1/payer-mappings/42/",
+            "collection": "http://localhost:8000/api/v1/payer-mappings/"
+        }
     }
     ```
 
@@ -467,11 +681,11 @@ class PayerMappingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PayerMapping
-        fields = ["id", "customer", "raw_name", "normalized_name"]
+        fields = ["id", "customer", "raw_name", "normalized_name", "_links"]
         read_only_fields = ["id", "customer"]
 
 
-class CPTGroupMappingSerializer(serializers.ModelSerializer):
+class CPTGroupMappingSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for CPTGroupMapping model.
 
@@ -491,14 +705,18 @@ class CPTGroupMappingSerializer(serializers.ModelSerializer):
         "id": 88,
         "customer": 1,
         "cpt_code": "99213",
-        "cpt_group": "Office Visits"
+        "cpt_group": "Office Visits",
+        "_links": {
+            "self": "http://localhost:8000/api/v1/cpt-group-mappings/88/",
+            "collection": "http://localhost:8000/api/v1/cpt-group-mappings/"
+        }
     }
     ```
     """
 
     class Meta:
         model = CPTGroupMapping
-        fields = ["id", "customer", "cpt_code", "cpt_group"]
+        fields = ["id", "customer", "cpt_code", "cpt_group", "_links"]
         read_only_fields = ["id", "customer"]
 
 

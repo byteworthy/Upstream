@@ -259,19 +259,25 @@ if SENTRY_DSN:
             RedisIntegration(),
         ],
         environment=config("ENVIRONMENT", default="production"),
-        # Performance monitoring (10% of transactions)
+        # Performance monitoring: 10% of transactions tracked
+        # Adjust based on volume/budget (0.1 = 10%, 0.5 = 50%, 1.0 = 100%)
         traces_sample_rate=0.1,
         # Send only errors and warnings (not info/debug)
         # This reduces noise and focuses on actionable issues
         # Note: Django DEBUG=False already filters debug logs
         # HIPAA Compliance: Scrub PHI before sending
         before_send=filter_phi_from_errors,
-        # Never send PII
+        # Never send PII (required for HIPAA compliance)
         send_default_pii=False,
         # Release tracking for deployment correlation
         release=config("SENTRY_RELEASE", default=None),
         # Attach server name for multi-server deployments
         server_name=config("SERVER_NAME", default=None),
+        # Environment tags for filtering and aggregation
+        tags={
+            "environment": config("ENVIRONMENT", default="production"),
+            "deployment": config("SENTRY_RELEASE", default="unknown"),
+        },
     )
 else:
     # Sentry not configured - errors will only appear in logs
