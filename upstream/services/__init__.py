@@ -11,5 +11,10 @@ service methods and format results into HTTP responses.
 
 from .data_quality import DataQualityService
 from .report_generation import ReportGenerationService
+from .alert_processing import AlertProcessingService
 
-__all__ = ["DataQualityService", "ReportGenerationService"]
+__all__ = [
+    "DataQualityService",
+    "ReportGenerationService",
+    "AlertProcessingService",
+]
