@@ -58,10 +58,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Avg, Q
+from django.db import connection
 from django.utils import timezone
 from django.utils.cache import patch_cache_control
 from django.core.cache import cache
 from django.conf import settings
+import time
+import shutil
 from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
@@ -1948,16 +1951,95 @@ class WebhookIngestionView(APIView):
 class HealthCheckView(APIView):
     """
     API health check endpoint (no auth required).
-    Returns application health status, version, and timestamp.
+    Returns detailed health status for all critical services.
     """
 
     permission_classes = []
 
+    def check_database(self):
+        """Check database connectivity and measure latency."""
+        try:
+            start = time.time()
+            connection.ensure_connection()
+            latency_ms = (time.time() - start) * 1000
+            return {"status": "healthy", "latency_ms": round(latency_ms, 1)}
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
+
+    def check_redis(self):
+        """Check Redis availability via cache operations."""
+        try:
+            start = time.time()
+            test_key = "health_check_test"
+            test_value = "ok"
+            cache.set(test_key, test_value, timeout=10)
+            result = cache.get(test_key)
+            latency_ms = (time.time() - start) * 1000
+
+            if result != test_value:
+                return {"status": "unhealthy", "error": "Cache get/set mismatch"}
+
+            return {"status": "healthy", "latency_ms": round(latency_ms, 1)}
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
+
+    def check_celery(self):
+        """Check Celery worker availability."""
+        # Skip check if Celery is disabled (dev environments)
+        if not getattr(settings, "CELERY_ENABLED", False):
+            return {"status": "disabled"}
+
+        try:
+            from upstream.celery import app
+
+            inspect = app.control.inspect()
+            active = inspect.active()
+
+            if active is None:
+                return {"status": "unhealthy", "error": "No workers responding"}
+
+            worker_count = len(active.keys())
+            return {"status": "healthy", "workers": worker_count}
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
+
+    def check_disk_space(self):
+        """Check disk space availability."""
+        try:
+            disk = shutil.disk_usage("/")
+            percent_free = (disk.free / disk.total) * 100
+            free_gb = disk.free / (1024**3)
+
+            # Critical threshold: < 10% free
+            if percent_free < 10:
+                return {
+                    "status": "unhealthy",
+                    "percent_free": round(percent_free, 1),
+                    "free_gb": round(free_gb, 1),
+                    "error": "Disk space critically low",
+                }
+            # Warning threshold: < 20% free
+            elif percent_free < 20:
+                return {
+                    "status": "warning",
+                    "percent_free": round(percent_free, 1),
+                    "free_gb": round(free_gb, 1),
+                }
+            else:
+                return {
+                    "status": "healthy",
+                    "percent_free": round(percent_free, 1),
+                    "free_gb": round(free_gb, 1),
+                }
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
+
     @extend_schema(
         summary="API health check",
         description=(
-            "Check API health status. Returns application version and current "
-            "timestamp. No authentication required."
+            "Check API health status with detailed checks for database, Redis, "
+            "Celery workers, and disk space. Returns 503 if any critical service "
+            "is unavailable. No authentication required."
         ),
         tags=["Health"],
         responses={
@@ -1967,19 +2049,67 @@ class HealthCheckView(APIView):
                     "status": "healthy",
                     "version": "1.0.0",
                     "timestamp": "2024-03-15T10:30:00Z",
+                    "checks": {
+                        "database": {"status": "healthy", "latency_ms": 2.3},
+                        "redis": {"status": "healthy", "latency_ms": 1.1},
+                        "celery": {"status": "healthy", "workers": 2},
+                        "disk": {
+                            "status": "healthy",
+                            "percent_free": 45.2,
+                            "free_gb": 15.8,
+                        },
+                    },
+                },
+                response_only=True,
+            ),
+            503: OpenApiExample(
+                "Unhealthy Response",
+                value={
+                    "status": "unhealthy",
+                    "version": "1.0.0",
+                    "timestamp": "2024-03-15T10:30:00Z",
+                    "checks": {
+                        "database": {"status": "healthy", "latency_ms": 2.3},
+                        "redis": {"status": "unhealthy", "error": "Connection refused"},
+                        "celery": {"status": "healthy", "workers": 2},
+                        "disk": {
+                            "status": "healthy",
+                            "percent_free": 45.2,
+                            "free_gb": 15.8,
+                        },
+                    },
                 },
                 response_only=True,
             ),
         },
     )
     def get(self, request):
-        return Response(
-            {
-                "status": "healthy",
-                "version": "1.0.0",
-                "timestamp": timezone.now().isoformat(),
-            }
-        )
+        # Run all health checks
+        checks = {
+            "database": self.check_database(),
+            "redis": self.check_redis(),
+            "celery": self.check_celery(),
+            "disk": self.check_disk_space(),
+        }
+
+        # Determine overall status
+        overall_status = "healthy"
+        for check_name, check_result in checks.items():
+            if check_result.get("status") == "unhealthy":
+                overall_status = "unhealthy"
+                break
+
+        response_data = {
+            "status": overall_status,
+            "version": "1.0.0",
+            "timestamp": timezone.now().isoformat(),
+            "checks": checks,
+        }
+
+        # Return 503 if any check is unhealthy
+        status_code = 503 if overall_status == "unhealthy" else 200
+
+        return Response(response_data, status=status_code)
 
 
 # HIGH-2: JWT Authentication Views with Rate Limiting
