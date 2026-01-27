@@ -33,9 +33,9 @@ def run_drift_detection_task(customer_id: int, **kwargs: Any) -> Dict[str, Any]:
     """
     from upstream.services.payer_drift import detect_drift_events
     from upstream.models import Customer
-    
+
     logger.info(f"Starting async drift detection for customer {customer_id}")
-    
+
     try:
         customer = Customer.objects.get(id=customer_id)
         results = detect_drift_events(customer, **kwargs)
@@ -50,7 +50,9 @@ def run_drift_detection_task(customer_id: int, **kwargs: Any) -> Dict[str, Any]:
             "status": "success",
         }
     except Exception as e:
-        logger.error(f"Error in drift detection task for customer {customer_id}: {str(e)}")
+        logger.error(
+            f"Error in drift detection task for customer {customer_id}: {str(e)}"
+        )
         raise
 
 
@@ -67,9 +69,9 @@ def send_alert_task(alert_id: int) -> Dict[str, Any]:
     """
     from upstream.alerts.services import send_single_alert
     from upstream.alerts.models import Alert
-    
+
     logger.info(f"Starting async alert send for alert {alert_id}")
-    
+
     try:
         alert = Alert.objects.get(id=alert_id)
         result = send_single_alert(alert)
@@ -94,11 +96,11 @@ def send_webhook_task(webhook_delivery_id: int) -> Dict[str, Any]:
     Returns:
         dict: Send result
     """
-    from upstream.integrations.services import deliver_webhook
+    from upstream.services.webhook_processor import deliver_webhook
     from upstream.integrations.models import WebhookDelivery
-    
+
     logger.info(f"Starting async webhook delivery for {webhook_delivery_id}")
-    
+
     try:
         delivery = WebhookDelivery.objects.get(id=webhook_delivery_id)
         result = deliver_webhook(delivery)
@@ -127,11 +129,8 @@ def generate_report_artifact_task(
     Returns:
         dict: Generation result
     """
-    from upstream.reporting.services import (
-        generate_weekly_drift_pdf,
-        export_drift_events_csv,
-    )
-    from upstream.reporting.models import ReportRun
+    from upstream.services.report_scheduler import ReportSchedulerService
+    from upstream.models import ReportRun
 
     logger.info(
         f"Starting async report artifact generation for run {report_run_id}, "
@@ -141,21 +140,16 @@ def generate_report_artifact_task(
     try:
         report_run = ReportRun.all_objects.get(id=report_run_id)
 
-        if artifact_type == "pdf":
-            artifact = generate_weekly_drift_pdf(report_run_id)
-        elif artifact_type == "csv":
-            artifact = export_drift_events_csv(
-                report_run.customer, report_run.period_start, report_run.period_end
-            )
-        else:
-            raise ValueError(f"Unsupported artifact type: {artifact_type}")
+        result = ReportSchedulerService.generate_report_artifact(
+            report_run, artifact_type
+        )
 
         logger.info(f"Completed artifact generation for run {report_run_id}")
         return {
             "report_run_id": report_run_id,
-            "artifact_type": artifact_type,
-            "artifact_id": artifact.id if artifact else None,
-            "status": "success",
+            "artifact_type": result["artifact_type"],
+            "artifact_id": result["artifact_id"],
+            "status": result["status"],
         }
     except Exception as e:
         logger.error(f"Error generating artifact for run {report_run_id}: {str(e)}")
@@ -176,8 +170,9 @@ def send_scheduled_report_task(
     Returns:
         dict: Send result
     """
-    from upstream.reporting.services import generate_and_send_weekly_report
+    from upstream.services.report_scheduler import ReportSchedulerService
     from upstream.models import Customer
+    from datetime import datetime, timedelta
 
     logger.info(
         f"Starting scheduled report generation for customer {customer_id}, "
@@ -186,7 +181,14 @@ def send_scheduled_report_task(
 
     try:
         customer = Customer.objects.get(id=customer_id)
-        result = generate_and_send_weekly_report(customer)
+
+        # Calculate weekly period
+        period_end = datetime.now().date()
+        period_start = period_end - timedelta(days=7)
+
+        result = ReportSchedulerService.schedule_weekly_report(
+            customer, period_start, period_end
+        )
 
         logger.info(f"Completed scheduled report for customer {customer_id}")
         return result
@@ -206,45 +208,23 @@ def compute_report_drift_task(report_run_id: int) -> Dict[str, Any]:
     Returns:
         dict: Drift computation result
     """
+    from upstream.services.report_scheduler import ReportSchedulerService
     from upstream.models import ReportRun
-    from upstream.services.payer_drift import compute_weekly_payer_drift
 
     logger.info(f"Starting drift computation for report run {report_run_id}")
 
     try:
         report_run = ReportRun.all_objects.get(id=report_run_id)
 
-        # Compute drift for this report run
-        report_run = compute_weekly_payer_drift(
-            report_run.customer, report_run=report_run
-        )
+        result = ReportSchedulerService.compute_report_drift(report_run)
 
-        # Update report run status
-        report_run.status = "completed"
-        report_run.save()
-
-        # Count drift events for this report
-        drift_event_count = report_run.drift_events.count()
         logger.info(
             f"Completed drift computation for report run {report_run_id}: "
-            f"{drift_event_count} events"
+            f"{result['events_detected']} events"
         )
-        return {
-            "report_run_id": report_run_id,
-            "events_detected": drift_event_count,
-            "status": "success",
-        }
+        return result
     except Exception as e:
-        logger.error(
-            f"Error computing drift for report run {report_run_id}: {str(e)}"
-        )
-        # Mark report as failed
-        try:
-            report_run = ReportRun.all_objects.get(id=report_run_id)
-            report_run.status = "failed"
-            report_run.save()
-        except Exception:
-            pass
+        logger.error(f"Error computing drift for report run {report_run_id}: {str(e)}")
         raise
 
 

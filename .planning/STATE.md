@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-26)
 Phase: 3 of 6 (OpenAPI Documentation & Error Standardization)
 Plan: 0 of TBD (ready to start)
 Status: Ready for execution
-Last activity: 2026-01-27 — Completed quick task 014 (Security headers middleware)
+Last activity: 2026-01-27 — Completed quick task 016 (Extract report scheduling service)
 
 Progress: [███████░░░] 67%
 
@@ -80,6 +80,8 @@ Recent decisions affecting current work:
 - Position SecurityHeadersMiddleware first in chain: Ensures headers on early-return responses (HealthCheckMiddleware bypass) (quick-014)
 - Skip Content-Security-Policy in initial implementation: Requires dedicated configuration task for asset URLs and inline scripts (quick-014)
 - Include X-XSS-Protection for legacy browsers: Defense-in-depth despite modern CSP preference (quick-014)
+- Service methods accept model instances not IDs: Keeps service framework-agnostic (no Django ORM dependency in service layer) (quick-016)
+- Service handles all status transitions: Avoid duplication in tasks - service methods manage ReportRun status updates (quick-016)
 
 ### Pending Todos
 
@@ -103,6 +105,7 @@ None yet.
 | 012 | Fix session fixation vulnerability in logout | 2026-01-27 | ca77bcc1, 254515b1, b5efd3f6 | [012-fix-session-fixation-vulnerability-in-lo](./quick/012-fix-session-fixation-vulnerability-in-lo/) |
 | 013 | Add Sentry error tracking integration | 2026-01-27 | e971acd1 | [013-add-sentry-error-tracking-integration-in](./quick/013-add-sentry-error-tracking-integration-in/) |
 | 014 | Add security headers middleware | 2026-01-27 | 2d57c263, b87efa07, 2e915564 | [014-add-security-headers-middleware-creat](./quick/014-add-security-headers-middleware-creat/) |
+| 016 | Extract report scheduling service | 2026-01-27 | a67ea81d, 3dbc67cd | [016-extract-report-scheduling-service](./quick/016-extract-report-scheduling-service/) |
 
 ### Blockers/Concerns
 
@@ -145,8 +148,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-27 16:06:21 (quick task execution)
-Stopped at: Completed quick task 014 (security headers middleware)
+Last session: 2026-01-27 16:24:00 (quick task execution)
+Stopped at: Completed quick task 016 (extract report scheduling service)
 Resume file: None
 
 ---

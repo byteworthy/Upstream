@@ -6,16 +6,15 @@ using real HTTP responses via the responses library.
 """
 import responses
 from django.test import TestCase
-from django.utils import timezone
 from datetime import timedelta
 
 from upstream.models import Customer
 from upstream.integrations.models import WebhookEndpoint, WebhookDelivery
-from upstream.integrations.services import (
+from upstream.services.webhook_processor import (
     deliver_webhook,
-    generate_signature,
     create_webhook_delivery,
 )
+from upstream.integrations.services import generate_signature
 
 
 class WebhookTestCase(TestCase):
@@ -29,7 +28,7 @@ class WebhookTestCase(TestCase):
             customer=self.customer,
             name="Test Webhook Endpoint",
             url="https://webhook.test/receive",
-            secret="test_secret_key_for_signing",
+            secret="test_secret_key_for_signing",  # pragma: allowlist secret
             active=True,
             event_types=["drift_detected", "report_completed"],
         )
@@ -98,7 +97,7 @@ class WebhookDeliveryTests(WebhookTestCase):
 
     @responses.activate
     def test_webhook_signature_header(self):
-        """Test that webhook includes valid HMAC-SHA256 signature in X-Signature header."""
+        """Test webhook includes HMAC-SHA256 signature in header."""
         # Mock HTTP 200 response
         responses.add(responses.POST, "https://webhook.test/receive", status=200)
 
@@ -302,7 +301,7 @@ class WebhookIdempotencyTests(WebhookTestCase):
         # Attempt to create webhook for event type not in endpoint.event_types
         delivery = create_webhook_delivery(
             endpoint=self.endpoint,
-            event_type="alert_triggered",  # Not in ['drift_detected', 'report_completed']
+            event_type="alert_triggered",  # Not in endpoint types
             payload={"test": "data"},
         )
 
