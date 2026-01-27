@@ -114,6 +114,32 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Flower (Celery Monitoring Dashboard)
+  flower:
+    build:
+      context: .
+      target: development
+    command: celery -A upstream --broker=redis://redis:6379/0 flower --port=5555 --basic_auth=admin:${FLOWER_PASSWORD:-flower_dev_pass}
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-docker-dev-key}
+      - DB_NAME=${DB_NAME:-upstream}
+      - DB_USER=${DB_USER:-upstream}
+      - DB_PASSWORD=${DB_PASSWORD:-upstream_dev_password}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_ENABLED=True
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Prometheus (Metrics Collection)
   prometheus:
     image: prom/prometheus:latest

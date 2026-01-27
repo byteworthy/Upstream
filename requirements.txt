@@ -33,6 +33,7 @@ django-filter~=25.1
 
 # Background Tasks & Async Processing
 celery~=5.3.4
+flower~=2.0.1
 redis~=5.0.1
 
 # Database (production)
