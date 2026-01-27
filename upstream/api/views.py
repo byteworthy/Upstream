@@ -59,6 +59,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Avg, Q
 from django.utils import timezone
+from django.utils.cache import patch_cache_control
 from django.core.cache import cache
 from django.conf import settings
 from drf_spectacular.utils import (
@@ -119,6 +120,34 @@ from .serializers import (
 )
 from .permissions import IsCustomerMember, get_user_customer
 from .filters import ClaimRecordFilter, DriftEventFilter
+
+
+class ETagMixin:
+    """
+    Mixin to add ETag support for API ViewSets.
+
+    Configures Cache-Control headers to enable HTTP caching with ETags.
+    Django's ConditionalGetMiddleware automatically generates ETag headers
+    and handles If-None-Match validation to return 304 Not Modified responses.
+
+    - GET requests: cacheable with max-age=60 and must-revalidate
+    - Other methods (POST/PUT/DELETE): no-cache, no-store, must-revalidate
+    """
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        """Configure Cache-Control headers based on request method."""
+        response = super().finalize_response(request, response, *args, **kwargs)
+
+        if request.method == "GET" and response.status_code == 200:
+            # GET requests are cacheable: 60 second max age with revalidation
+            patch_cache_control(response, max_age=60, must_revalidate=True)
+        else:
+            # Non-GET requests (POST/PUT/DELETE) should not be cached
+            patch_cache_control(
+                response, no_cache=True, no_store=True, must_revalidate=True
+            )
+
+        return response
 
 
 class CustomerFilterMixin:
@@ -378,9 +407,9 @@ class SettingsViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
     create=extend_schema(
         summary="Create upload",
         description=(
-            "Create a new file upload record. Requires authentication - include "
-            "JWT access token in Authorization header. Rate limited to 20 uploads/hour. "
-            "User must have customer_admin role."
+            "Create a new file upload record. Requires authentication - "
+            "include JWT access token in Authorization header. Rate limited "
+            "to 20 uploads/hour. User must have customer_admin role."
         ),
         tags=["Uploads"],
         examples=[
@@ -442,7 +471,7 @@ class SettingsViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
         tags=["Uploads"],
     ),
 )
-class UploadViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
+class UploadViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
     """
     API endpoint for managing file uploads.
     Rate limit: 20 uploads/hour for bulk operations.
@@ -691,7 +720,7 @@ class UploadViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
         tags=["Claims"],
     ),
 )
-class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
+class ClaimRecordViewSet(ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for viewing claim records.
     Supports filtering by payer, outcome, and date range.
@@ -950,7 +979,7 @@ class ClaimRecordViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
         tags=["Reports"],
     ),
 )
-class ReportRunViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
+class ReportRunViewSet(ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for viewing report runs and their results.
     """
@@ -1171,7 +1200,7 @@ class ReportRunViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
         tags=["Drift Detection"],
     ),
 )
-class DriftEventViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
+class DriftEventViewSet(ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for viewing drift events.
     Rate limit: 2000 requests/hour for read operations.
@@ -1328,7 +1357,7 @@ class DriftEventViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
         tags=["Configuration"],
     ),
 )
-class PayerMappingViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
+class PayerMappingViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
     """
     API endpoint for managing payer name mappings.
     """
@@ -1384,7 +1413,7 @@ class PayerMappingViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
         tags=["Configuration"],
     ),
 )
-class CPTGroupMappingViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
+class CPTGroupMappingViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
     """
     API endpoint for managing CPT code to group mappings.
     """
@@ -1629,7 +1658,7 @@ class DashboardView(APIView):
         tags=["Alerts"],
     ),
 )
-class AlertEventViewSet(CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
+class AlertEventViewSet(ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for alert events with operator feedback (HIGH-8).
     Read-only to preserve audit trail - alerts cannot be modified or deleted.
@@ -2009,9 +2038,7 @@ class HealthCheckView(APIView):
         ),
         OpenApiExample(
             "Login Failed - Invalid Credentials",
-            value={
-                "detail": "No active account found with the given credentials"
-            },
+            value={"detail": "No active account found with the given credentials"},
             response_only=True,
             status_codes=["401"],
         ),
@@ -2019,8 +2046,7 @@ class HealthCheckView(APIView):
             "Login Failed - Rate Limited",
             value={
                 "detail": (
-                    "Request was throttled. Expected available in "
-                    "600 seconds."
+                    "Request was throttled. Expected available in " "600 seconds."
                 )
             },
             response_only=True,
