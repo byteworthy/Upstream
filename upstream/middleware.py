@@ -677,6 +677,76 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         return response
 
 
+class RateLimitHeadersMiddleware(MiddlewareMixin):
+    """
+    Middleware to add rate limit headers to API responses.
+
+    Extracts throttle state from Django REST Framework throttle classes
+    and adds standard X-RateLimit-* headers following industry best practices
+    used by GitHub, Twitter, Stripe, and other major APIs.
+
+    Headers added:
+        - X-RateLimit-Limit: Maximum requests in current window
+        - X-RateLimit-Remaining: Requests remaining in window
+        - X-RateLimit-Reset: Unix timestamp when quota resets
+
+    Configuration:
+        Add to MIDDLEWARE in settings.py after ApiVersionMiddleware:
+
+        MIDDLEWARE = [
+            # ... other middleware ...
+            'upstream.middleware.ApiVersionMiddleware',
+            'upstream.middleware.RateLimitHeadersMiddleware',
+            # ... rest of middleware ...
+        ]
+
+    Note: Only adds headers for throttled API endpoints (views with
+    throttle_classes). Non-API endpoints are unaffected.
+    """
+
+    def process_response(
+        self, request: HttpRequest, response: HttpResponse
+    ) -> HttpResponse:
+        """Extract throttle state and add rate limit headers."""
+        # Check if view has throttle instances (set by DRF during check_throttles)
+        if not hasattr(request, "throttle_instances"):
+            return response
+
+        # Find the most restrictive throttle (lowest remaining quota)
+        most_restrictive = None
+        min_remaining = float("inf")
+
+        for throttle in request.throttle_instances:
+            # Only process SimpleRateThrottle subclasses with state
+            if not hasattr(throttle, "num_requests") or not hasattr(
+                throttle, "history"
+            ):
+                continue
+
+            # Skip if no rate configured
+            if throttle.num_requests is None:
+                continue
+
+            # Calculate remaining requests
+            remaining = throttle.num_requests - len(throttle.history)
+
+            # Track most restrictive throttle
+            if remaining < min_remaining:
+                min_remaining = remaining
+                most_restrictive = throttle
+
+        # Add headers if we found a throttle with state
+        if most_restrictive:
+            response["X-RateLimit-Limit"] = str(most_restrictive.num_requests)
+            response["X-RateLimit-Remaining"] = str(max(0, min_remaining))
+
+            # Calculate reset time (now + duration)
+            reset_time = int(time.time() + most_restrictive.duration)
+            response["X-RateLimit-Reset"] = str(reset_time)
+
+        return response
+
+
 class RequestValidationMiddleware(MiddlewareMixin):
     """
     Middleware for centralized JSON validation before view layer execution.
