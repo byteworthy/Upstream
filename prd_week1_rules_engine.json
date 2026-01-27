@@ -1,0 +1,46 @@
+{
+  "branchName": "ralph/week1-rules-engine",
+  "context": {
+    "phase": "Week 1 - Rules Engine",
+    "phaseName": "Autonomous Rules Engine Framework",
+    "phaseGoal": "Create rules engine for evaluating and executing automation rules",
+    "requirements": [
+      "Story 7: Rules engine with condition evaluation and action execution"
+    ],
+    "dependsOn": "AutomationRule and ExecutionLog models (Stories 2-3)",
+    "successCriteria": [
+      "Rules engine evaluates conditions correctly",
+      "Actions create ExecutionLog records",
+      "Strategy pattern allows extensibility",
+      "Tests pass"
+    ],
+    "qualityGates": [
+      "python manage.py check --settings=upstream.settings.test",
+      "python manage.py test upstream.engine --settings=upstream.settings.test -v 2"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 7,
+      "title": "Create rules engine framework",
+      "description": "Create upstream/engine/rules_engine.py with RulesEngine class for evaluating automation rules. Methods: evaluate_claim(claim, rules) -> list[AutomationRule] (returns matching rules), check_conditions(claim, conditions) -> bool (evaluates trigger conditions), execute_action(rule, claim) -> ExecutionLog (executes action and logs result). Condition operators: eq, gt, lt, gte, lte, in, contains. Action types: 'create_alert', 'submit_reauth', 'generate_appeal', 'hold_submission'. Use strategy pattern for extensibility. All actions create ExecutionLog records. Framework is stateless and testable.",
+      "acceptanceCriteria": [
+        "upstream/engine/rules_engine.py created",
+        "RulesEngine class with 3+ methods",
+        "evaluate_claim returns matching AutomationRule objects",
+        "check_conditions supports 7+ operators",
+        "execute_action creates ExecutionLog for audit trail",
+        "Action types: create_alert, submit_reauth, generate_appeal, hold_submission",
+        "Strategy pattern for action execution (extensible)",
+        "Stateless design (no instance state)",
+        "Comprehensive docstrings with examples",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/engine/__init__.py",
+        "upstream/engine/rules_engine.py"
+      ],
+      "passes": false
+    }
+  ]
+}

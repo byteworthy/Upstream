@@ -158,4 +158,3 @@ python manage.py spectacular --validate
 ```
 
 This catches schema errors and ensures examples are valid.
-

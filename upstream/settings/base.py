@@ -381,9 +381,7 @@ MONITORING_ALERTS = {
         "recipients": config(
             "ALERT_EMAIL_RECIPIENTS",
             default="ops@example.com",
-            cast=lambda v: [
-                email.strip() for email in v.split(",") if email.strip()
-            ],
+            cast=lambda v: [email.strip() for email in v.split(",") if email.strip()],
         ),
         "from_email": config("ALERT_FROM_EMAIL", default="alerts@example.com"),
     },

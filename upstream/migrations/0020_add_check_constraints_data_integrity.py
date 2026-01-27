@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("upstream", "0019_add_covering_indexes"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

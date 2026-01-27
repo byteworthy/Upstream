@@ -138,6 +138,7 @@ class TestClaimRecordPropertyTests:
             decided_date=date(2025, 1, 15),
             outcome="PAID",
             allowed_amount=amount,
+            submitted_via="csv_upload",
         )
 
         assert claim.id is not None
@@ -201,6 +202,7 @@ class TestClaimRecordPropertyTests:
             submitted_date=submitted_date,
             decided_date=decided_date,
             outcome="PAID",
+            submitted_via="csv_upload",
         )
 
         assert claim.id is not None
@@ -233,6 +235,7 @@ class TestClaimRecordPropertyTests:
             submitted_date=date(2025, 1, 1),
             decided_date=date(2025, 1, 15),
             outcome="PAID",
+            submitted_via="csv_upload",
         )
 
         assert claim.id is not None
@@ -252,6 +255,7 @@ class TestClaimRecordPropertyTests:
             submitted_date=date(2025, 1, 1),
             decided_date=date(2025, 1, 15),
             outcome=outcome,
+            submitted_via="csv_upload",
         )
 
         assert claim.id is not None
@@ -530,6 +534,7 @@ class TestConstraintPropertyTests:
             submitted_date=date(2025, 1, 1),
             decided_date=date(2025, 1, 15),
             outcome="PAID",
+            submitted_via="csv_upload",
         )
 
         from django.db.models import ProtectedError

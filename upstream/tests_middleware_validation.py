@@ -171,7 +171,7 @@ class RequestValidationMiddlewareTests(TestCase):
         """Admin paths bypass validation."""
         request = self.factory.post(
             "/admin/test/",
-            data='invalid json',  # Would fail validation
+            data="invalid json",  # Would fail validation
             content_type="application/json",
         )
 

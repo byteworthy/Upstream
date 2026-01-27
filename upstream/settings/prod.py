@@ -308,7 +308,9 @@ if DD_API_KEY:
     # HIPAA Compliance: Disable automatic tagging of sensitive data
     # By default, ddtrace does not capture request/response bodies
     # These settings ensure no PII/PHI is sent to DataDog
-    dd_config.django["trace_query_string"] = False  # Don't trace query params (may contain PHI)
+    dd_config.django[
+        "trace_query_string"
+    ] = False  # Don't trace query params (may contain PHI)
     dd_config.django["include_user_name"] = False  # Don't include user names (PII)
 
     # Celery configuration
@@ -316,7 +318,9 @@ if DD_API_KEY:
     dd_config.celery["analytics_enabled"] = True
 
     # Redis configuration
-    dd_config.redis["service_name"] = f"{config('DD_SERVICE', default='upstream')}-redis"
+    dd_config.redis[
+        "service_name"
+    ] = f"{config('DD_SERVICE', default='upstream')}-redis"
 
     # Apply automatic instrumentation to all supported libraries
     # This patches: Django, Celery, Redis, psycopg2, requests, urllib3

@@ -1,0 +1,47 @@
+{
+  "branchName": "ralph/week1-ehr-webhooks",
+  "context": {
+    "phase": "Week 1 - EHR Integration",
+    "phaseName": "EHR Webhook Receiver Endpoint",
+    "phaseGoal": "Create real-time webhook endpoint for EHR claim submissions",
+    "requirements": [
+      "Story 6: EHR webhook receiver with FHIR R4 support"
+    ],
+    "dependsOn": "ClaimRecord model with submitted_via field (Story 5)",
+    "successCriteria": [
+      "Webhook endpoint accepts FHIR R4 payloads",
+      "HMAC signature validation works",
+      "Idempotency prevents duplicates",
+      "Tests pass"
+    ],
+    "qualityGates": [
+      "python manage.py check --settings=upstream.settings.test",
+      "python manage.py test upstream.api --settings=upstream.settings.test -v 2"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 6,
+      "title": "Create EHR webhook receiver endpoint",
+      "description": "Create upstream/api/webhooks.py with POST /api/v1/webhooks/ehr/{provider}/ endpoint for receiving real-time claim submissions from EHR systems. Accept FHIR R4 Claim resources. Validate HMAC-SHA256 signature from X-Webhook-Signature header. Check idempotency key (X-Idempotency-Key) to prevent duplicates. Parse FHIR payload and create ClaimRecord with submitted_via='ehr_webhook'. Return 202 Accepted for async processing. Handle errors: 401 (invalid signature), 409 (duplicate), 400 (invalid payload), 500 (server error). Rate limit: 1000 requests/hour per provider. Add to upstream/urls.py.",
+      "acceptanceCriteria": [
+        "upstream/api/webhooks.py created with webhook view",
+        "POST /api/v1/webhooks/ehr/{provider}/ endpoint",
+        "HMAC-SHA256 signature validation",
+        "Idempotency key checking (prevents duplicates)",
+        "FHIR R4 Claim resource parsing",
+        "Creates ClaimRecord with submitted_via='ehr_webhook'",
+        "Returns 202 Accepted with job ID",
+        "Proper error responses (401, 409, 400, 500)",
+        "Rate limiting configured (1000/hour per provider)",
+        "URL pattern added to upstream/urls.py",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/api/webhooks.py",
+        "upstream/urls.py"
+      ],
+      "passes": false
+    }
+  ]
+}

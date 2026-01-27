@@ -77,9 +77,7 @@ class Command(BaseCommand):
                 f"(filtered to: {rule_filter})..."
             )
         else:
-            self.stdout.write(
-                f"Evaluating {total_rules} monitoring alert rules..."
-            )
+            self.stdout.write(f"Evaluating {total_rules} monitoring alert rules...")
 
         if dry_run:
             self.stdout.write(
@@ -102,20 +100,15 @@ class Command(BaseCommand):
             # Show all rules status (triggered or OK)
             rules_to_check = ALERT_RULES
             if rule_filter:
-                rules_to_check = [
-                    r for r in ALERT_RULES if r["name"] == rule_filter
-                ]
+                rules_to_check = [r for r in ALERT_RULES if r["name"] == rule_filter]
 
             for rule in rules_to_check:
                 rule_name = rule["name"]
-                triggered = any(
-                    a["rule_name"] == rule_name for a in triggered_alerts
-                )
+                triggered = any(a["rule_name"] == rule_name for a in triggered_alerts)
 
                 if triggered:
                     alert = next(
-                        a for a in triggered_alerts
-                        if a["rule_name"] == rule_name
+                        a for a in triggered_alerts if a["rule_name"] == rule_name
                     )
                     status_icon = self.style.ERROR("[TRIGGERED]")
                     msg = f"{status_icon} {rule_name}: {alert['message']}"
@@ -179,9 +172,7 @@ class Command(BaseCommand):
                 if errors:
                     self.stdout.write("")  # Blank line
                     self.stdout.write(
-                        self.style.WARNING(
-                            f"{len(errors)} notification errors:"
-                        )
+                        self.style.WARNING(f"{len(errors)} notification errors:")
                     )
                     for error in errors:
                         self.stdout.write(f"  - {error}")

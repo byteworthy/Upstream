@@ -1,0 +1,96 @@
+{
+  "branchName": "ralph/phase-09-api-documentation-improvements",
+  "context": {
+    "phase": "09",
+    "phaseName": "API Documentation Improvements",
+    "phaseGoal": "Enhance OpenAPI documentation with detailed examples, request/response schemas, and comprehensive API usage guide",
+    "requirements": [
+      "API-03"
+    ],
+    "dependsOn": "Phase 3 (OpenAPI Documentation & Error Standardization)",
+    "successCriteria": [
+      "All serializers have docstrings with request/response examples",
+      "Complex endpoints have @extend_schema examples (pagination, filtering, custom actions)",
+      "Authentication flow documented with step-by-step examples",
+      "API usage guide exists with curl examples for all major endpoints",
+      "OpenAPI schema validates with 0 errors and includes all examples"
+    ],
+    "qualityGates": [
+      "python manage.py spectacular --validate",
+      "python manage.py test upstream.tests_api -v 2"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Add request/response examples to all serializers",
+      "description": "Update serializer docstrings in api/serializers.py to include request/response examples. Each serializer should have: (1) Example request payload with all required fields, (2) Example successful response with realistic data, (3) Example error responses (validation errors, 404s). Use docstring format that OpenAPI can parse. Serializers to update: ClaimRecordSerializer, DriftEventSerializer, PayerMappingSerializer, ReportSerializer, UploadSerializer, AlertRuleSerializer, NotificationChannelSerializer, WebhookDeliverySerializer.",
+      "acceptanceCriteria": [
+        "All 8+ major serializers have comprehensive docstrings",
+        "Each docstring includes request example with required fields",
+        "Each docstring includes success response example",
+        "Each docstring includes error response examples",
+        "Docstrings use proper formatting for OpenAPI parsing",
+        "OpenAPI schema includes examples in generated documentation"
+      ],
+      "files": [
+        "upstream/api/serializers.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 2,
+      "title": "Add @extend_schema examples for complex endpoints",
+      "description": "Add detailed @extend_schema decorators to complex ViewSet actions in api/views.py. Focus on: (1) Pagination examples showing page_size, page parameters and next/previous links, (2) Filtering examples showing query parameters and filtered results, (3) Custom actions (payer_summary, feedback, dashboard) with complete request/response flows. Include OpenAPI parameter descriptions for all query params. Located in upstream/api/views.py and upstream/alerts/views.py.",
+      "acceptanceCriteria": [
+        "@extend_schema decorators added to list actions with pagination examples",
+        "Filtering query parameters documented with examples",
+        "Custom actions have complete request/response examples",
+        "All query parameters have descriptions in OpenAPI schema",
+        "Examples show realistic data (not placeholder text)",
+        "OpenAPI schema validates with 0 errors"
+      ],
+      "files": [
+        "upstream/api/views.py",
+        "upstream/alerts/views.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 3,
+      "title": "Document authentication flow with examples",
+      "description": "Create authentication flow documentation showing: (1) Login with email/password and receiving JWT token, (2) Including token in subsequent requests via Authorization header, (3) Token refresh flow, (4) Logout flow. Add @extend_schema examples to authentication endpoints in api/views.py. Document RBAC roles (superuser, customer_admin, customer_viewer) and their permissions.",
+      "acceptanceCriteria": [
+        "Login endpoint has @extend_schema with request/response examples",
+        "Token refresh endpoint documented with examples",
+        "Logout endpoint documented",
+        "Authorization header usage explained with examples",
+        "RBAC roles and permissions documented",
+        "Example requests show proper authentication headers"
+      ],
+      "files": [
+        "upstream/api/views.py",
+        "upstream/api/serializers.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 4,
+      "title": "Create comprehensive API usage guide with curl examples",
+      "description": "Create docs/API_EXAMPLES.md with practical curl examples for all major API operations. Sections: (1) Authentication (login, token usage), (2) Uploads (create, list, filter), (3) Claims (list with pagination, filter by payer/outcome), (4) Drift Events (list with filtering, severity filtering), (5) Reports (generate, download), (6) Alerts (configure rules, list notifications), (7) Webhooks (configure endpoints, view deliveries). Each section has 3-5 curl examples with realistic payloads and expected responses.",
+      "acceptanceCriteria": [
+        "API_EXAMPLES.md created with 7+ sections",
+        "Each section has 3-5 practical curl examples",
+        "Examples use realistic data (not foo/bar placeholders)",
+        "All curl examples include authentication headers",
+        "Response examples show actual JSON structure",
+        "Examples cover success and common error cases",
+        "File is 500+ lines with comprehensive coverage"
+      ],
+      "files": [
+        "docs/API_EXAMPLES.md"
+      ],
+      "passes": true
+    }
+  ]
+}

@@ -65,17 +65,11 @@ class TestCorsConfiguration(TestCase):
         be exposed to JavaScript.
         """
         # These should NOT be in CORS_EXPOSE_HEADERS
-        self.assertNotIn(
-            "X-Content-Type-Options", settings.CORS_EXPOSE_HEADERS
-        )
+        self.assertNotIn("X-Content-Type-Options", settings.CORS_EXPOSE_HEADERS)
         self.assertNotIn("X-XSS-Protection", settings.CORS_EXPOSE_HEADERS)
-        self.assertNotIn(
-            "Strict-Transport-Security", settings.CORS_EXPOSE_HEADERS
-        )
+        self.assertNotIn("Strict-Transport-Security", settings.CORS_EXPOSE_HEADERS)
 
-    @override_settings(
-        CORS_ALLOWED_ORIGINS=["http://testclient.example.com"]
-    )
+    @override_settings(CORS_ALLOWED_ORIGINS=["http://testclient.example.com"])
     def test_cors_headers_present_in_response(self):
         """
         Integration test: Verify CORS headers are present in actual responses.

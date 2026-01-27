@@ -1,0 +1,185 @@
+{
+  "branchName": "ralph/week1-autonomous-execution-foundation",
+  "context": {
+    "phase": "Week 1 (Days 1-7)",
+    "phaseName": "Autonomous Execution Platform - Foundation Layer",
+    "phaseGoal": "Build core autonomous execution infrastructure: rules engine, execution logs, and EHR webhook receiver",
+    "requirements": [
+      "Week 1, Tasks 2-7 from 00-MASTER-PLAN.md",
+      "Implement AutomationRule, ExecutionLog, Authorization models",
+      "Create EHR webhook receiver endpoint",
+      "Build rules engine framework",
+      "Create background task for claim processing"
+    ],
+    "dependsOn": "RiskBaseline model (Task 1 - already complete)",
+    "successCriteria": [
+      "AutomationRule model with conditions/actions JSON fields exists",
+      "ExecutionLog model with complete audit trail exists",
+      "Authorization model for tracking auth expirations exists",
+      "EHR webhook receiver accepts FHIR R4 payloads",
+      "Rules engine evaluates conditions and executes actions",
+      "Background Celery task processes webhook claims",
+      "All migrations applied successfully",
+      "Test suite passes (upstream.tests)",
+      "API endpoints respond with proper security headers"
+    ],
+    "qualityGates": [
+      "python manage.py check --settings=upstream.settings.test",
+      "python manage.py test upstream --settings=upstream.settings.test -v 2",
+      "python manage.py makemigrations --check --dry-run --settings=upstream.settings.test"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 2,
+      "title": "Create AutomationRule model for execution layer",
+      "description": "Add AutomationRule model to upstream/models.py for pre-approved workflow rules. Fields: customer (FK), rule_type (choices: 'reauth', 'appeal', 'high_risk_hold'), trigger_conditions (JSONField with payer, cpt_code, denial_rate_threshold), actions (JSONField with action_type, payer_portal_steps), is_active (bool), created_at, last_executed. Add CustomerScopedManager for tenant isolation. Include indexes for (customer, rule_type, is_active). Add CHECK constraints for valid rule_type choices.",
+      "acceptanceCriteria": [
+        "AutomationRule model added to upstream/models.py",
+        "JSONField for trigger_conditions with schema validation",
+        "JSONField for actions with schema validation",
+        "rule_type choices: 'reauth', 'appeal', 'high_risk_hold'",
+        "CustomerScopedManager for tenant isolation",
+        "Composite index on (customer, rule_type, is_active)",
+        "CHECK constraint for rule_type validation",
+        "Migration created and applied",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/models.py",
+        "upstream/migrations/0022_add_automation_rule.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Create ExecutionLog model for audit trail",
+      "description": "Add ExecutionLog model to upstream/models.py for complete HIPAA audit trail. Fields: customer (FK), rule (FK to AutomationRule, nullable), action_type (CharField), target_claim (FK to ClaimRecord, nullable), input_data (JSONField), output_data (JSONField), status (choices: 'success', 'failed', 'pending'), error_message (TextField, nullable), executed_by (FK to User, nullable for system), executed_at (DateTimeField, auto_now_add). Add CustomerScopedManager. Include indexes for (customer, executed_at) and (target_claim, status). Add CHECK constraint for status validation.",
+      "acceptanceCriteria": [
+        "ExecutionLog model added to upstream/models.py",
+        "Complete audit trail with input/output JSONFields",
+        "status choices: 'success', 'failed', 'pending'",
+        "Nullable rule FK for ad-hoc actions",
+        "Nullable executed_by for system vs human actions",
+        "CustomerScopedManager for tenant isolation",
+        "Indexes on (customer, executed_at) and (target_claim, status)",
+        "CHECK constraint for status validation",
+        "Migration created and applied",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/models.py",
+        "upstream/migrations/0023_add_execution_log.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Create Authorization model for calendar-based alerts",
+      "description": "Add Authorization model to upstream/models.py for tracking authorization expirations (ABA focus). Fields: customer (FK), patient_identifier (CharField, encrypted), payer (CharField), authorization_number (CharField), service_type (CharField), start_date (DateField), end_date (DateField, indexed), units_authorized (IntegerField), units_used (IntegerField, default=0), status (choices: 'active', 'expiring_soon', 'expired', 'renewed'), last_checked (DateTimeField), related_claims (ManyToMany to ClaimRecord). Add CustomerScopedManager. Include partial index on (customer, end_date) WHERE status='active'. Add CHECK constraint for units_used <= units_authorized.",
+      "acceptanceCriteria": [
+        "Authorization model added to upstream/models.py",
+        "patient_identifier uses EncryptedCharField for PHI",
+        "status choices: 'active', 'expiring_soon', 'expired', 'renewed'",
+        "Partial index on (customer, end_date) for active auths only",
+        "ManyToMany relationship with ClaimRecord",
+        "CHECK constraint: units_used <= units_authorized",
+        "CHECK constraint: end_date >= start_date",
+        "CustomerScopedManager for tenant isolation",
+        "Migration created and applied",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/models.py",
+        "upstream/migrations/0024_add_authorization.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Enhance ClaimRecord for multi-source ingestion",
+      "description": "Add submitted_via field to ClaimRecord model in upstream/models.py to track claim source. Field: submitted_via (CharField with choices: 'csv_upload', 'ehr_webhook', 'payer_portal_scrape', 'manual_entry', default='csv_upload'). Add index on submitted_via for filtering. Add migration to add field with default value for existing records. Update ClaimRecord __str__ method to include source. No breaking changes to existing functionality.",
+      "acceptanceCriteria": [
+        "submitted_via field added with choices",
+        "Default value 'csv_upload' for backward compatibility",
+        "Index on submitted_via for filtering",
+        "Migration handles existing records (default='csv_upload')",
+        "ClaimRecord __str__ updated to show source",
+        "No breaking changes to existing tests",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/models.py",
+        "upstream/migrations/0025_add_claim_source.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 6,
+      "title": "Create EHR webhook receiver endpoint",
+      "description": "Create upstream/api/webhooks.py with POST /api/v1/webhooks/ehr/{provider}/ endpoint for receiving real-time claim submissions from EHR systems. Accept FHIR R4 Claim resources. Validate HMAC-SHA256 signature from X-Webhook-Signature header. Check idempotency key (X-Idempotency-Key) to prevent duplicates. Parse FHIR payload and create ClaimRecord with submitted_via='ehr_webhook'. Return 202 Accepted for async processing. Handle errors: 401 (invalid signature), 409 (duplicate), 400 (invalid payload), 500 (server error). Rate limit: 1000 requests/hour per provider. Add to upstream/urls.py.",
+      "acceptanceCriteria": [
+        "upstream/api/webhooks.py created with webhook view",
+        "POST /api/v1/webhooks/ehr/{provider}/ endpoint",
+        "HMAC-SHA256 signature validation",
+        "Idempotency key checking (prevents duplicates)",
+        "FHIR R4 Claim resource parsing",
+        "Creates ClaimRecord with submitted_via='ehr_webhook'",
+        "Returns 202 Accepted with job ID",
+        "Proper error responses (401, 409, 400, 500)",
+        "Rate limiting configured (1000/hour per provider)",
+        "URL pattern added to upstream/urls.py",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/api/webhooks.py",
+        "upstream/urls.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 7,
+      "title": "Create rules engine framework",
+      "description": "Create upstream/engine/rules_engine.py with RulesEngine class for evaluating automation rules. Methods: evaluate_claim(claim, rules) -> list[AutomationRule] (returns matching rules), check_conditions(claim, conditions) -> bool (evaluates trigger conditions), execute_action(rule, claim) -> ExecutionLog (executes action and logs result). Condition operators: eq, gt, lt, gte, lte, in, contains. Action types: 'create_alert', 'submit_reauth', 'generate_appeal', 'hold_submission'. Use strategy pattern for extensibility. All actions create ExecutionLog records. Framework is stateless and testable.",
+      "acceptanceCriteria": [
+        "upstream/engine/rules_engine.py created",
+        "RulesEngine class with 3+ methods",
+        "evaluate_claim returns matching AutomationRule objects",
+        "check_conditions supports 7+ operators",
+        "execute_action creates ExecutionLog for audit trail",
+        "Action types: create_alert, submit_reauth, generate_appeal, hold_submission",
+        "Strategy pattern for action execution (extensible)",
+        "Stateless design (no instance state)",
+        "Comprehensive docstrings with examples",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/engine/__init__.py",
+        "upstream/engine/rules_engine.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 8,
+      "title": "Create background task for claim processing",
+      "description": "Create upstream/tasks/claim_processing.py with Celery task process_incoming_claim(claim_id, source='csv_upload'). Task workflow: (1) Load claim from database, (2) Fetch active AutomationRule objects for customer, (3) Use RulesEngine.evaluate_claim to find matching rules, (4) For each matching rule, execute action via RulesEngine.execute_action, (5) Log all actions to ExecutionLog, (6) Send notification if high-priority action. Use Celery task retries (max_retries=3, countdown=60). Add task to CELERY_BEAT_SCHEDULE for periodic processing. Register task in upstream/tasks/__init__.py.",
+      "acceptanceCriteria": [
+        "upstream/tasks/claim_processing.py created",
+        "process_incoming_claim Celery task defined",
+        "Task loads claim and active rules",
+        "Uses RulesEngine to evaluate and execute rules",
+        "Creates ExecutionLog for each action",
+        "Sends notifications for high-priority actions",
+        "Celery retry configuration (max_retries=3, countdown=60)",
+        "Task registered in upstream/tasks/__init__.py",
+        "Task can be called from webhook endpoint",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/tasks/__init__.py",
+        "upstream/tasks/claim_processing.py"
+      ],
+      "passes": false
+    }
+  ]
+}

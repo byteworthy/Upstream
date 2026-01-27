@@ -1,0 +1,26 @@
+
+
+class RiskBaseline(models.Model):
+    """Historical denial rate baselines for risk scoring."""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="risk_baselines")
+    payer = models.CharField(max_length=255, db_index=True)
+    cpt = models.CharField(max_length=20, db_index=True)
+    denial_rate = models.FloatField(help_text="Historical denial rate", validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
+    sample_size = models.IntegerField(help_text="Number of claims", validators=[MinValueValidator(1)])
+    confidence_score = models.FloatField(help_text="Statistical confidence", validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
+    last_updated = models.DateTimeField(auto_now=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = CustomerScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        db_table = "upstream_risk_baseline"
+        indexes = [models.Index(fields=["customer", "payer", "cpt"], name="risk_baseline_lookup_idx")]
+        constraints = [
+            models.UniqueConstraint(fields=["customer", "payer", "cpt"], name="unique_risk_baseline"),
+            models.CheckConstraint(check=models.Q(confidence_score__gte=0.0) & models.Q(confidence_score__lte=1.0), name="risk_baseline_confidence_range"),
+        ]
+
+    def __str__(self):
+        return f"{self.customer.name} - {self.payer} - {self.cpt}"
+
