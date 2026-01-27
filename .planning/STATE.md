@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-26)
 Phase: 3 of 6 (OpenAPI Documentation & Error Standardization)
 Plan: 0 of TBD (ready to start)
 Status: Ready for execution
-Last activity: 2026-01-27 — Completed quick task 027 (Expand health check endpoint with detailed checks)
+Last activity: 2026-01-27 — Completed quick task 025 (Add property-based testing with Hypothesis)
 
 Progress: [███████░░░] 67%
 
@@ -98,6 +98,9 @@ Recent decisions affecting current work:
 - Email enabled by default, Slack optional: Universal setup vs manual webhook configuration (quick-024)
 - Management command for alert evaluation: Flexible (cron or Celery beat) with easy manual testing (quick-024)
 - Graceful error handling (exit 0): Alerting system errors don't trigger cron failure cascades (quick-024)
+- Hypothesis configured with 100 examples: Balance thoroughness with CI time using max_examples=100, derandomize=true, deadline=None (quick-025)
+- Property-based tests in dedicated test class: 19 @given tests across 5 test classes (Customer, ClaimRecord, Upload, Serializers, Constraints) (quick-025)
+- Use .hypothesis/ cache directory: Enables reproducible test runs and failure investigation via example database (quick-025)
 
 ### Pending Todos
 
@@ -129,6 +132,7 @@ None yet.
 | 022 | Add DataDog APM integration for distributed tracing | 2026-01-27 | a7b0a550, dde5a66a, 5ce1c73c | [022-add-datadog-apm-integration-configure](./quick/022-add-datadog-apm-integration-configure/) |
 | 023 | Add custom Grafana dashboards | 2026-01-27 | 8a1b699b, af95857c, ced37f81 | [023-add-custom-grafana-dashboards-create](./quick/023-add-custom-grafana-dashboards-create/) |
 | 024 | Configure alert routing for platform health monitoring | 2026-01-27 | 8ad4f87b, 472fafa8, a4c03230 | [024-configure-alert-routing-set-up-aler](./quick/024-configure-alert-routing-set-up-aler/) |
+| 025 | Add property-based testing with Hypothesis | 2026-01-27 | 55be5906 | [025-add-property-based-testing-with-hypo](./quick/025-add-property-based-testing-with-hypo/) |
 | 027 | Expand health check endpoint with detailed checks | 2026-01-27 | df784ef3, 7717a03c, cec5c9e3, 7d93b835 | [027-expand-health-check-endpoint-add-det](./quick/027-expand-health-check-endpoint-add-det/) |
 
 ### Blockers/Concerns
