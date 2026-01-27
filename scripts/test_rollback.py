@@ -47,14 +47,25 @@ def check_health(url: str, timeout: int = 10) -> Tuple[bool, dict]:
             timeout=timeout,
         )
 
-        if response.status_code == 200:
+        # Accept both 200 (healthy) and 503 (degraded but responding)
+        if response.status_code in [200, 503]:
             try:
                 data = response.json()
-                return True, data
+                # Check overall status from response
+                overall_status = data.get("status", "unknown")
+                is_healthy = overall_status == "healthy"
+                return is_healthy, data
             except ValueError:
-                return True, {"status": "ok", "response_code": 200}
+                # Fallback for non-JSON response
+                return response.status_code == 200, {
+                    "status": "ok",
+                    "response_code": 200,
+                }
         else:
-            return False, {"error": f"HTTP {response.status_code}"}
+            return False, {
+                "error": f"HTTP {response.status_code}",
+                "response_code": response.status_code,
+            }
 
     except requests.exceptions.ConnectionError as e:
         return False, {"error": f"Connection failed: {e}"}
@@ -62,6 +73,69 @@ def check_health(url: str, timeout: int = 10) -> Tuple[bool, dict]:
         return False, {"error": "Request timeout"}
     except requests.exceptions.RequestException as e:
         return False, {"error": f"Request failed: {e}"}
+
+
+def display_health_details(data: dict) -> None:
+    """
+    Display detailed health check information.
+
+    Args:
+        data: Health check response data with checks field
+    """
+    checks = data.get("checks", {})
+    if not checks:
+        return
+
+    print("  Detailed health checks:")
+
+    # Database check
+    db = checks.get("database", {})
+    db_status = db.get("status", "unknown")
+    if db_status == "healthy":
+        latency = db.get("latency_ms", "N/A")
+        print(f"    ✓ Database: {db_status} (latency: {latency}ms)")
+    else:
+        error = db.get("error", "unknown error")
+        print(f"    ✗ Database: {db_status} - {error}")
+
+    # Redis check
+    redis = checks.get("redis", {})
+    redis_status = redis.get("status", "unknown")
+    if redis_status == "healthy":
+        latency = redis.get("latency_ms", "N/A")
+        print(f"    ✓ Redis: {redis_status} (latency: {latency}ms)")
+    else:
+        error = redis.get("error", "unknown error")
+        print(f"    ✗ Redis: {redis_status} - {error}")
+
+    # Celery check
+    celery = checks.get("celery", {})
+    celery_status = celery.get("status", "unknown")
+    if celery_status == "healthy":
+        workers = celery.get("workers", "N/A")
+        print(f"    ✓ Celery: {celery_status} (workers: {workers})")
+    elif celery_status == "disabled":
+        print(f"    - Celery: {celery_status}")
+    else:
+        error = celery.get("error", "unknown error")
+        print(f"    ✗ Celery: {celery_status} - {error}")
+
+    # Disk check
+    disk = checks.get("disk", {})
+    disk_status = disk.get("status", "unknown")
+    percent_free = disk.get("percent_free", "N/A")
+    free_gb = disk.get("free_gb", "N/A")
+
+    if disk_status == "healthy":
+        print(f"    ✓ Disk: {disk_status} ({percent_free}% free, {free_gb} GB)")
+    elif disk_status == "warning":
+        print(
+            f"    ⚠ Disk: {disk_status} ({percent_free}% free, {free_gb} GB) "
+            "- Low disk space"
+        )
+    else:
+        error = disk.get("error", "unknown error")
+        print(f"    ✗ Disk: {disk_status} - {error}")
 
 
 def get_version(url: str) -> Optional[str]:
@@ -109,6 +183,9 @@ def validate_rollback(
             current_version = data.get("version", "unknown")
             print(f"[PASS] Application is healthy (version: {current_version})")
 
+            # Display detailed health check information
+            display_health_details(data)
+
             if expected_version and current_version != expected_version:
                 print(
                     f"[INFO] Version mismatch: expected {expected_version}, "
@@ -121,6 +198,10 @@ def validate_rollback(
         else:
             error_msg = data.get("error", "unknown error")
             print(f"[FAIL] Health check failed: {error_msg}")
+
+            # Display detailed health check information even on failure
+            # to help diagnose which service is down
+            display_health_details(data)
 
             if attempt < retries:
                 print(f"[INFO] Retrying in {retry_delay}s...")
