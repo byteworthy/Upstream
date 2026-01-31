@@ -7,7 +7,11 @@ and security considerations for PHI data.
 
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import (
+    extend_schema_field,
+    extend_schema_serializer,
+    OpenApiExample,
+)
 from drf_spectacular.types import OpenApiTypes
 from ..models import (
     Customer,
@@ -255,6 +259,40 @@ class SettingsSerializer(HATEOASMixin, serializers.ModelSerializer):
         read_only_fields = ["id", "customer"]
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Successful Upload",
+            description="Completed upload with all claims processed",
+            value={
+                "id": 567,
+                "customer": 1,
+                "uploaded_at": "2025-01-26T10:45:00Z",
+                "filename": "claims_q1_2025.csv",
+                "status": "success",
+                "error_message": None,
+                "row_count": 8543,
+                "date_min": "2025-01-01",
+                "date_max": "2025-03-31",
+            },
+        ),
+        OpenApiExample(
+            "Failed Upload",
+            description="Upload that failed validation",
+            value={
+                "id": 568,
+                "customer": 1,
+                "uploaded_at": "2025-01-26T11:00:00Z",
+                "filename": "claims_invalid.csv",
+                "status": "failed",
+                "error_message": "Invalid CSV format: Missing required column 'payer'",
+                "row_count": 0,
+                "date_min": None,
+                "date_max": None,
+            },
+        ),
+    ]
+)
 class UploadSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for Upload model.
@@ -338,6 +376,43 @@ class UploadSummarySerializer(HATEOASMixin, serializers.ModelSerializer):
         fields = ["id", "filename", "uploaded_at", "status", "row_count", "_links"]
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Paid Claim",
+            description="Example of an approved and paid claim record",
+            value={
+                "id": 12345,
+                "customer": 1,
+                "upload": 567,
+                "payer": "Blue Cross Blue Shield",
+                "cpt": "99213",
+                "cpt_group": "Office Visits",
+                "submitted_date": "2025-01-15",
+                "decided_date": "2025-02-01",
+                "outcome": "PAID",
+                "allowed_amount": "125.50",
+            },
+        ),
+        OpenApiExample(
+            "Denied Claim",
+            description="Example of a denied claim with reason code",
+            value={
+                "id": 12346,
+                "customer": 1,
+                "upload": 567,
+                "payer": "Aetna",
+                "cpt": "99214",
+                "cpt_group": "Office Visits",
+                "submitted_date": "2025-01-16",
+                "decided_date": "2025-02-02",
+                "outcome": "DENIED",
+                "allowed_amount": "0.00",
+                "denial_reason_code": "CO-97",
+            },
+        ),
+    ]
+)
 class ClaimRecordSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for ClaimRecord model.
@@ -416,6 +491,54 @@ class ClaimRecordSummarySerializer(HATEOASMixin, serializers.ModelSerializer):
         fields = ["id", "payer", "cpt", "outcome", "decided_date", "_links"]
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "High Severity Drift",
+            description="Critical denial rate spike requiring immediate attention",
+            value={
+                "id": 789,
+                "customer": 1,
+                "report_run": 456,
+                "payer": "Blue Cross Blue Shield",
+                "cpt_group": "Cardiology",
+                "drift_type": "denial_rate",
+                "baseline_value": "15.5",
+                "current_value": "32.8",
+                "delta_value": "17.3",
+                "severity": 0.92,
+                "confidence": 0.95,
+                "baseline_start": "2024-10-01",
+                "baseline_end": "2024-12-31",
+                "current_start": "2025-01-01",
+                "current_end": "2025-01-25",
+                "created_at": "2025-01-26T10:30:00Z",
+            },
+        ),
+        OpenApiExample(
+            "Low Severity Drift",
+            description="Minor decision time increase within acceptable range",
+            value={
+                "id": 790,
+                "customer": 1,
+                "report_run": 456,
+                "payer": "Aetna",
+                "cpt_group": "Office Visits",
+                "drift_type": "decision_time",
+                "baseline_value": "18.2",
+                "current_value": "21.5",
+                "delta_value": "3.3",
+                "severity": 0.35,
+                "confidence": 0.88,
+                "baseline_start": "2024-10-01",
+                "baseline_end": "2024-12-31",
+                "current_start": "2025-01-01",
+                "current_end": "2025-01-25",
+                "created_at": "2025-01-26T10:30:00Z",
+            },
+        ),
+    ]
+)
 class DriftEventSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for DriftEvent model with computed fields.
@@ -512,6 +635,42 @@ class DriftEventSerializer(HATEOASMixin, serializers.ModelSerializer):
             return "LOW"
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Completed Report",
+            description="Successfully completed report with drift events detected",
+            value={
+                "id": 456,
+                "customer": 1,
+                "run_type": "weekly",
+                "started_at": "2025-01-26T09:00:00Z",
+                "finished_at": "2025-01-26T09:15:32Z",
+                "status": "success",
+                "summary_json": {
+                    "total_claims_analyzed": 15420,
+                    "drift_events_detected": 12,
+                    "high_severity_count": 3,
+                },
+                "drift_event_count": 12,
+            },
+        ),
+        OpenApiExample(
+            "Running Report",
+            description="Report currently in progress",
+            value={
+                "id": 457,
+                "customer": 1,
+                "run_type": "weekly",
+                "started_at": "2025-01-27T10:00:00Z",
+                "finished_at": None,
+                "status": "running",
+                "summary_json": {},
+                "drift_event_count": 0,
+            },
+        ),
+    ]
+)
 class ReportRunSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for ReportRun model with nested drift events.
@@ -886,6 +1045,60 @@ class OperatorJudgmentSerializer(serializers.ModelSerializer):
         ]
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Triggered Alert",
+            description="Alert event triggered by critical drift detection",
+            value={
+                "id": 234,
+                "customer": 1,
+                "alert_rule": 45,
+                "drift_event": 789,
+                "report_run": 456,
+                "triggered_at": "2025-01-26T10:30:15Z",
+                "status": "triggered",
+                "payload": {
+                    "severity": "CRITICAL",
+                    "payer": "Blue Cross Blue Shield",
+                    "drift_type": "denial_rate",
+                    "message": "Denial rate spike detected: 15.5% → 32.8%",
+                },
+                "notification_sent_at": None,
+                "error_message": None,
+                "has_judgment": False,
+                "latest_judgment_verdict": None,
+                "created_at": "2025-01-26T10:30:15Z",
+                "updated_at": "2025-01-26T10:30:15Z",
+            },
+        ),
+        OpenApiExample(
+            "Resolved Alert",
+            description="Alert with operator feedback marking it as resolved",
+            value={
+                "id": 235,
+                "customer": 1,
+                "alert_rule": 45,
+                "drift_event": 790,
+                "report_run": 456,
+                "triggered_at": "2025-01-26T10:35:00Z",
+                "status": "resolved",
+                "payload": {
+                    "severity": "HIGH",
+                    "payer": "Aetna",
+                    "drift_type": "decision_time",
+                    "message": "Decision time increased: 18.2 → 28.9 days",
+                },
+                "notification_sent_at": "2025-01-26T10:35:05Z",
+                "error_message": None,
+                "has_judgment": True,
+                "latest_judgment_verdict": "real",
+                "created_at": "2025-01-26T10:35:00Z",
+                "updated_at": "2025-01-26T14:20:00Z",
+            },
+        ),
+    ]
+)
 class AlertEventSerializer(serializers.ModelSerializer):
     """
     Serializer for AlertEvent model with operator judgments.
