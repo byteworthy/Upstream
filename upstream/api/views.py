@@ -195,11 +195,24 @@ class CustomerFilterMixin:
             "customer; superusers see all."
         ),
         tags=["Customers"],
+        responses={
+            200: CustomerSerializer(many=True),
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
     retrieve=extend_schema(
         summary="Get customer details",
         description="Retrieve detailed information for a specific customer.",
         tags=["Customers"],
+        responses={
+            200: CustomerSerializer,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
 )
 class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
@@ -231,6 +244,12 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
             "authenticated user's customer."
         ),
         tags=["Settings"],
+        responses={
+            200: SettingsSerializer(many=True),
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
     retrieve=extend_schema(
         summary="Get settings",
@@ -239,6 +258,13 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
             "for the user's customer."
         ),
         tags=["Settings"],
+        responses={
+            200: SettingsSerializer,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
     create=extend_schema(
         summary="Create settings",
@@ -255,6 +281,13 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
                 request_only=True,
             ),
         ],
+        responses={
+            201: SettingsSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
     update=extend_schema(
         summary="Update settings",
@@ -271,6 +304,14 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
                 request_only=True,
             ),
         ],
+        responses={
+            200: SettingsSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
     partial_update=extend_schema(
         summary="Partially update settings",
@@ -283,11 +324,26 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
                 request_only=True,
             ),
         ],
+        responses={
+            200: SettingsSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
     destroy=extend_schema(
         summary="Delete settings",
         description="Delete customer settings.",
         tags=["Settings"],
+        responses={
+            204: None,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+            429: OpenApiTypes.OBJECT,
+        },
     ),
 )
 class SettingsViewSet(CustomerFilterMixin, viewsets.ModelViewSet):
