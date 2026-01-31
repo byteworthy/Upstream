@@ -194,6 +194,74 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Early-warning intelligence for healthcare revenue operations",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Tag-based organization for API documentation
+    "TAGS": [
+        {
+            "name": "Customers",
+            "description": "Customer account management and information",
+        },
+        {
+            "name": "Settings",
+            "description": "Customer settings and notification preferences",
+        },
+        {
+            "name": "Uploads",
+            "description": "File upload processing and claim data ingestion",
+        },
+        {
+            "name": "Claims",
+            "description": "Claim record operations and analytics",
+        },
+        {
+            "name": "Reports",
+            "description": "Report generation, retrieval, and drift analysis",
+        },
+        {
+            "name": "Drift Detection",
+            "description": "Drift event detection and monitoring",
+        },
+        {
+            "name": "Configuration",
+            "description": "Payer mappings and CPT group configuration",
+        },
+        {
+            "name": "Alerts",
+            "description": "Alert events and operator feedback",
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard overview and summary statistics",
+        },
+        {
+            "name": "Webhook Ingestion",
+            "description": "Webhook data ingestion endpoints",
+        },
+        {
+            "name": "Health",
+            "description": "API health check and service status",
+        },
+        {
+            "name": "Authentication",
+            "description": "JWT authentication and token management",
+        },
+    ],
+    # Server configuration for different environments
+    "SERVERS": [
+        {
+            "url": "https://api.upstream.example.com",
+            "description": "Production server",
+        },
+        {
+            "url": "http://localhost:8000",
+            "description": "Development server",
+        },
+    ],
+    # Security scheme for JWT Bearer authentication
+    "SECURITY": [{"Bearer": []}],
+    # Component schema configuration
+    "COMPONENT_SPLIT_REQUEST": True,  # Separate request/response schemas
+    # Postprocessing hooks for future customization
+    "POSTPROCESSING_HOOKS": [],
     # Note: Multiple models use 'status' field with different choice sets.
     # drf-spectacular auto-generates enum names (StatusB74Enum, StatusDcfEnum).
     # This doesn't affect functionality - API schema works correctly.
