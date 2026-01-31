@@ -455,6 +455,21 @@ class ClaimRecord(models.Model):
         help_text="SHA-256 hash of source row for deduplication",
     )
 
+    # Multi-channel ingestion tracking
+    SUBMITTED_VIA_CHOICES = [
+        ("csv_upload", "CSV Upload"),
+        ("ehr_webhook", "EHR Webhook"),
+        ("api", "API"),
+        ("batch_import", "Batch Import"),
+    ]
+    submitted_via = models.CharField(
+        max_length=20,
+        choices=SUBMITTED_VIA_CHOICES,
+        default="csv_upload",
+        db_index=True,
+        help_text="Source of claim submission for multi-channel ingestion tracking",
+    )
+
     # Tenant isolation
     objects = CustomerScopedManager()
     all_objects = models.Manager()  # Unfiltered access for superusers
@@ -1126,8 +1141,17 @@ class ExecutionLog(models.Model):
 
 class Authorization(models.Model):
     """
-    Authorization tracking for ABA therapy with expiration monitoring.
-    Tracks authorizations with 30-day advance alerts for reauthorization.
+    Multi-vertical authorization tracking with expiration monitoring.
+
+    Supports all four verticals:
+    - ABA: Applied Behavior Analysis therapy authorizations
+    - PT: Physical Therapy (including Dialysis MA variance)
+    - OT: Occupational Therapy
+    - IMAGING: Diagnostic Imaging (RBM requirements)
+    - HOME_HEALTH: Home Health (PDGM validation)
+    - DIALYSIS: Dialysis Services
+
+    Uses specialty_metadata JSON field for vertical-specific requirements.
     """
 
     STATUS_CHOICES = [
@@ -1135,6 +1159,15 @@ class Authorization(models.Model):
         ("EXPIRING_SOON", "Expiring Soon"),
         ("EXPIRED", "Expired"),
         ("RENEWED", "Renewed"),
+    ]
+
+    SERVICE_TYPE_CHOICES = [
+        ("ABA", "ABA Therapy"),
+        ("PT", "Physical Therapy"),
+        ("OT", "Occupational Therapy"),
+        ("IMAGING", "Diagnostic Imaging"),
+        ("HOME_HEALTH", "Home Health"),
+        ("DIALYSIS", "Dialysis Services"),
     ]
 
     customer = models.ForeignKey(
@@ -1148,7 +1181,20 @@ class Authorization(models.Model):
     )
     payer = models.CharField(max_length=255, db_index=True)
     service_type = models.CharField(
-        max_length=100, help_text="e.g., ABA Therapy, Physical Therapy"
+        max_length=50,
+        choices=SERVICE_TYPE_CHOICES,
+        db_index=True,
+        help_text="Service vertical (ABA, PT, OT, IMAGING, HOME_HEALTH, DIALYSIS)",
+    )
+    specialty_metadata = models.JSONField(
+        default=dict,
+        help_text=(
+            "Vertical-specific fields. "
+            "ABA: {'bcba_required': true, 'credential_expiration': '2025-06-30'}. "
+            "Imaging: {'rbm_provider': 'eviCore', 'pa_required': true}. "
+            "Home Health: {'f2f_completed': true, 'oasis_date': '2025-01-15'}. "
+            "Dialysis: {'ma_plan_type': 'Advantage', 'esrd_pps_bundle': 'CA2F'}"
+        ),
     )
     cpt_codes = models.JSONField(
         help_text="List of authorized CPT codes: ['97151', '97153']"
@@ -1184,6 +1230,10 @@ class Authorization(models.Model):
             ),
             models.Index(
                 fields=["customer", "payer", "status"], name="authorization_payer_idx"
+            ),
+            models.Index(
+                fields=["customer", "service_type", "status"],
+                name="authorization_service_idx",
             ),
         ]
         constraints = [
