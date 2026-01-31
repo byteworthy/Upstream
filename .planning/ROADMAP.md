@@ -64,11 +64,11 @@ Plans:
   2. drf-spectacular generates 100% OpenAPI documentation for all endpoints, actions, and filters
   3. API documentation includes request/response examples for every endpoint
   4. Validation errors, authentication errors, and permission errors use consistent format
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — Add @extend_schema decorators to all ViewSets with tags and examples
+- [ ] 03-02-PLAN.md — Standardize error responses and document in OpenAPI schema
 
 ### Phase 4: Webhook & RBAC Testing
 **Goal**: Integration tests validate webhook delivery and customer isolation across roles
@@ -127,7 +127,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Transaction Isolation & Unique Constraints | 2/2 | Complete | 2026-01-26 |
 | 2. API Pagination & Filtering | 2/2 | Complete | 2026-01-26 |
-| 3. OpenAPI Documentation & Error Standardization | 0/TBD | Not started | - |
+| 3. OpenAPI Documentation & Error Standardization | 0/2 | Ready | - |
 | 4. Webhook & RBAC Testing | 2/2 | Complete | 2026-01-26 |
 | 5. Performance Testing & Rollback Fix | 2/2 | Complete | 2026-01-26 |
 | 6. Database Indexes | 0/1 | Not started | - |
