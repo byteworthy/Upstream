@@ -2,12 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Dashboard } from '@/pages/Dashboard';
 import { ClaimScores } from '@/pages/ClaimScores';
+import { ClaimScoreDetail } from '@/pages/ClaimScoreDetail';
 
 // Placeholder pages - will be implemented in subsequent stories
-
-function ClaimScoreDetailPage() {
-  return <div className="text-foreground">Claim Score Detail - Coming soon</div>;
-}
 
 function WorkQueuePage() {
   return <div className="text-foreground">Work Queue - Coming soon</div>;
@@ -51,7 +48,7 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/claim-scores" element={<ClaimScores />} />
-        <Route path="/claim-scores/:id" element={<ClaimScoreDetailPage />} />
+        <Route path="/claim-scores/:id" element={<ClaimScoreDetail />} />
         <Route path="/work-queue" element={<WorkQueuePage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/alerts/:id" element={<AlertDetailPage />} />
