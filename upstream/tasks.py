@@ -351,6 +351,39 @@ def run_daily_behavioral_prediction(customer_id: int = None) -> Dict[str, Any]:
         raise
 
 
+@shared_task(name="upstream.tasks.run_network_intelligence", base=MonitoredTask)
+def run_network_intelligence() -> Dict[str, Any]:
+    """
+    Async task for running cross-customer network intelligence analysis.
+
+    Analyzes denial patterns across all customers to detect payer-wide
+    behavioral changes. Creates NetworkAlert when 3+ customers are
+    affected by the same payer drift.
+
+    Returns:
+        dict: Summary of network intelligence results
+    """
+    from upstream.services.network_intelligence import compute_cross_customer_patterns
+
+    logger.info("Starting network intelligence analysis")
+
+    try:
+        alerts_created = compute_cross_customer_patterns()
+
+        logger.info(
+            f"Completed network intelligence analysis: {alerts_created} alerts created"
+        )
+
+        return {
+            "alerts_created": alerts_created,
+            "status": "success",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in network intelligence task: {str(e)}")
+        raise
+
+
 @shared_task(
     bind=True,
     base=MonitoredTask,

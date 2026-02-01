@@ -100,7 +100,6 @@ from ..models import (
     PayerMapping,
     CPTGroupMapping,
     NetworkAlert,
-    NetworkAlert,
 )
 from upstream.alerts.models import AlertEvent, OperatorJudgment
 from upstream.automation.models import (
@@ -2302,7 +2301,7 @@ class HealthCheckView(APIView):
                 # pragma: allowlist secret
                 "access": (
                     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9."  # pragma: allowlist secret
-                    "eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImRvY3Rvckho"  # pragma: allowlist secret
+                    "eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImRvY3Rvckho"  # noqa: E501
                     "ZWFsdGhjb3JwLmNvbSJ9.abc123"
                 ),
                 "refresh": (
