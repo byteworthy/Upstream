@@ -372,7 +372,7 @@
       "files": [
         "upstream/services/scoring.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 23,
@@ -389,7 +389,7 @@
         "upstream/api/views.py",
         "upstream/api/urls.py"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }

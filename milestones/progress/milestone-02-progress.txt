@@ -138,3 +138,39 @@ Both stories were already fully implemented:
 
 ### Status
 ✅ Stories #18, #19 verified complete and marked passes: true
+
+## [Agent1] Iteration - 2026-02-01 07:15 UTC
+Stories: #22, #23 - Specialty Module Integration and API Endpoints
+
+### Verification
+Both stories were already fully implemented in the codebase:
+
+#### Story #22: Integrate specialty modules into ClaimScore calculation (upstream/services/scoring.py)
+- RiskScoringService.validate_specialty() routes to appropriate specialty service based on service_type
+- _validate_dialysis() - calls DialysisMAService for MA variance detection
+- _validate_aba() - validates ABA unit tracking compliance
+- _validate_ptot() - calls PTOTService for 8-minute rule validation
+- _validate_imaging() - calls ImagingPAService for PA requirement checking
+- _validate_home_health() - calls HomeHealthService for PDGM validation
+- calculate_score_with_specialty() combines base score with specialty risk adjustments
+- SpecialtyValidationResult dataclass with is_compliant, risk_adjustment, violations, requires_review, details
+- Specialty risk factors reduce overall_confidence based on risk_adjustment
+- Specialty violations can trigger requires_human_review flag
+- Updated red_line_reason with specialty-specific messages
+
+#### Story #23: Create specialty module API endpoints (upstream/api/specialty_views.py, urls.py)
+- GET /api/v1/specialty/dialysis/baselines/ - DialysisMABaselineViewSet (list, retrieve, filter by cpt/payer)
+- GET /api/v1/specialty/aba/authorizations/ - ABAAuthorizationTrackerViewSet (list, retrieve, active, approaching_limit)
+- GET /api/v1/specialty/imaging/pa-requirements/ - ImagingPARequirementViewSet (list, retrieve, lookup by payer/cpt)
+- POST /api/v1/specialty/validate/ - SpecialtyValidationView runs specialty validation for claim
+- Complete OpenAPI documentation with @extend_schema decorators
+- Request/response serializers: SpecialtyValidationRequestSerializer, SpecialtyValidationResponseSerializer
+- CustomerFilterMixin and IsCustomerMember permissions for tenant isolation
+
+### Quality Gates Passed
+- pytest upstream/tests_scoring.py: 34 tests passed
+- pytest specialty modules (dialysis, aba, ptot, imaging, homehealth): 151 tests passed
+- All acceptance criteria verified through code inspection
+
+### Status
+✅ Stories #22, #23 verified complete and marked passes: true
