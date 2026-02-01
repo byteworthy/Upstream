@@ -239,11 +239,11 @@ class ABAAuthorizationService:
         Returns:
             AlertEvent if alert created, None otherwise
         """
-        if not authorization.auth_end_date:
+        if not authorization.auth_expiration_date:
             return None
 
         today = timezone.now().date()
-        days_until = (authorization.auth_end_date - today).days
+        days_until = (authorization.auth_expiration_date - today).days
 
         # Determine severity based on days until expiration
         if days_until <= REAUTH_3_DAY_ALERT:
@@ -284,7 +284,7 @@ class ABAAuthorizationService:
             "authorization_id": authorization.id,
             "auth_number": authorization.auth_number,
             "days_until_expiration": days_until,
-            "expiration_date": str(authorization.auth_end_date),
+            "expiration_date": str(authorization.auth_expiration_date),
             "severity": severity,
         }
 

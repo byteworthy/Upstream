@@ -145,6 +145,7 @@ class ABAAuthorizationServiceUnitTrackingTest(TestCase):
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=30),
             auth_expiration_date=date.today() + timedelta(days=60),
+            units_authorized=100,
             specialty_metadata={"authorized_units": 100},
         )
         self.service = ABAAuthorizationService()
@@ -249,6 +250,7 @@ class ABAAuthorizationServiceProjectionTest(TestCase):
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=30),
             auth_expiration_date=date.today() + timedelta(days=60),
+            units_authorized=100,
             specialty_metadata={"authorized_units": 100},
         )
         self.service = ABAAuthorizationService()

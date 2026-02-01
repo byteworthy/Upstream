@@ -169,7 +169,7 @@
       "files": [
         "upstream/products/aba/tests.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 10,
