@@ -11,15 +11,17 @@ This service is responsible for:
 - Computing overall confidence as weighted average
 - Determining automation tier based on thresholds
 - Detecting red-line actions requiring human review
+- Integrating specialty-specific risk factors (dialysis, ABA, PT/OT, imaging,
+  home health)
 
 All methods accept domain objects (ClaimRecord, Customer) and return
 structured results. Stateless and framework-agnostic.
 """
 
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from decimal import Decimal
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,18 @@ RED_LINE_CPT_CODES = {
 
 
 @dataclass
+class SpecialtyValidationResult:
+    """Result of specialty-specific validation."""
+
+    service_type: str
+    is_compliant: bool
+    risk_adjustment: float = 0.0
+    violations: List[str] = field(default_factory=list)
+    requires_review: bool = False
+    details: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class ScoringResult:
     """Result of scoring calculation."""
 
@@ -71,6 +85,7 @@ class ScoringResult:
     red_line_reason: str
     feature_importance: Dict[str, float]
     prediction_reasoning: str
+    specialty_validation: Optional[SpecialtyValidationResult] = None
 
 
 class RiskScoringService:
@@ -552,3 +567,390 @@ class RiskScoringService:
             }
         except CustomerAutomationProfile.DoesNotExist:
             return None
+
+    @staticmethod
+    def validate_specialty(
+        claim_data: Dict[str, Any],
+    ) -> Optional[SpecialtyValidationResult]:
+        """
+        Run specialty-specific validation based on claim service_type.
+
+        Routes to appropriate specialty service and returns validation results
+        that affect overall confidence and human review requirements.
+
+        Args:
+            claim_data: Dict with claim fields including:
+                - service_type: str (DIALYSIS, ABA, PTOT, IMAGING, HOME_HEALTH)
+                - cpt: str
+                - payer: str
+                - specialty_metadata: dict (specialty-specific data)
+
+        Returns:
+            SpecialtyValidationResult or None if no specialty applies
+        """
+        service_type = claim_data.get("service_type", "").upper()
+
+        if not service_type:
+            return None
+
+        try:
+            if service_type == "DIALYSIS":
+                return RiskScoringService._validate_dialysis(claim_data)
+            elif service_type == "ABA":
+                return RiskScoringService._validate_aba(claim_data)
+            elif service_type in ("PTOT", "PT/OT", "PT", "OT"):
+                return RiskScoringService._validate_ptot(claim_data)
+            elif service_type == "IMAGING":
+                return RiskScoringService._validate_imaging(claim_data)
+            elif service_type in ("HOME_HEALTH", "HOMEHEALTH", "HH"):
+                return RiskScoringService._validate_home_health(claim_data)
+            else:
+                return None
+        except Exception as e:
+            logger.warning(f"Specialty validation failed for {service_type}: {e}")
+            return None
+
+    @staticmethod
+    def _validate_dialysis(claim_data: Dict[str, Any]) -> SpecialtyValidationResult:
+        """Validate dialysis claim for MA variance."""
+        from upstream.products.dialysis.services import DialysisMAService
+
+        service = DialysisMAService()
+        violations = []
+        risk_adjustment = 0.0
+        requires_review = False
+        details = {}
+
+        # Create mock claim object for service
+        class MockClaim:
+            def __init__(self, data):
+                self.cpt = data.get("cpt", "")
+                self.paid_amount = data.get("paid_amount")
+
+        claim = MockClaim(claim_data)
+        result = service.detect_variance(claim)
+
+        if result.has_variance:
+            violations.append(result.message)
+            details["variance_ratio"] = float(result.ratio) if result.ratio else None
+            details["variance_amount"] = (
+                str(result.variance_amount) if result.variance_amount else None
+            )
+            details["projected_annual_loss"] = (
+                str(result.projected_annual_loss)
+                if result.projected_annual_loss else None
+            )
+
+            if result.severity == "critical":
+                risk_adjustment = 0.25
+                requires_review = True
+            elif result.severity == "warning":
+                risk_adjustment = 0.15
+
+        return SpecialtyValidationResult(
+            service_type="DIALYSIS",
+            is_compliant=not result.has_variance,
+            risk_adjustment=risk_adjustment,
+            violations=violations,
+            requires_review=requires_review,
+            details=details,
+        )
+
+    @staticmethod
+    def _validate_aba(claim_data: Dict[str, Any]) -> SpecialtyValidationResult:
+        """Validate ABA claim for unit tracking compliance."""
+        from upstream.products.aba.services import ABAService
+
+        service = ABAService()
+        violations = []
+        risk_adjustment = 0.0
+        requires_review = False
+        details = {}
+
+        # Create mock claim object
+        class MockClaim:
+            def __init__(self, data):
+                self.specialty_metadata = data.get("specialty_metadata", {})
+                self.service_date = data.get("service_date")
+                self.cpt = data.get("cpt", "")
+                self.procedure_count = data.get("procedure_count")
+
+        claim = MockClaim(claim_data)
+        result = service.check_unit_compliance(claim)
+
+        if not result.is_compliant:
+            violations.append(result.message)
+            details["units_used"] = result.units_used
+            details["units_authorized"] = result.units_authorized
+            details["units_remaining"] = result.units_remaining
+            details["percent_used"] = result.percent_used
+
+            if result.severity == "critical":
+                risk_adjustment = 0.30
+                requires_review = True
+            elif result.severity in ("high", "warning"):
+                risk_adjustment = 0.20
+
+        return SpecialtyValidationResult(
+            service_type="ABA",
+            is_compliant=result.is_compliant,
+            risk_adjustment=risk_adjustment,
+            violations=violations,
+            requires_review=requires_review,
+            details=details,
+        )
+
+    @staticmethod
+    def _validate_ptot(claim_data: Dict[str, Any]) -> SpecialtyValidationResult:
+        """Validate PT/OT claim for 8-minute rule compliance."""
+        from upstream.products.ptot.services import PTOTService
+
+        service = PTOTService()
+        violations = []
+        risk_adjustment = 0.0
+        requires_review = False
+        details = {}
+
+        # Create mock claim object
+        class MockClaim:
+            def __init__(self, data):
+                self.cpt = data.get("cpt", "")
+                self.total_minutes = data.get("total_minutes") or data.get(
+                    "specialty_metadata", {}
+                ).get("treatment_time")
+                self.procedure_count = data.get("procedure_count") or data.get(
+                    "specialty_metadata", {}
+                ).get("units")
+                self.modifiers = data.get("modifiers", "")
+
+        claim = MockClaim(claim_data)
+        result = service.validate_8_minute_rule(claim)
+
+        if not result.is_valid and "not time-based" not in result.message:
+            violations.append(result.message)
+            details["total_minutes"] = result.total_minutes
+            details["expected_units"] = result.expected_units
+            details["billed_units"] = result.billed_units
+            details["unit_difference"] = result.unit_difference
+
+            if result.severity == "critical":
+                risk_adjustment = 0.25
+                requires_review = True
+            elif result.severity == "warning":
+                risk_adjustment = 0.15
+
+        return SpecialtyValidationResult(
+            service_type="PTOT",
+            is_compliant=result.is_valid,
+            risk_adjustment=risk_adjustment,
+            violations=violations,
+            requires_review=requires_review,
+            details=details,
+        )
+
+    @staticmethod
+    def _validate_imaging(claim_data: Dict[str, Any]) -> SpecialtyValidationResult:
+        """Validate imaging claim for PA requirements."""
+        from upstream.products.imaging.services import ImagingPAService
+
+        service = ImagingPAService()
+        violations = []
+        risk_adjustment = 0.0
+        requires_review = False
+        details = {}
+
+        # Create mock claim object
+        class MockClaim:
+            def __init__(self, data):
+                self.cpt = data.get("cpt", "")
+                self.payer_name = data.get("payer", "")
+                self.authorization = data.get("authorization")
+                self.specialty_metadata = data.get("specialty_metadata", {})
+
+        claim = MockClaim(claim_data)
+        pa_result = service.check_pa_required(claim)
+
+        if pa_result.pa_required:
+            details["pa_required"] = True
+            details["rbm_provider"] = pa_result.rbm_provider
+
+            if not pa_result.is_compliant:
+                violations.append(pa_result.message)
+                risk_adjustment = 0.30
+                requires_review = True
+
+        # Also check documentation
+        doc_result = service.validate_documentation(claim)
+        if not doc_result.is_complete:
+            violations.append(
+                f"Missing documentation: {', '.join(doc_result.missing_fields)}"
+            )
+            details["missing_fields"] = doc_result.missing_fields
+            if doc_result.severity == "high":
+                risk_adjustment = max(risk_adjustment, 0.20)
+
+        return SpecialtyValidationResult(
+            service_type="IMAGING",
+            is_compliant=pa_result.is_compliant and doc_result.is_complete,
+            risk_adjustment=risk_adjustment,
+            violations=violations,
+            requires_review=requires_review,
+            details=details,
+        )
+
+    @staticmethod
+    def _validate_home_health(
+        claim_data: Dict[str, Any],
+    ) -> SpecialtyValidationResult:
+        """Validate home health claim for PDGM compliance."""
+        from upstream.products.homehealth.services import HomeHealthService
+
+        service = HomeHealthService()
+        violations = []
+        risk_adjustment = 0.0
+        requires_review = False
+        details = {}
+
+        # Create mock claim object
+        class MockClaim:
+            def __init__(self, data):
+                self.specialty_metadata = data.get("specialty_metadata", {})
+
+        claim = MockClaim(claim_data)
+
+        # Validate PDGM grouping
+        pdgm_result = service.validate_pdgm_grouping(claim)
+        if not pdgm_result.is_valid:
+            violations.append(pdgm_result.message)
+            details["pdgm_timing"] = pdgm_result.timing
+            details["pdgm_clinical_group"] = pdgm_result.clinical_group
+            details["pdgm_missing_fields"] = pdgm_result.missing_fields
+
+            if pdgm_result.severity == "high":
+                risk_adjustment = 0.25
+                requires_review = True
+            elif pdgm_result.severity == "medium":
+                risk_adjustment = 0.15
+
+        # Validate F2F timing
+        f2f_result = service.validate_f2f_timing(claim)
+        if not f2f_result.is_valid:
+            violations.append(f2f_result.message)
+            details["f2f_days_from_soc"] = f2f_result.days_from_soc
+
+            if f2f_result.severity == "critical":
+                risk_adjustment = max(risk_adjustment, 0.30)
+                requires_review = True
+
+        # Check NOA deadline
+        noa_result = service.check_noa_deadline(claim)
+        if noa_result.severity in ("high", "critical"):
+            violations.append(noa_result.message)
+            details["noa_days_until_deadline"] = noa_result.days_until_deadline
+            details["noa_overdue"] = noa_result.is_overdue
+
+            if noa_result.is_overdue:
+                risk_adjustment = max(risk_adjustment, 0.25)
+                requires_review = True
+
+        is_compliant = (
+            pdgm_result.is_valid
+            and f2f_result.is_valid
+            and not noa_result.is_overdue
+        )
+
+        return SpecialtyValidationResult(
+            service_type="HOME_HEALTH",
+            is_compliant=is_compliant,
+            risk_adjustment=risk_adjustment,
+            violations=violations,
+            requires_review=requires_review,
+            details=details,
+        )
+
+    @staticmethod
+    def calculate_score_with_specialty(
+        claim_data: Dict[str, Any],
+        baseline_data: Optional[Dict[str, Any]] = None,
+        profile_thresholds: Optional[Dict[str, Any]] = None,
+    ) -> ScoringResult:
+        """
+        Calculate risk score including specialty-specific validation.
+
+        This is the enhanced version of calculate_score that integrates
+        specialty module validation into the overall risk assessment.
+
+        Args:
+            claim_data: Dict with claim fields including service_type
+            baseline_data: Optional RiskBaseline lookup result
+            profile_thresholds: Optional customer thresholds
+
+        Returns:
+            ScoringResult with specialty_validation populated
+        """
+        # Get base score
+        result = RiskScoringService.calculate_score(
+            claim_data, baseline_data, profile_thresholds
+        )
+
+        # Run specialty validation
+        specialty_result = RiskScoringService.validate_specialty(claim_data)
+
+        if specialty_result:
+            # Apply specialty risk adjustment to overall confidence
+            adjusted_confidence = max(
+                0.0,
+                result.overall_confidence - specialty_result.risk_adjustment
+            )
+
+            # Check if specialty requires human review
+            requires_review = (
+                result.requires_human_review or specialty_result.requires_review
+            )
+            red_line_reason = result.red_line_reason
+            if specialty_result.requires_review and not red_line_reason:
+                red_line_reason = (
+                    f"Specialty violation: {specialty_result.violations[0]}"
+                    if specialty_result.violations
+                    else f"{specialty_result.service_type} compliance issue"
+                )
+
+            # Re-determine automation tier with adjusted confidence
+            action, tier = RiskScoringService._determine_automation_tier(
+                adjusted_confidence,
+                claim_data.get("allowed_amount"),
+                result.fraud_risk_score,
+                result.compliance_risk_score,
+                requires_review,
+                profile_thresholds,
+            )
+
+            # Update reasoning
+            reasoning_parts = [result.prediction_reasoning.rstrip(".")]
+            if specialty_result.violations:
+                reasoning_parts.append(
+                    f"Specialty issues: {'; '.join(specialty_result.violations)}"
+                )
+            reasoning = ". ".join(reasoning_parts) + "."
+
+            # Return updated result
+            return ScoringResult(
+                overall_confidence=round(adjusted_confidence, 4),
+                coding_confidence=result.coding_confidence,
+                eligibility_confidence=result.eligibility_confidence,
+                medical_necessity_confidence=result.medical_necessity_confidence,
+                documentation_completeness=result.documentation_completeness,
+                denial_risk_score=result.denial_risk_score,
+                fraud_risk_score=result.fraud_risk_score,
+                compliance_risk_score=result.compliance_risk_score,
+                recommended_action=action,
+                automation_tier=tier,
+                requires_human_review=requires_review,
+                red_line_reason=red_line_reason,
+                feature_importance=result.feature_importance,
+                prediction_reasoning=reasoning,
+                specialty_validation=specialty_result,
+            )
+
+        # No specialty validation - return original result
+        return result

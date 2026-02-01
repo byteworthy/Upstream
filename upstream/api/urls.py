@@ -40,6 +40,12 @@ from upstream.views.celery_health import (
     celery_stats,
 )
 from upstream.views.monitoring_status import monitoring_status
+from .specialty_views import (
+    DialysisMABaselineViewSet,
+    ABAAuthorizationTrackerViewSet,
+    ImagingPARequirementViewSet,
+    SpecialtyValidationView,
+)
 
 # Create router and register viewsets
 router = DefaultRouter()
@@ -60,6 +66,22 @@ router.register(
     basename="automation-profile",
 )
 router.register(r"shadow-results", ShadowModeResultViewSet, basename="shadow-result")
+# Specialty module routes
+router.register(
+    r"specialty/dialysis/baselines",
+    DialysisMABaselineViewSet,
+    basename="dialysis-baseline",
+)
+router.register(
+    r"specialty/aba/authorizations",
+    ABAAuthorizationTrackerViewSet,
+    basename="aba-authorization",
+)
+router.register(
+    r"specialty/imaging/pa-requirements",
+    ImagingPARequirementViewSet,
+    basename="imaging-pa-requirement",
+)
 
 urlpatterns = [
     # Health check (no auth)
@@ -86,6 +108,12 @@ urlpatterns = [
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    # Specialty validation endpoint
+    path(
+        "specialty/validate/",
+        SpecialtyValidationView.as_view(),
+        name="specialty-validate",
+    ),
     # Router URLs
     path("", include(router.urls)),
 ]
