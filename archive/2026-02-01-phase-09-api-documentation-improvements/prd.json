@@ -1,0 +1,95 @@
+{
+  "branchName": "milestone-03-frontend-scaffold",
+  "context": {
+    "phase": "3a",
+    "phaseName": "Frontend Scaffold (Parallel)",
+    "phaseGoal": "Set up React frontend infrastructure independent of backend APIs",
+    "dependsOn": [],
+    "successCriteria": [
+      "React app with Vite and TypeScript initialized",
+      "Tailwind CSS and shadcn/ui configured",
+      "App layout with navigation structure",
+      "npm run dev and npm run build work"
+    ],
+    "qualityGates": [
+      "cd frontend && npm run lint",
+      "cd frontend && npm run build"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create React app with Vite and TypeScript",
+      "description": "Initialize React frontend with Vite, TypeScript, and modern tooling. Run: npm create vite@latest frontend -- --template react-ts",
+      "acceptanceCriteria": [
+        "frontend/ directory created with Vite React TypeScript template",
+        "ESLint configured",
+        "tsconfig.json with strict mode",
+        "npm run dev starts development server",
+        "npm run build produces production bundle"
+      ],
+      "files": [
+        "frontend/package.json",
+        "frontend/vite.config.ts",
+        "frontend/tsconfig.json"
+      ],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Set up Tailwind CSS and shadcn/ui",
+      "description": "Configure Tailwind CSS with shadcn/ui component library for consistent design.",
+      "acceptanceCriteria": [
+        "Tailwind CSS installed and configured",
+        "shadcn/ui initialized with components.json",
+        "Custom theme colors defined",
+        "Dark mode support configured",
+        "Button and Card components added from shadcn/ui"
+      ],
+      "files": [
+        "frontend/tailwind.config.js",
+        "frontend/src/index.css",
+        "frontend/components.json"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Build AppLayout with navigation",
+      "description": "Create main application layout with sidebar navigation and header.",
+      "acceptanceCriteria": [
+        "Sidebar component with navigation links",
+        "Header with placeholder user menu",
+        "Responsive: collapses on mobile",
+        "React Router configured for routing",
+        "Active route highlighting"
+      ],
+      "files": [
+        "frontend/src/components/layout/AppLayout.tsx",
+        "frontend/src/components/layout/Sidebar.tsx",
+        "frontend/src/components/layout/Header.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Create placeholder pages for main routes",
+      "description": "Create placeholder pages for Dashboard, Claims, Alerts, Settings.",
+      "acceptanceCriteria": [
+        "Dashboard page at /dashboard",
+        "Claims page at /claims",
+        "Alerts page at /alerts",
+        "Settings page at /settings",
+        "Each page shows title and placeholder content",
+        "Navigation links work correctly"
+      ],
+      "files": [
+        "frontend/src/pages/Dashboard.tsx",
+        "frontend/src/pages/Claims.tsx",
+        "frontend/src/pages/Alerts.tsx",
+        "frontend/src/pages/Settings.tsx"
+      ],
+      "passes": false
+    }
+  ]
+}
