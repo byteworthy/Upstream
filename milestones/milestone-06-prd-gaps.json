@@ -62,13 +62,13 @@
       "id": 8,
       "title": "Create network intelligence service",
       "description": "Create upstream/services/network_intelligence.py with compute_cross_customer_patterns(). Create NetworkAlert when 3+ customers affected.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 9,
       "title": "Add tests for network intelligence",
       "description": "Create upstream/tests/test_network_intelligence.py with tests for cross-customer detection.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 10,
@@ -86,7 +86,7 @@
       "id": 12,
       "title": "Update HomeHealthService to use models",
       "description": "Update upstream/products/homehealth/services.py to use new models.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 13,
@@ -104,7 +104,7 @@
       "id": 15,
       "title": "Add Celery task for network intelligence",
       "description": "Add run_network_intelligence to upstream/tasks.py.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 16,
