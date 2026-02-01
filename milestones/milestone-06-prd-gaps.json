@@ -38,7 +38,7 @@
       "id": 4,
       "title": "Add DENIAL_DOLLARS_SPIKE_THRESHOLD constant",
       "description": "Add DENIAL_DOLLARS_SPIKE_THRESHOLD = 50000 to upstream/constants.py.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 5,
@@ -74,13 +74,13 @@
       "id": 10,
       "title": "Create HomeHealthPDGMGroup model",
       "description": "Create upstream/products/homehealth/models.py with HomeHealthPDGMGroup model. Create migration.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 11,
       "title": "Create HomeHealthEpisode model",
       "description": "Add HomeHealthEpisode to upstream/products/homehealth/models.py with F2F and NOA tracking. Create migration.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 12,
