@@ -25,6 +25,7 @@ from ..models import (
     CPTGroupMapping,
 )
 from upstream.alerts.models import AlertEvent, OperatorJudgment
+from upstream.automation.models import ClaimScore
 
 
 # =============================================================================
@@ -102,6 +103,7 @@ class HATEOASMixin(serializers.Serializer):
             "payermapping": "payer-mapping",
             "cptgroupmapping": "cpt-mapping",
             "operatorjudgment": "operator-judgment",
+            "claimscore": "claim-score",
         }
         basename = basename_map.get(model_name)
 
@@ -1382,6 +1384,175 @@ class OperatorFeedbackSerializer(serializers.Serializer):
     )
     recovered_date = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+# =============================================================================
+# Automation Serializers (ClaimScore, CustomerAutomationProfile, ShadowModeResult)
+# =============================================================================
+
+
+class ClaimRecordNestedSerializer(serializers.ModelSerializer):
+    """Lightweight nested serializer for ClaimRecord within ClaimScore."""
+
+    class Meta:
+        model = ClaimRecord
+        fields = ["id", "payer", "cpt", "cpt_group", "outcome", "allowed_amount"]
+        read_only_fields = fields
+
+
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "High Confidence Score",
+            description="Claim with high confidence eligible for auto-execution",
+            value={
+                "id": 1234,
+                "claim": {
+                    "id": 5678,
+                    "payer": "Blue Cross Blue Shield",
+                    "cpt": "99213",
+                    "cpt_group": "Office Visits",
+                    "outcome": "pending",
+                    "allowed_amount": "125.00",
+                },
+                "customer": 1,
+                "overall_confidence": 0.97,
+                "coding_confidence": 0.98,
+                "eligibility_confidence": 0.95,
+                "medical_necessity_confidence": 0.96,
+                "documentation_completeness": 0.99,
+                "denial_risk_score": 0.08,
+                "fraud_risk_score": 0.02,
+                "compliance_risk_score": 0.01,
+                "model_version": "rf_v2.1",
+                "feature_importance": {
+                    "payer_history": 0.35,
+                    "cpt_denial_rate": 0.25,
+                    "documentation": 0.20,
+                },
+                "prediction_reasoning": (
+                    "High confidence based on strong payer history and "
+                    "complete documentation."
+                ),
+                "recommended_action": "auto_execute",
+                "automation_tier": 1,
+                "requires_human_review": False,
+                "red_line_reason": "",
+                "created_at": "2025-01-26T10:30:00Z",
+                "updated_at": "2025-01-26T10:30:00Z",
+                "_links": {
+                    "self": "http://localhost:8000/api/v1/claim-scores/1234/",
+                    "collection": "http://localhost:8000/api/v1/claim-scores/",
+                },
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Low Confidence Score - Escalation Required",
+            description="Claim requiring human review due to low confidence",
+            value={
+                "id": 1235,
+                "claim": {
+                    "id": 5679,
+                    "payer": "Aetna",
+                    "cpt": "99215",
+                    "cpt_group": "Office Visits",
+                    "outcome": "pending",
+                    "allowed_amount": "15000.00",
+                },
+                "customer": 1,
+                "overall_confidence": 0.58,
+                "coding_confidence": 0.65,
+                "eligibility_confidence": 0.72,
+                "medical_necessity_confidence": 0.45,
+                "documentation_completeness": 0.50,
+                "denial_risk_score": 0.68,
+                "fraud_risk_score": 0.15,
+                "compliance_risk_score": 0.12,
+                "model_version": "rf_v2.1",
+                "feature_importance": {
+                    "medical_necessity": 0.40,
+                    "documentation_gaps": 0.30,
+                    "payer_history": 0.15,
+                },
+                "prediction_reasoning": (
+                    "Low confidence due to incomplete documentation and "
+                    "uncertain medical necessity."
+                ),
+                "recommended_action": "escalate",
+                "automation_tier": 3,
+                "requires_human_review": True,
+                "red_line_reason": "Medical necessity determination required",
+                "created_at": "2025-01-26T11:00:00Z",
+                "updated_at": "2025-01-26T11:00:00Z",
+                "_links": {
+                    "self": "http://localhost:8000/api/v1/claim-scores/1235/",
+                    "collection": "http://localhost:8000/api/v1/claim-scores/",
+                },
+            },
+            response_only=True,
+        ),
+    ]
+)
+class ClaimScoreSerializer(HATEOASMixin, serializers.ModelSerializer):
+    """
+    Serializer for ClaimScore model.
+
+    Represents ML-based confidence scoring for claim automation decisions,
+    including overall confidence metrics, risk scores, and routing tier.
+
+    **Confidence Metrics (0.0-1.0):**
+    - `overall_confidence`: Weighted average for automation decision
+    - `coding_confidence`: CPT code accuracy confidence
+    - `eligibility_confidence`: Patient eligibility confidence
+    - `medical_necessity_confidence`: Medical necessity criteria confidence
+    - `documentation_completeness`: Supporting documentation completeness
+
+    **Risk Scores (0.0-1.0, higher = more risk):**
+    - `denial_risk_score`: Historical pattern-based denial probability
+    - `fraud_risk_score`: Fraud detection score (NPI patterns, billing anomalies)
+    - `compliance_risk_score`: Compliance violation risk (Stark, Anti-Kickback)
+
+    **Automation Tiers:**
+    - Tier 1 (auto_execute): Confidence >= 95%, amount <= $1K
+    - Tier 2 (queue_review): Confidence 70-95%, amount $1K-$10K
+    - Tier 3 (escalate): Confidence < 70%, amount > $10K, or red-line actions
+    """
+
+    claim = ClaimRecordNestedSerializer(read_only=True)
+
+    class Meta:
+        model = ClaimScore
+        fields = [
+            "id",
+            "claim",
+            "customer",
+            "overall_confidence",
+            "coding_confidence",
+            "eligibility_confidence",
+            "medical_necessity_confidence",
+            "documentation_completeness",
+            "denial_risk_score",
+            "fraud_risk_score",
+            "compliance_risk_score",
+            "model_version",
+            "feature_importance",
+            "prediction_reasoning",
+            "recommended_action",
+            "automation_tier",
+            "requires_human_review",
+            "red_line_reason",
+            "created_at",
+            "updated_at",
+            "_links",
+        ]
+        read_only_fields = [
+            "id",
+            "claim",
+            "customer",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class HealthCheckSerializer(serializers.Serializer):
