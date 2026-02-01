@@ -1544,3 +1544,6 @@ from upstream.models_agents import (  # noqa: F401, E402
     TestCoverageReport,
     MigrationAnalysis,
 )
+from upstream.products.dialysis.models import (  # noqa: F401, E402
+    DialysisMABaseline,
+)
