@@ -29,6 +29,7 @@ from .views import (
     DashboardView,
     HealthCheckView,
     WebhookIngestionView,
+    EpicEHRWebhookView,
     # Automation ViewSets
     ClaimScoreViewSet,
     CustomerAutomationProfileViewSet,
@@ -72,6 +73,17 @@ urlpatterns = [
     path("celery/stats/", celery_stats, name="celery-stats"),
     # Webhook ingestion (token auth)
     path("ingest/webhook/", WebhookIngestionView.as_view(), name="api-webhook-ingest"),
+    # EHR webhook endpoints (Story 7: Epic webhook receiver)
+    path(
+        "webhooks/ehr/epic/",
+        EpicEHRWebhookView.as_view(),
+        name="api-epic-ehr-webhook",
+    ),
+    path(
+        "webhooks/ehr/epic/<int:connection_id>/",
+        EpicEHRWebhookView.as_view(),
+        name="api-epic-ehr-webhook-connection",
+    ),
     # Dashboard
     path("dashboard/", DashboardView.as_view(), name="api-dashboard"),
     # JWT Authentication (HIGH-2: Rate-limited to prevent brute-force attacks)

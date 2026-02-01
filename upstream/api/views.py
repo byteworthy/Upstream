@@ -2014,6 +2014,224 @@ class WebhookIngestionView(APIView):
             )
 
 
+class EpicEHRWebhookView(APIView):
+    """
+    Epic FHIR R4 webhook endpoint for real-time notifications.
+
+    Story 7: Build webhook receiver for real-time updates
+    - Handles Epic FHIR notifications
+    - Validates Epic signature header
+    - Parses FHIR resource from payload
+    - Creates/updates ClaimRecord with idempotency
+    """
+
+    permission_classes = []  # Uses Epic signature validation
+
+    @extend_schema(
+        summary="Receive Epic EHR webhook notifications",
+        description=(
+            "POST /api/v1/webhooks/ehr/epic/ handles Epic notifications. "
+            "Validates Epic signature header, parses FHIR resource, "
+            "and creates/updates ClaimRecords with idempotency using resource ID."
+        ),
+        tags=["EHR Webhooks"],
+        request={"application/fhir+json": dict},
+        responses={
+            200: OpenApiExample(
+                "Success Response",
+                value={
+                    "status": "processed",
+                    "resource_id": "eob-12345",
+                    "action": "created",
+                },
+                response_only=True,
+            ),
+            401: OpenApiExample(
+                "Invalid Signature",
+                value={"error": "Invalid Epic signature"},
+                response_only=True,
+            ),
+            400: OpenApiExample(
+                "Invalid Payload",
+                value={"error": "Invalid FHIR resource"},
+                response_only=True,
+            ),
+        },
+    )
+    def post(self, request, connection_id=None):
+        """
+        Handle Epic FHIR webhook notification.
+
+        Args:
+            request: HTTP request with FHIR payload
+            connection_id: Optional EHRConnection ID to match
+
+        Returns:
+            Response with processing status
+        """
+        import hashlib
+        import hmac
+        from upstream.integrations.models import EHRConnection, EHRSyncLog
+        from upstream.integrations.fhir_parser import FHIRParser, FHIRParseError
+        from upstream.models import ClaimRecord, Upload
+
+        # Validate Epic signature header
+        epic_signature = request.META.get("HTTP_X_EPIC_SIGNATURE", "")
+        epic_timestamp = request.META.get("HTTP_X_EPIC_TIMESTAMP", "")
+
+        # Get connection for signature validation
+        connection = None
+        if connection_id:
+            try:
+                connection = EHRConnection.objects.get(
+                    id=connection_id, ehr_type="epic", enabled=True
+                )
+            except EHRConnection.DoesNotExist:
+                return Response(
+                    {"error": "Invalid connection"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Validate signature using connection's client_secret
+            if epic_signature:
+                payload_bytes = request.body
+                expected_signature = hmac.new(
+                    connection.client_secret.encode(),
+                    f"{epic_timestamp}.{payload_bytes.decode()}".encode(),
+                    hashlib.sha256,
+                ).hexdigest()
+
+                if not hmac.compare_digest(epic_signature, expected_signature):
+                    return Response(
+                        {"error": "Invalid Epic signature"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+
+        # Parse FHIR payload
+        payload = request.data
+        if not payload:
+            return Response(
+                {"error": "Empty payload"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        resource_type = payload.get("resourceType")
+        resource_id = payload.get("id")
+
+        if not resource_type or not resource_id:
+            return Response(
+                {"error": "Invalid FHIR resource: missing resourceType or id"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only process ExplanationOfBenefit resources
+        if resource_type != "ExplanationOfBenefit":
+            return Response(
+                {
+                    "status": "skipped",
+                    "reason": f"Unsupported resource type: {resource_type}",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # Parse the EOB using FHIR parser
+        try:
+            customer = connection.customer if connection else None
+            customer_salt = str(customer.id) if customer else ""
+            parser = FHIRParser(customer_salt=customer_salt)
+            parsed_data = parser.parse_eob(payload)
+        except FHIRParseError as e:
+            return Response(
+                {"error": f"Failed to parse EOB: {e}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Idempotency check using source_data_hash
+        source_hash = parsed_data.get("source_data_hash")
+        action = "created"
+
+        if customer:
+            existing = ClaimRecord.objects.filter(
+                customer=customer, source_data_hash=source_hash
+            ).first()
+
+            if existing:
+                # Already processed, return success without creating duplicate
+                return Response(
+                    {
+                        "status": "processed",
+                        "resource_id": resource_id,
+                        "action": "duplicate",
+                        "claim_id": existing.id,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            # Create upload record for webhook data
+            upload, _ = Upload.objects.get_or_create(
+                customer=customer,
+                filename=f"epic_webhook_{timezone.now().strftime('%Y%m%d')}",
+                defaults={
+                    "status": "success",
+                    "upload_source": "batch",
+                },
+            )
+
+            # Create ClaimRecord
+            try:
+                claim = ClaimRecord.objects.create(
+                    customer=customer,
+                    upload=upload,
+                    payer=parsed_data.get("payer", "Unknown"),
+                    cpt=parsed_data.get("cpt", ""),
+                    submitted_date=parsed_data.get("submitted_date"),
+                    decided_date=parsed_data.get("decided_date"),
+                    outcome=parsed_data.get("outcome", "OTHER"),
+                    allowed_amount=parsed_data.get("allowed_amount"),
+                    billed_amount=parsed_data.get("billed_amount"),
+                    paid_amount=parsed_data.get("paid_amount"),
+                    payment_date=parsed_data.get("payment_date"),
+                    modifier_codes=parsed_data.get("modifier_codes", []),
+                    diagnosis_codes=parsed_data.get("diagnosis_codes", []),
+                    procedure_count=parsed_data.get("procedure_count", 1),
+                    submitted_via="ehr_webhook",
+                    source_data_hash=source_hash,
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to create claim: {e}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            # Log sync activity
+            if connection:
+                EHRSyncLog.objects.create(
+                    connection=connection,
+                    status="success",
+                    records_fetched=1,
+                    records_created=1,
+                    completed_at=timezone.now(),
+                )
+
+            return Response(
+                {
+                    "status": "processed",
+                    "resource_id": resource_id,
+                    "action": action,
+                    "claim_id": claim.id,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # No connection specified, just acknowledge receipt
+        return Response(
+            {
+                "status": "acknowledged",
+                "resource_id": resource_id,
+                "message": "Webhook received but no connection configured",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class HealthCheckView(APIView):
     """
     API health check endpoint (no auth required).
