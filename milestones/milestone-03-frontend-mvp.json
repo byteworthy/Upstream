@@ -175,7 +175,7 @@
         "frontend/src/components/queue/QueueItem.tsx",
         "frontend/src/components/queue/BulkActions.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 9,
