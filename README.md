@@ -1,140 +1,114 @@
+<div align="center">
+
 # Upstream
 
-**Early-Warning Payer Risk Intelligence Platform**
+### Early-Warning Payer Risk Intelligence
 
-Upstream helps healthcare organizations detect payer behavior changes **30-60 days earlier** than traditional monthly reporting—before revenue loss compounds.
+**See payer changes 30–60 days before your monthly reports do.**
 
----
-
-## What Upstream Does
-
-Healthcare billing teams typically discover payer issues (denial spikes, policy changes, payment delays) **30-60 days too late**. By then, the damage has compounded.
-
-Upstream provides **early warning** so you can act while there's still time:
-
-- **Detect** denial rate changes within days, not months
-- **Predict** which claims are at risk before submission
-- **Track** authorization expirations proactively
-- **Execute** pre-approved fixes automatically
-
-> "You see the problem coming. You have time to act."
+[Features](#features) · [How It Works](#how-it-works) · [Who It's For](#who-its-for) · [Documentation](#documentation)
 
 ---
 
-## Key Features
+</div>
 
-### Detection Engines
-- **DriftWatch** — Week-over-week denial rate monitoring
-- **DenialScope** — Dollar-weighted denial tracking
-- **DelayGuard** — Payment timing trend detection
-- **Authorization Tracking** — Expiration and exhaustion alerts
-- **Pre-Submission Scoring** — Risk assessment before claims go out
+## The Problem
 
-### Specialty Intelligence
-Purpose-built modules for healthcare verticals:
+Healthcare billing teams discover payer issues—denial spikes, policy changes, payment slowdowns—**30 to 60 days too late**. By then, the revenue loss has already compounded.
+
+Traditional tools react to problems. Upstream **predicts them**.
+
+---
+
+## Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🔍 Detection Engines
+
+- **DriftWatch** — Denial rate monitoring
+- **DenialScope** — Dollar-weighted tracking  
+- **DelayGuard** — Payment timing trends
+- **Authorization Tracking** — Expiration alerts
+- **Pre-Submission Scoring** — Risk assessment
+
+</td>
+<td width="50%">
+
+### 🏥 Specialty Intelligence
+
+Purpose-built for healthcare verticals:
+
 - Dialysis Centers
 - ABA Therapy Providers
 - Imaging Centers
 - Home Health Agencies
 
-### Autonomous Execution
-Define rules once, let Upstream execute:
-- Automatic reauthorization requests
-- Appeal generation for known patterns
+</td>
+</tr>
+</table>
+
+### ⚡ Autonomous Execution
+
+Define rules once. Upstream executes automatically:
+
+- Reauthorization requests before expiration
+- Appeal generation for known denial patterns
 - High-risk claim holds for review
+
+---
+
+## How It Works
+
+```
+┌──────────────────────────────────────────────────────┐
+│  DETECT                                              │
+│  Identify payer behavior changes in days, not months │
+└──────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────┐
+│  PREDICT                                             │
+│  Score claims before submission                      │
+└──────────────────────────────────────────────────────┘
+                          ↓
+┌──────────────────────────────────────────────────────┐
+│  ACT                                                 │
+│  Execute pre-approved fixes automatically            │
+└──────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Who It's For
 
-**Target Users**: Owner-operated healthcare businesses with 1-25 locations who need early visibility into payer behavior changes.
+**Healthcare organizations** with 1–25 locations who need early visibility into payer behavior changes.
 
-**Primary Roles**:
-- Revenue Cycle Directors
-- Billing Managers
-- RCM Analysts
+| Role | Benefit |
+|------|---------|
+| Revenue Cycle Directors | Early warning before revenue loss compounds |
+| Billing Managers | Trend detection across payers |
+| RCM Analysts | Root cause investigation tools |
 
-**Time to Value**:
-- Setup: 30 minutes
-- First insight: ~5 days
-- Daily check: 5 minutes
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Backend | Python, Django |
-| API | Django REST Framework |
-| Database | PostgreSQL |
-| Frontend | React, TypeScript, Tailwind CSS |
-| Testing | pytest, Vitest, Playwright |
-
----
-
-## Getting Started
-
-### Prerequisites
-- Python 3.12+
-- Node.js 20+
-- PostgreSQL
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/byteworthy/upstream.git
-cd upstream
-
-# Backend setup
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
-
-# Frontend setup (separate terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-### Running Tests
-
-```bash
-# Backend
-python manage.py test upstream -v 2
-
-# Frontend
-cd frontend && npm run test
-```
+**Time to value:** First insights within 5 days. Daily check takes 5 minutes.
 
 ---
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [OPERATOR_GUIDE.md](OPERATOR_GUIDE.md) | User guide for operators |
-| [OPERATOR_WORKFLOWS.md](OPERATOR_WORKFLOWS.md) | Daily/weekly workflows |
-| [AUTHENTICATION_GUIDE.md](AUTHENTICATION_GUIDE.md) | Authentication setup |
+| Guide | Description |
+|-------|-------------|
+| [Operator Guide](OPERATOR_GUIDE.md) | Complete user guide |
+| [Workflows](OPERATOR_WORKFLOWS.md) | Daily, weekly, monthly routines |
+| [Authentication](AUTHENTICATION_GUIDE.md) | Setup and access control |
 
 ---
 
-## Project Status
+<div align="center">
 
-Upstream is in active development. Core detection engines, specialty modules, and the frontend MVP are complete.
+### Built by [Byteworthy](mailto:scale@getbyteworthy.com)
 
----
+© 2026 Byteworthy. All rights reserved.
 
-## Contact
-
-**Byteworthy** — [scale@getbyteworthy.com](mailto:scale@getbyteworthy.com)
-
----
-
-## License
-
-Proprietary © 2026 Byteworthy. All rights reserved.
-
-This software is proprietary and confidential. Unauthorized copying, distribution, or use is strictly prohibited.
+</div>
