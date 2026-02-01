@@ -197,6 +197,147 @@ class HATEOASMixin(serializers.Serializer):
         return links
 
 
+# =============================================================================
+# Error Response Serializers for OpenAPI Documentation
+# =============================================================================
+
+
+class ErrorDetailSerializer(serializers.Serializer):
+    """
+    Error detail structure for standardized API error responses.
+
+    Provides machine-readable error codes, human-readable messages,
+    and optional field-level validation details or additional context.
+    """
+
+    code = serializers.CharField(
+        help_text=(
+            "Machine-readable error code (e.g., validation_error, "
+            "not_found, authentication_failed)"
+        )
+    )
+    message = serializers.CharField(help_text="Human-readable error message")
+    details = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text="Field-level validation errors or additional context",
+    )
+
+
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Validation Error",
+            description=(
+                "Field validation failed with details about which " "fields are invalid"
+            ),
+            value={
+                "error": {
+                    "code": "validation_error",
+                    "message": "Invalid input data.",
+                    "details": {
+                        "charge_amount": [
+                            "This field is required.",
+                            "Ensure this value is greater than or equal to 0.01.",
+                        ],
+                        "cpt_code": ["This field may not be blank."],
+                    },
+                }
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Authentication Error",
+            description="Missing or invalid authentication credentials",
+            value={
+                "error": {
+                    "code": "authentication_failed",
+                    "message": (
+                        "Authentication credentials were not provided "
+                        "or are invalid."
+                    ),
+                    "details": None,
+                }
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Permission Denied",
+            description="User lacks permission to perform the requested action",
+            value={
+                "error": {
+                    "code": "permission_denied",
+                    "message": "You do not have permission to perform this action.",
+                    "details": {"detail": "Customer viewers cannot delete records."},
+                }
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Not Found",
+            description="Requested resource does not exist",
+            value={
+                "error": {
+                    "code": "not_found",
+                    "message": "The requested resource was not found.",
+                    "details": {"detail": "No ClaimRecord matches the given query."},
+                }
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Throttled",
+            description="Rate limit exceeded - client must wait before retrying",
+            value={
+                "error": {
+                    "code": "throttled",
+                    "message": "Request was throttled. Please try again later.",
+                    "details": {"wait_seconds": 3600},
+                }
+            },
+            response_only=True,
+        ),
+    ]
+)
+class ErrorResponseSerializer(serializers.Serializer):
+    """
+    Standardized error response format for all API endpoints.
+
+    All error responses follow this consistent structure to enable
+    programmatic error handling by API consumers. Field-level validation
+    errors include details about which fields failed and why.
+
+    **Common Error Codes:**
+    - `validation_error` (400): Invalid request data
+    - `authentication_failed` (401): Missing or invalid credentials
+    - `permission_denied` (403): Insufficient permissions
+    - `not_found` (404): Resource does not exist
+    - `method_not_allowed` (405): HTTP method not supported
+    - `throttled` (429): Rate limit exceeded
+    - `internal_server_error` (500): Unexpected server error
+
+    **Error Response Structure:**
+    ```json
+    {
+        "error": {
+            "code": "error_code",
+            "message": "Human-readable message",
+            "details": {
+                // Optional: field-level errors or additional context
+            }
+        }
+    }
+    ```
+    """
+
+    error = ErrorDetailSerializer(
+        help_text=(
+            "Error details containing code, message, and optional "
+            "field-level details"
+        )
+    )
+
+
 class CustomerSerializer(HATEOASMixin, serializers.ModelSerializer):
     """
     Serializer for Customer model.

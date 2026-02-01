@@ -120,6 +120,7 @@ from .serializers import (
     AlertEventSerializer,
     OperatorJudgmentSerializer,
     OperatorFeedbackSerializer,
+    ErrorResponseSerializer,
 )
 from .permissions import IsCustomerMember, get_user_customer
 from .filters import ClaimRecordFilter, DriftEventFilter
@@ -197,9 +198,9 @@ class CustomerFilterMixin:
         tags=["Customers"],
         responses={
             200: CustomerSerializer(many=True),
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
     retrieve=extend_schema(
@@ -208,10 +209,10 @@ class CustomerFilterMixin:
         tags=["Customers"],
         responses={
             200: CustomerSerializer,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            404: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
 )
@@ -246,9 +247,9 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
         tags=["Settings"],
         responses={
             200: SettingsSerializer(many=True),
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
     retrieve=extend_schema(
@@ -260,10 +261,10 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
         tags=["Settings"],
         responses={
             200: SettingsSerializer,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            404: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
     create=extend_schema(
@@ -283,10 +284,10 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
         ],
         responses={
             201: SettingsSerializer,
-            400: OpenApiTypes.OBJECT,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
     update=extend_schema(
@@ -306,11 +307,11 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
         ],
         responses={
             200: SettingsSerializer,
-            400: OpenApiTypes.OBJECT,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            404: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
     partial_update=extend_schema(
@@ -326,11 +327,11 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
         ],
         responses={
             200: SettingsSerializer,
-            400: OpenApiTypes.OBJECT,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            404: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
     destroy=extend_schema(
@@ -339,10 +340,10 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
         tags=["Settings"],
         responses={
             204: None,
-            401: OpenApiTypes.OBJECT,
-            403: OpenApiTypes.OBJECT,
-            404: OpenApiTypes.OBJECT,
-            429: OpenApiTypes.OBJECT,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
         },
     ),
 )
@@ -2201,13 +2202,14 @@ class HealthCheckView(APIView):
             "Login Request",
             value={
                 "username": "doctor@healthcorp.com",
-                "password": "SecurePassword123!",
+                "password": "SecurePassword123!",  # pragma: allowlist secret
             },
             request_only=True,
         ),
         OpenApiExample(
             "Login Success",
             value={
+                # pragma: allowlist secret
                 "access": (
                     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9."
                     "eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImRvY3Rvckho"
@@ -2297,6 +2299,7 @@ class ThrottledTokenObtainPairView(BaseTokenObtainPairView):
         OpenApiExample(
             "Refresh Success",
             value={
+                # pragma: allowlist secret
                 "access": (
                     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9."
                     "eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImRvY3Rvckho"
