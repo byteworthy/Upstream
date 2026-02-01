@@ -1,176 +1,34 @@
-# Ralph Progress Log
-Started: Sun Feb  1 05:04:29 UTC 2026
+# Ralph Progress Log - Upstream Gaps Implementation
+# Started: 2026-02-01
+# Branch: ralph/upstream-gaps-sprint1
+
+## Sprint Goals
+1. RPA Framework (Stories 1-5): Mock payer portal automation
+2. PT/OT G-Codes (Stories 6-12): Medicare G-code compliance
+3. Home Health Cert Cycles (Stories 13-16): 60-day recertification tracking
+4. Final Integration (Story 17): Full test suite validation
+
+## Codebase Context
+- Django 5.x with DRF
+- Multi-tenant via CustomerScopedManager
+- Alerts system in upstream/alerts/
+- Existing patterns in upstream/products/dialysis/, upstream/products/aba/
+
+## Key Patterns Discovered
+- Models use CustomerScopedManager for tenant isolation
+- Services are stateless, receive customer in constructor
+- Tests use factories from upstream/tests/factories.py
+- Alerts use AlertEvent model with evidence_payload JSONField
+
 ---
-## Iteration 1 - 2026-02-01 05:51 UTC
-Story: #1 - Create DialysisMABaseline model for Medicare baselines
 
-### Implementation
-- Created upstream/products/dialysis/ module with:
-  - models.py - DialysisMABaseline model
-  - admin.py - Admin registration
-  - apps.py - Django app configuration
-  - tests.py - Model tests
-- Created migrations:
-  - upstream/migrations/0027_dialysis_ma_baseline.py - Creates table
-  - upstream/migrations/0028_move_dialysismabaseline.py - Transfers ownership
-  - upstream/products/dialysis/migrations/0001_initial.py - Registers model in dialysis app
-- Added dialysis app to INSTALLED_APPS in settings/base.py
-- Imported DialysisMABaseline in upstream/models.py for convenience
-
-### Key Decisions
-- Used SeparateDatabaseAndState migrations to handle model ownership transfer
-- Set db_table="upstream_dialysismabaseline" to use existing table
-- Placed admin registration in dialysis submodule to avoid circular imports
-- Added composite index on cpt for fast lookups
-
-### Learnings
-- Django migration ownership transfer requires careful coordination
-- Pre-commit hooks can interfere with file creation during staging
-- db_table meta option needed when moving models between apps
-
-### Status
-✅ Story #1 completed and committed: 6e7af285
-
-### Follow-up Fix (6c875cdb)
-Simplified model registration to follow codebase patterns:
-- Removed dialysis app from INSTALLED_APPS (not needed for model import)
-- Removed apps.py from dialysis module
-- Removed dialysis/migrations/0001_initial.py (use upstream migration)
-- Removed 0028_move_dialysismabaseline.py (no longer needed)
-- Model imported in upstream/models.py following denialscope pattern
-
-## Iteration 2 - 2026-02-01 06:07 UTC
-Stories: #2, #3, #4 - DialysisMAService implementation
-
-### Implementation
-- Created upstream/products/dialysis/services.py:
-  - DialysisMAService class for MA variance detection
-  - detect_variance(claim) method comparing paid_amount to baseline
-  - create_alert_event() for AlertEvent creation when ratio < 0.85
-  - analyze_claims() for batch processing
-  - VarianceResult dataclass for structured results
-- Created upstream/products/dialysis/constants.py:
-  - MA_PAYER_LIST with major Medicare Advantage payers
-  - VARIANCE_THRESHOLD (0.85) and HIGH_VARIANCE_THRESHOLD (0.70)
-  - DIALYSIS_CPT_CODES reference data
-  - Configuration loadable from Django settings
-  - Helper functions: is_ma_payer(), get_variance_threshold()
-- Added comprehensive tests to tests.py:
-  - DialysisMAServiceVarianceTest - various payment ratios
-  - DialysisMAServiceMissingBaselineTest - graceful handling
-  - DialysisMAServiceRevenueLossTest - annual loss projection
-  - DialysisMAServiceCustomThresholdTest - configurable thresholds
-
-### Key Decisions
-- Used 156 annual treatments for dialysis (3x/week) in loss calculation
-- Warning severity for 70-85%, critical for <70%
-- AlertEvents stored with full payload for audit trail
-- Graceful handling returns VarianceResult with error message
-
-### Learnings
-- Services should import constants rather than hardcode values
-- MockClaim objects useful for testing without full model setup
-- Codespace can become overloaded - limit parallel processes
-
-### Status
-⚠️ Files staged but commit failed due to environment issues
-Files ready: services.py, constants.py, tests.py (updated)
-
-## [Agent 3] Iteration - 2026-02-01 07:15 UTC
-Stories: #20, #21 - Home Health F2F/NOA Tracking and Tests
-
-### Verification
-Both stories were already implemented by previous iterations:
-- Story #20: F2F and NOA deadline tracking in services.py
-  - validate_f2f_timing() checks 90 days prior / 30 days after SOC
-  - check_noa_deadline() alerts when NOA due in <2 days
-  - Severity escalates: info -> high -> critical
-- Story #21: Comprehensive tests in tests.py
-  - 39 tests covering PDGM, F2F, NOA validation
-  - All tests passing
-
-### Quality Gates Passed
-- pytest upstream/products/homehealth/tests.py: 39 passed
-- python manage.py check: 0 issues
-
-### Key Learnings
-- HomeHealthService follows CMS PDGM requirements (90 days prior/30 days after for F2F)
-- NOA deadline is 5 calendar days from SOC per CMS requirements
-- Alert severity escalation: info (>2 days) -> high (<= 2 days) -> critical (overdue)
-- Good test coverage with MockClaim/MockCustomer patterns
-
-### Status
-✅ Stories #20, #21 verified complete and marked passes: true
-✅ Committed: b010cc07
-✅ Pushed to origin/main
-
-## [Agent2] Iteration - 2026-02-01 UTC
-Stories: #18, #19 - PDGM_GROUPS constant and HomeHealthService PDGM validation
-
-### Verification
-Both stories were already fully implemented:
-
-#### Story #18: PDGM_GROUPS constant (upstream/products/homehealth/constants.py)
-- PDGM_GROUPS dictionary with 50+ entries mapping (timing, clinical_group, functional_level, comorbidity) to HIPPS code and payment weight
-- All 12 clinical groups defined: MMTA, WOUND, NEURO_REHAB, MS_REHAB, CARDIAC, etc.
-- TIMING_CATEGORIES: EARLY (within 30 days of facility discharge), LATE (community/31+ days)
-- FUNCTIONAL_LEVELS: LOW, MEDIUM, HIGH based on OASIS scores
-- COMORBIDITY_LEVELS: NONE, LOW, HIGH
-- lookup_pdgm_group() function for group determination with case-insensitive matching
-- CMS PDGM Final Rule documentation reference
-
-#### Story #19: HomeHealthService PDGM validation (upstream/products/homehealth/services.py)
-- HomeHealthService class created
-- validate_pdgm_grouping(claim) extracts timing/clinical/functional/comorbidity from specialty_metadata
-- Compares billed HIPPS code vs expected from PDGM_GROUPS lookup
-- Creates HIGH severity alerts on mismatch
-- Handles missing OASIS data gracefully (missing_fields list, appropriate severity)
-- PDGMValidationResult dataclass with structured validation output
-
-### Quality Gates Passed
-- pytest upstream/products/homehealth/tests.py: 39 tests passed
-  - PDGMConstantsTest: 7 tests for constant definitions
-  - PDGMLookupTest: 6 tests for lookup functions
-  - HomeHealthServicePDGMTest: 7 tests for PDGM validation
-  - HomeHealthServiceF2FTest: 8 tests for F2F timing
-  - HomeHealthServiceNOATest: 6 tests for NOA deadlines
-  - HomeHealthServiceAnalyzeClaimsTest: 5 tests for batch analysis
-
-### Status
-✅ Stories #18, #19 verified complete and marked passes: true
-
-## [Agent1] Iteration - 2026-02-01 07:15 UTC
-Stories: #22, #23 - Specialty Module Integration and API Endpoints
-
-### Verification
-Both stories were already fully implemented in the codebase:
-
-#### Story #22: Integrate specialty modules into ClaimScore calculation (upstream/services/scoring.py)
-- RiskScoringService.validate_specialty() routes to appropriate specialty service based on service_type
-- _validate_dialysis() - calls DialysisMAService for MA variance detection
-- _validate_aba() - validates ABA unit tracking compliance
-- _validate_ptot() - calls PTOTService for 8-minute rule validation
-- _validate_imaging() - calls ImagingPAService for PA requirement checking
-- _validate_home_health() - calls HomeHealthService for PDGM validation
-- calculate_score_with_specialty() combines base score with specialty risk adjustments
-- SpecialtyValidationResult dataclass with is_compliant, risk_adjustment, violations, requires_review, details
-- Specialty risk factors reduce overall_confidence based on risk_adjustment
-- Specialty violations can trigger requires_human_review flag
-- Updated red_line_reason with specialty-specific messages
-
-#### Story #23: Create specialty module API endpoints (upstream/api/specialty_views.py, urls.py)
-- GET /api/v1/specialty/dialysis/baselines/ - DialysisMABaselineViewSet (list, retrieve, filter by cpt/payer)
-- GET /api/v1/specialty/aba/authorizations/ - ABAAuthorizationTrackerViewSet (list, retrieve, active, approaching_limit)
-- GET /api/v1/specialty/imaging/pa-requirements/ - ImagingPARequirementViewSet (list, retrieve, lookup by payer/cpt)
-- POST /api/v1/specialty/validate/ - SpecialtyValidationView runs specialty validation for claim
-- Complete OpenAPI documentation with @extend_schema decorators
-- Request/response serializers: SpecialtyValidationRequestSerializer, SpecialtyValidationResponseSerializer
-- CustomerFilterMixin and IsCustomerMember permissions for tenant isolation
-
-### Quality Gates Passed
-- pytest upstream/tests_scoring.py: 34 tests passed
-- pytest specialty modules (dialysis, aba, ptot, imaging, homehealth): 151 tests passed
-- All acceptance criteria verified through code inspection
-
-### Status
-✅ Stories #22, #23 verified complete and marked passes: true
+--- Iteration 1 - Sun Feb  1 11:17:14 UTC 2026 ---
+Working on: Story 1: Create RPA base module with abstract PayerPortalBase class, ReauthRequest, AppealRequest, and SubmissionResult dataclasses in upstream/automation/rpa/base.py
+[2026-02-01 11:52:16] ============================================================
+[2026-02-01 11:52:16] RALPH OVERNIGHT IMPLEMENTATION - UPSTREAM GAPS
+[2026-02-01 11:52:16] ============================================================
+[2026-02-01 11:52:16] 
+--- Story 5: Integrating RPA with rules_engine.py ---
+[2026-02-01 11:52:16] ⚠️ Could not find exact method to replace in rules_engine.py
+[2026-02-01 11:52:16] Running tests for upstream.automation.rpa...
+[2026-02-01 11:52:33] ✅ Tests passed for upstream.automation.rpa

@@ -193,23 +193,95 @@ class RulesEngine:
 
     def _execute_action(self, action: Action) -> ExecutionResult:
         """
-        Execute single action.
+        Execute single action using RPA module for portal interactions.
 
-        For Week 1, this is a stub that logs the action.
-        Week 2-4 will implement actual payer portal automation.
+        Supports:
+        - submit_reauth: Submit reauthorization request via payer portal
+        - submit_appeal: Submit appeal via payer portal
+        - Other action types: Stub implementation
         """
-        logger.info(f"Executing action: {action.action_type} for rule {action.rule.id}")
-
-        # Stub implementation - Week 2+ will add actual execution
-        return ExecutionResult(
-            success=True,
-            result_type="SUCCESS",
-            details={
-                "message": f"Action {action.action_type} executed (stub)",
-                "rule_id": action.rule.id,
-            },
-            execution_time_ms=50,
+        import time
+        from upstream.automation.rpa import (
+            get_portal_for_payer,
+            ReauthRequest,
+            AppealRequest,
         )
+
+        logger.info(f"Executing action: {action.action_type} for rule {action.rule.id}")
+        start_time = time.time()
+
+        try:
+            if action.action_type == "submit_reauth":
+                # Execute reauthorization via RPA
+                payer = action.action_params.get("payer", "Unknown")
+                portal = get_portal_for_payer(payer)
+                portal.login()
+
+                request_data = action.action_params.get("request_data", {})
+                request = ReauthRequest(
+                    auth_number=request_data.get("auth_number", ""),
+                    patient_id=request_data.get("patient_id", ""),
+                    payer=payer,
+                    service_type=request_data.get("service_type", ""),
+                    units_requested=request_data.get("units_requested", 0),
+                    utilization_report_url=request_data.get("utilization_report_url"),
+                )
+
+                portal_result = portal.submit_reauth_request(request)
+                portal.logout()
+
+                return ExecutionResult(
+                    success=portal_result.success,
+                    result_type="SUCCESS" if portal_result.success else "FAILED",
+                    details=portal_result.to_dict(),
+                    execution_time_ms=int((time.time() - start_time) * 1000),
+                )
+
+            elif action.action_type == "submit_appeal":
+                # Execute appeal via RPA
+                payer = action.action_params.get("payer", "Unknown")
+                portal = get_portal_for_payer(payer)
+                portal.login()
+
+                appeal_data = action.action_params.get("appeal_data", {})
+                appeal = AppealRequest(
+                    claim_id=appeal_data.get("claim_id", ""),
+                    payer=payer,
+                    denial_reason=appeal_data.get("denial_reason", ""),
+                    appeal_letter=appeal_data.get("appeal_letter", ""),
+                    supporting_docs=appeal_data.get("supporting_docs", []),
+                )
+
+                portal_result = portal.submit_appeal(appeal)
+                portal.logout()
+
+                return ExecutionResult(
+                    success=portal_result.success,
+                    result_type="SUCCESS" if portal_result.success else "FAILED",
+                    details=portal_result.to_dict(),
+                    execution_time_ms=int((time.time() - start_time) * 1000),
+                )
+
+            else:
+                # Stub for other action types
+                return ExecutionResult(
+                    success=True,
+                    result_type="SUCCESS",
+                    details={
+                        "message": f"Action {action.action_type} executed (stub)",
+                        "rule_id": action.rule.id,
+                    },
+                    execution_time_ms=int((time.time() - start_time) * 1000),
+                )
+
+        except Exception as e:
+            logger.error(f"RPA execution failed: {str(e)}")
+            return ExecutionResult(
+                success=False,
+                result_type="FAILED",
+                details={"error": str(e)},
+                execution_time_ms=int((time.time() - start_time) * 1000),
+            )
 
     def _escalate_to_human(self, action: Action, error: Exception):
         """

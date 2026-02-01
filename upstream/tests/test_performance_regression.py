@@ -56,11 +56,21 @@ class PerformanceRegressionTests(TestCase):
 
     def test_regression_detection_passes(self):
         """Should pass when performance is within acceptable range."""
-        baseline = {"metrics": {"p50": 100.0, "p95": 300.0, "error_rate": 1.0}}
+        baseline = {
+            "metrics": {
+                "p50": 100.0,
+                "p95": 300.0,
+                "p99": 400.0,
+                "error_rate": 1.0,
+                "requests_per_sec": 20.0,
+            }
+        }
         current = {
             "p50": 110.0,  # +10% (acceptable)
             "p95": 330.0,  # +10% (acceptable)
+            "p99": 440.0,  # +10% (acceptable)
             "error_rate": 1.5,  # +0.5% (acceptable)
+            "requests_per_sec": 18.0,  # -10% (acceptable)
         }
 
         result = check_regression(current, baseline)
@@ -69,11 +79,21 @@ class PerformanceRegressionTests(TestCase):
 
     def test_regression_detection_fails_p95(self):
         """Should fail when p95 regresses >20%."""
-        baseline = {"metrics": {"p50": 100.0, "p95": 300.0, "error_rate": 1.0}}
+        baseline = {
+            "metrics": {
+                "p50": 100.0,
+                "p95": 300.0,
+                "p99": 400.0,
+                "error_rate": 1.0,
+                "requests_per_sec": 20.0,
+            }
+        }
         current = {
             "p50": 110.0,
             "p95": 400.0,  # +33% (FAIL)
+            "p99": 500.0,
             "error_rate": 1.5,
+            "requests_per_sec": 18.0,
         }
 
         result = check_regression(current, baseline)
@@ -82,11 +102,21 @@ class PerformanceRegressionTests(TestCase):
 
     def test_regression_detection_fails_error_rate(self):
         """Should fail when error rate increases >2%."""
-        baseline = {"metrics": {"p50": 100.0, "p95": 300.0, "error_rate": 1.0}}
+        baseline = {
+            "metrics": {
+                "p50": 100.0,
+                "p95": 300.0,
+                "p99": 400.0,
+                "error_rate": 1.0,
+                "requests_per_sec": 20.0,
+            }
+        }
         current = {
             "p50": 110.0,
             "p95": 330.0,
+            "p99": 440.0,
             "error_rate": 3.5,  # +2.5% (FAIL)
+            "requests_per_sec": 18.0,
         }
 
         result = check_regression(current, baseline)
@@ -123,11 +153,21 @@ class PerformanceRegressionTests(TestCase):
 
     def test_strict_mode_treats_warnings_as_failures(self):
         """Should fail on warnings when strict mode is enabled."""
-        baseline = {"metrics": {"p50": 100.0, "p95": 300.0, "error_rate": 1.0}}
+        baseline = {
+            "metrics": {
+                "p50": 100.0,
+                "p95": 300.0,
+                "p99": 400.0,
+                "error_rate": 1.0,
+                "requests_per_sec": 20.0,
+            }
+        }
         current = {
             "p50": 125.0,  # +25% (WARNING normally)
             "p95": 330.0,  # +10% (OK)
+            "p99": 440.0,  # +10% (OK)
             "error_rate": 1.5,  # +0.5% (OK)
+            "requests_per_sec": 18.0,  # -10% (OK)
         }
 
         # Without strict mode, should pass with warnings
@@ -148,6 +188,7 @@ class PerformanceRegressionTests(TestCase):
             "metrics": {
                 "p50": 100.0,
                 "p95": 300.0,
+                "p99": 400.0,
                 "error_rate": 1.0,
                 "requests_per_sec": 20.0,
             }
@@ -155,6 +196,7 @@ class PerformanceRegressionTests(TestCase):
         current = {
             "p50": 110.0,
             "p95": 330.0,
+            "p99": 440.0,
             "error_rate": 1.5,
             "requests_per_sec": 12.0,  # -40% (WARNING)
         }
