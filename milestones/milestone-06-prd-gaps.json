@@ -92,7 +92,7 @@
       "id": 13,
       "title": "Add HomeHealth model tests",
       "description": "Update upstream/products/homehealth/tests.py with model tests.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 14,
