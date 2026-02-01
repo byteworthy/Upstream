@@ -33,6 +33,8 @@ from .views import (
     ClaimScoreViewSet,
     CustomerAutomationProfileViewSet,
     ShadowModeResultViewSet,
+    # Network Intelligence
+    NetworkAlertViewSet,
 )
 from upstream.views.celery_health import (
     celery_health_check,
@@ -66,6 +68,8 @@ router.register(
     basename="automation-profile",
 )
 router.register(r"shadow-results", ShadowModeResultViewSet, basename="shadow-result")
+# Network Intelligence route
+router.register(r"network-alerts", NetworkAlertViewSet, basename="network-alert")
 # Specialty module routes
 router.register(
     r"specialty/dialysis/baselines",
