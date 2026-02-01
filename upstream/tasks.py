@@ -265,6 +265,92 @@ def process_ingestion_task(ingestion_id: int) -> Dict[str, Any]:
         raise
 
 
+@shared_task(name="upstream.tasks.run_daily_behavioral_prediction", base=MonitoredTask)
+def run_daily_behavioral_prediction(customer_id: int = None) -> Dict[str, Any]:
+    """
+    Async task for running daily behavioral prediction across customers.
+
+    Behavioral prediction compares denial rates from the last 3 days against
+    the previous 14 days per payer. Creates DriftEvent with drift_type=
+    'BEHAVIORAL_PREDICTION' when p-value < 0.05 AND rate change > 5%.
+
+    Args:
+        customer_id: Optional specific customer to run for. If None, runs
+                     for all active customers.
+
+    Returns:
+        dict: Summary of behavioral prediction results across all customers
+    """
+    from upstream.models import Customer
+    from upstream.services.behavioral_prediction import compute_behavioral_prediction
+
+    logger.info(
+        f"Starting daily behavioral prediction"
+        f"{f' for customer {customer_id}' if customer_id else ' for all customers'}"
+    )
+
+    results = []
+
+    try:
+        if customer_id:
+            customers = Customer.objects.filter(id=customer_id, is_active=True)
+        else:
+            customers = Customer.objects.filter(is_active=True)
+
+        for customer in customers:
+            try:
+                report_run = compute_behavioral_prediction(customer)
+                summary = report_run.summary_json or {}
+                results.append(
+                    {
+                        "customer_id": customer.id,
+                        "customer_name": customer.name,
+                        "events_created": summary.get("events_created", 0),
+                        "payers_analyzed": summary.get("payers_analyzed", 0),
+                        "status": "success",
+                    }
+                )
+                logger.info(
+                    f"Completed behavioral prediction for customer {customer.id}: "
+                    f"{summary.get('events_created', 0)} events"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error in behavioral prediction for customer {customer.id}: "
+                    f"{str(e)}"
+                )
+                results.append(
+                    {
+                        "customer_id": customer.id,
+                        "customer_name": customer.name,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
+
+        total_events = sum(
+            r.get("events_created", 0) for r in results if r.get("status") == "success"
+        )
+        successful = sum(1 for r in results if r.get("status") == "success")
+
+        logger.info(
+            f"Completed daily behavioral prediction: "
+            f"{successful}/{len(results)} customers, {total_events} total events"
+        )
+
+        return {
+            "customers_processed": len(results),
+            "customers_successful": successful,
+            "total_events_created": total_events,
+            "results": results,
+            "status": "success" if successful == len(results) else "partial",
+        }
+
+    except Exception as e:
+        logger.error(f"Error in daily behavioral prediction task: {str(e)}")
+        raise
+
+
 @shared_task(
     bind=True,
     base=MonitoredTask,

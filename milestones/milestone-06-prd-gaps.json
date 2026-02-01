@@ -1,0 +1,128 @@
+{
+  "branchName": "ralph/prd-gaps-implementation",
+  "title": "PRD Gap Implementation - Missing Detection Engines",
+  "description": "Implements missing features from code review audit: Behavioral Prediction Engine (day-3 detection), DenialScope $50K spike, Cross-Customer Network Intelligence, HomeHealth PDGM models.",
+  "context": {
+    "audit_date": "2026-02-01",
+    "gaps_identified": [
+      "Behavioral Prediction Engine - NOT IMPLEMENTED",
+      "DenialScope Dollar Spike Detection - PARTIAL",
+      "Cross-Customer Network Intelligence - NOT IMPLEMENTED",
+      "HomeHealthPDGMGroup Model - SERVICE ONLY"
+    ],
+    "qualityGates": [
+      "python manage.py check",
+      "python manage.py test upstream -v 2"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Add BEHAVIORAL_PREDICTION drift type to DriftEvent model",
+      "description": "Add 'BEHAVIORAL_PREDICTION' to DRIFT_TYPE_CHOICES in upstream/models.py DriftEvent class. No migration needed.",
+      "passes": true
+    },
+    {
+      "id": 2,
+      "title": "Create behavioral prediction engine with day-3 detection",
+      "description": "Create upstream/services/behavioral_prediction.py with compute_behavioral_prediction(customer, as_of_date) function. Compare last 3 days denial rate vs previous 14 days per payer. Use chi-square test. Create DriftEvent with drift_type='BEHAVIORAL_PREDICTION' when p-value < 0.05 AND rate change > 5%.",
+      "passes": true
+    },
+    {
+      "id": 3,
+      "title": "Add tests for behavioral prediction engine",
+      "description": "Create upstream/tests/test_behavioral_prediction.py with tests for detection, false positives, min volume, and DriftEvent creation.",
+      "passes": true
+    },
+    {
+      "id": 4,
+      "title": "Add DENIAL_DOLLARS_SPIKE_THRESHOLD constant",
+      "description": "Add DENIAL_DOLLARS_SPIKE_THRESHOLD = 50000 to upstream/constants.py.",
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Complete DenialScope dollar spike detection",
+      "description": "Update upstream/products/denialscope/services.py _compute_signals() to detect denial_dollars_spike when weekly denial dollars exceed $50K.",
+      "passes": false
+    },
+    {
+      "id": 6,
+      "title": "Add tests for DenialScope dollar spike",
+      "description": "Add tests to upstream/products/denialscope/tests.py for dollar spike detection.",
+      "passes": false
+    },
+    {
+      "id": 7,
+      "title": "Add NetworkAlert model",
+      "description": "Add NetworkAlert model to upstream/models.py: payer, drift_type, affected_customer_count, summary_text, severity, details. Create migration.",
+      "passes": false
+    },
+    {
+      "id": 8,
+      "title": "Create network intelligence service",
+      "description": "Create upstream/services/network_intelligence.py with compute_cross_customer_patterns(). Create NetworkAlert when 3+ customers affected.",
+      "passes": false
+    },
+    {
+      "id": 9,
+      "title": "Add tests for network intelligence",
+      "description": "Create upstream/tests/test_network_intelligence.py with tests for cross-customer detection.",
+      "passes": false
+    },
+    {
+      "id": 10,
+      "title": "Create HomeHealthPDGMGroup model",
+      "description": "Create upstream/products/homehealth/models.py with HomeHealthPDGMGroup model. Create migration.",
+      "passes": false
+    },
+    {
+      "id": 11,
+      "title": "Create HomeHealthEpisode model",
+      "description": "Add HomeHealthEpisode to upstream/products/homehealth/models.py with F2F and NOA tracking. Create migration.",
+      "passes": false
+    },
+    {
+      "id": 12,
+      "title": "Update HomeHealthService to use models",
+      "description": "Update upstream/products/homehealth/services.py to use new models.",
+      "passes": false
+    },
+    {
+      "id": 13,
+      "title": "Add HomeHealth model tests",
+      "description": "Update upstream/products/homehealth/tests.py with model tests.",
+      "passes": false
+    },
+    {
+      "id": 14,
+      "title": "Add Celery task for behavioral prediction",
+      "description": "Add run_daily_behavioral_prediction to upstream/tasks.py.",
+      "passes": false
+    },
+    {
+      "id": 15,
+      "title": "Add Celery task for network intelligence",
+      "description": "Add run_network_intelligence to upstream/tasks.py.",
+      "passes": false
+    },
+    {
+      "id": 16,
+      "title": "Add NetworkAlert API endpoint",
+      "description": "Add NetworkAlertViewSet to upstream/api/views.py.",
+      "passes": false
+    },
+    {
+      "id": 17,
+      "title": "Add behavioral prediction to dashboard",
+      "description": "Update DashboardView to include behavioral prediction counts.",
+      "passes": false
+    },
+    {
+      "id": 18,
+      "title": "Run tests and apply migrations",
+      "description": "Run python manage.py makemigrations, migrate, and test. Fix any failures.",
+      "passes": false
+    }
+  ]
+}

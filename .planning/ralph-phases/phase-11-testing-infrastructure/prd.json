@@ -1,0 +1,100 @@
+{
+  "branchName": "ralph/phase-11-testing-infrastructure",
+  "context": {
+    "phase": "11",
+    "phaseName": "Testing Infrastructure",
+    "phaseGoal": "Add comprehensive test infrastructure (factories, builders, utilities) to support better testing coverage",
+    "requirements": [
+      "TEST-01"
+    ],
+    "dependsOn": "None (foundational testing infrastructure)",
+    "successCriteria": [
+      "Factory classes exist for all core models (Upload, ClaimRecord, DriftEvent, PayerMapping, Report, Alert)",
+      "Test data builders provide fluent API for complex test scenarios",
+      "Test utilities module provides custom assertions and matchers",
+      "Integration test base classes handle common setup/teardown patterns",
+      "All tests pass and factories generate valid model instances"
+    ],
+    "qualityGates": [
+      "python manage.py check",
+      "python manage.py test upstream.tests -v 2"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create factory_boy factories for all core models",
+      "description": "Create upstream/tests/factories.py with factory_boy factories for core models: Upload, ClaimRecord, DriftEvent, PayerMapping, Report, AlertRule, NotificationChannel, WebhookDelivery, UserProfile, Customer. Each factory should generate valid test data with sensible defaults and support trait customization for common scenarios (e.g., UploadFactory with processing/complete/failed states). Factories should handle foreign key relationships properly (SubFactory for related objects).",
+      "acceptanceCriteria": [
+        "factories.py exists in upstream/tests/ with imports and base setup",
+        "Factory class exists for each core model (minimum 10 factories)",
+        "Each factory has Faker-generated data for string/text fields",
+        "Foreign key relationships use SubFactory pattern",
+        "Common state variations provided via traits",
+        "Factories generate valid instances (model.full_clean() passes)",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/tests/factories.py",
+        "requirements.txt (add factory-boy~=3.3.0)"
+      ],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Create test data builders for complex scenarios",
+      "description": "Create upstream/tests/builders.py with builder classes for complex test scenarios that require multiple related objects. Examples: CompletePipelineBuilder (creates customer → upload → claims → drift events → alerts chain), PayerMappingScenarioBuilder (creates source/target payers with relationships), MultiTenantScenarioBuilder (creates multiple customers with isolated data). Builders should provide fluent API with method chaining.",
+      "acceptanceCriteria": [
+        "builders.py exists with CompletePipelineBuilder class",
+        "Builders provide fluent API: builder.with_claims(5).with_drift().build()",
+        "PayerMappingScenarioBuilder creates source/target payer relationships",
+        "MultiTenantScenarioBuilder creates isolated customer data",
+        "Builders use factories internally for object creation",
+        "Example usage documented in docstrings",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/tests/builders.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Add test utilities (assertions, matchers, helpers)",
+      "description": "Create upstream/tests/utilities.py with custom test helpers: assertDriftDetected(customer, expected_count) for drift testing, assertAlertTriggered(rule, expected_deliveries) for alert testing, assertAuditTrailExists(action, user) for HIPAA audit validation, assertRBACIsolation(customer, endpoint) for multi-tenant isolation testing. Add response matchers: matches_schema(openapi_path), has_pagination(), has_filters().",
+      "acceptanceCriteria": [
+        "utilities.py exists with custom assertion functions",
+        "assertDriftDetected helper validates drift detection behavior",
+        "assertAlertTriggered helper validates alert delivery",
+        "assertAuditTrailExists helper validates HIPAA logging",
+        "assertRBACIsolation helper validates customer isolation",
+        "Response matchers validate API response structure",
+        "Helpers have docstrings with usage examples",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/tests/utilities.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Add integration test base classes",
+      "description": "Create upstream/tests/base.py with base test classes that handle common setup/teardown: IntegrationTestCase (database setup, customer context), APIIntegrationTestCase (API client, authentication, customer headers), WebhookTestCase (mock webhook endpoints, signature validation), PerformanceTestCase (timing assertions, query counting). Base classes should reduce boilerplate in test files.",
+      "acceptanceCriteria": [
+        "base.py exists with IntegrationTestCase base class",
+        "APIIntegrationTestCase provides authenticated API client",
+        "WebhookTestCase provides mock webhook infrastructure",
+        "PerformanceTestCase provides query count assertions",
+        "Base classes handle customer context automatically",
+        "setUp/tearDown properly clean up test data",
+        "Example test using base class demonstrates usage",
+        "Tests pass"
+      ],
+      "files": [
+        "upstream/tests/base.py"
+      ],
+      "passes": false
+    }
+  ]
+}
