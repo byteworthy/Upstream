@@ -215,6 +215,14 @@ OUTLIER_IQR_MULTIPLIER = 1.5  # IQR * 1.5 for outlier boundaries
 
 
 # =============================================================================
+# DenialScope Configuration
+# =============================================================================
+
+# Dollar spike detection threshold (DenialScope)
+DENIAL_DOLLARS_SPIKE_THRESHOLD = 50000  # $50K weekly denial dollars triggers alert
+
+
+# =============================================================================
 # Business Logic Constants
 # =============================================================================
 
