@@ -99,6 +99,7 @@ from ..models import (
     DriftEvent,
     PayerMapping,
     CPTGroupMapping,
+    NetworkAlert,
 )
 from upstream.alerts.models import AlertEvent, OperatorJudgment
 from upstream.automation.models import (
@@ -130,6 +131,7 @@ from .serializers import (
     ClaimScoreSerializer,
     CustomerAutomationProfileSerializer,
     ShadowModeResultSerializer,
+    NetworkAlertSerializer,
 )
 from .permissions import IsCustomerMember, get_user_customer
 from .filters import ClaimRecordFilter, DriftEventFilter
@@ -2831,22 +2833,3 @@ class ThrottledTokenVerifyView(BaseTokenVerifyView):
     """
 
     throttle_classes = [AuthenticationThrottle]
-
-
-class NetworkAlertViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    API endpoint for viewing cross-customer network alerts.
-
-    Network alerts are platform-level (not customer-specific) so they
-    don't use CustomerFilterMixin. All authenticated users can view them.
-    """
-
-    from upstream.models import NetworkAlert
-    from upstream.api.serializers import NetworkAlertSerializer
-
-    queryset = NetworkAlert.objects.all().order_by("-created_at")
-    serializer_class = NetworkAlertSerializer
-    permission_classes = [IsAuthenticated]
-    filterset_fields = ["payer", "drift_type", "severity"]
-    search_fields = ["payer", "summary_text"]
-    ordering_fields = ["created_at", "severity", "affected_customer_count"]
