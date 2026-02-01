@@ -25,7 +25,11 @@ from ..models import (
     CPTGroupMapping,
 )
 from upstream.alerts.models import AlertEvent, OperatorJudgment
-from upstream.automation.models import ClaimScore
+from upstream.automation.models import (
+    ClaimScore,
+    CustomerAutomationProfile,
+    ShadowModeResult,
+)
 
 
 # =============================================================================
@@ -104,6 +108,8 @@ class HATEOASMixin(serializers.Serializer):
             "cptgroupmapping": "cpt-mapping",
             "operatorjudgment": "operator-judgment",
             "claimscore": "claim-score",
+            "customerautomationprofile": "automation-profile",
+            "shadowmoderesult": "shadow-result",
         }
         basename = basename_map.get(model_name)
 
@@ -1552,6 +1558,312 @@ class ClaimScoreSerializer(HATEOASMixin, serializers.ModelSerializer):
             "customer",
             "created_at",
             "updated_at",
+        ]
+
+
+class ComplianceOfficerSerializer(serializers.Serializer):
+    """Lightweight nested serializer for compliance officer user."""
+
+    id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+
+
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Stage 1 - Observe Mode",
+            description="Customer in observation stage with conservative thresholds",
+            value={
+                "id": 1,
+                "customer": 1,
+                "automation_stage": "observe",
+                "stage_start_date": "2025-01-01",
+                "auto_execute_confidence": 0.95,
+                "auto_execute_max_amount": "1000.00",
+                "queue_review_min_confidence": 0.70,
+                "queue_review_max_amount": "10000.00",
+                "escalate_min_amount": "10000.00",
+                "auto_submit_claims": False,
+                "auto_check_status": True,
+                "auto_verify_eligibility": True,
+                "auto_submit_prior_auth": False,
+                "auto_modify_codes": False,
+                "auto_submit_appeals": False,
+                "shadow_mode_enabled": True,
+                "shadow_mode_start_date": "2025-01-01",
+                "shadow_accuracy_rate": 0.92,
+                "shadow_mode_min_accuracy": 0.95,
+                "notify_on_auto_execute": False,
+                "notify_on_escalation": True,
+                "notification_email": "billing@hospital.com",
+                "undo_window_hours": 2,
+                "compliance_officer": {
+                    "id": 5,
+                    "username": "compliance_admin",
+                    "email": "compliance@hospital.com",
+                },
+                "audit_all_actions": True,
+                "created_at": "2025-01-01T00:00:00Z",
+                "updated_at": "2025-01-15T10:30:00Z",
+                "_links": {
+                    "self": "http://localhost:8000/api/v1/automation-profiles/1/",
+                    "collection": "http://localhost:8000/api/v1/automation-profiles/",
+                },
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Stage 3 - Act + Notify",
+            description="Customer with live automation enabled with notifications",
+            value={
+                "id": 2,
+                "customer": 2,
+                "automation_stage": "act_notify",
+                "stage_start_date": "2025-01-15",
+                "auto_execute_confidence": 0.92,
+                "auto_execute_max_amount": "2500.00",
+                "queue_review_min_confidence": 0.65,
+                "queue_review_max_amount": "15000.00",
+                "escalate_min_amount": "15000.00",
+                "auto_submit_claims": True,
+                "auto_check_status": True,
+                "auto_verify_eligibility": True,
+                "auto_submit_prior_auth": True,
+                "auto_modify_codes": False,
+                "auto_submit_appeals": False,
+                "shadow_mode_enabled": False,
+                "shadow_mode_start_date": "2024-10-01",
+                "shadow_accuracy_rate": 0.97,
+                "shadow_mode_min_accuracy": 0.95,
+                "notify_on_auto_execute": True,
+                "notify_on_escalation": True,
+                "notification_email": "automation@clinic.com",
+                "undo_window_hours": 4,
+                "compliance_officer": None,
+                "audit_all_actions": True,
+                "created_at": "2024-10-01T00:00:00Z",
+                "updated_at": "2025-01-20T14:45:00Z",
+                "_links": {
+                    "self": "http://localhost:8000/api/v1/automation-profiles/2/",
+                    "collection": "http://localhost:8000/api/v1/automation-profiles/",
+                },
+            },
+            response_only=True,
+        ),
+    ]
+)
+class CustomerAutomationProfileSerializer(HATEOASMixin, serializers.ModelSerializer):
+    """
+    Serializer for CustomerAutomationProfile model.
+
+    Represents customer-specific automation thresholds and trust calibration
+    settings. Controls which actions are automated vs. require human approval.
+
+    **Automation Stages:**
+    - `observe`: Stage 1 - AI recommends, human acts
+    - `suggest`: Stage 2 - AI pre-fills, human confirms
+    - `act_notify`: Stage 3 - AI executes, human notified
+    - `full_autonomy`: Stage 4 - AI executes silently
+
+    **Tier Thresholds:**
+    - Tier 1 (Auto-Execute): Confidence >= auto_execute_confidence,
+      amount <= auto_execute_max_amount
+    - Tier 2 (Queue Review): Confidence >= queue_review_min_confidence,
+      amount <= queue_review_max_amount
+    - Tier 3 (Escalate): Below thresholds or amount >= escalate_min_amount
+
+    **Shadow Mode:**
+    When enabled, AI runs in parallel with humans to validate accuracy before
+    enabling live automation. shadow_accuracy_rate must reach shadow_mode_min_accuracy
+    before advancing stages.
+    """
+
+    compliance_officer = ComplianceOfficerSerializer(read_only=True)
+
+    class Meta:
+        model = CustomerAutomationProfile
+        fields = [
+            "id",
+            "customer",
+            "automation_stage",
+            "stage_start_date",
+            # Tier 1 thresholds
+            "auto_execute_confidence",
+            "auto_execute_max_amount",
+            # Tier 2 thresholds
+            "queue_review_min_confidence",
+            "queue_review_max_amount",
+            # Tier 3 thresholds
+            "escalate_min_amount",
+            # Action toggles
+            "auto_submit_claims",
+            "auto_check_status",
+            "auto_verify_eligibility",
+            "auto_submit_prior_auth",
+            "auto_modify_codes",
+            "auto_submit_appeals",
+            # Shadow mode
+            "shadow_mode_enabled",
+            "shadow_mode_start_date",
+            "shadow_accuracy_rate",
+            "shadow_mode_min_accuracy",
+            # Notifications
+            "notify_on_auto_execute",
+            "notify_on_escalation",
+            "notification_email",
+            # Undo window
+            "undo_window_hours",
+            # Compliance
+            "compliance_officer",
+            "audit_all_actions",
+            # Timestamps
+            "created_at",
+            "updated_at",
+            "_links",
+        ]
+        read_only_fields = [
+            "id",
+            "customer",
+            "stage_start_date",
+            "shadow_accuracy_rate",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ClaimScoreNestedSerializer(serializers.ModelSerializer):
+    """Lightweight nested serializer for ClaimScore within ShadowModeResult."""
+
+    class Meta:
+        model = ClaimScore
+        fields = [
+            "id",
+            "overall_confidence",
+            "recommended_action",
+            "automation_tier",
+            "requires_human_review",
+        ]
+        read_only_fields = fields
+
+
+class HumanDecisionUserSerializer(serializers.Serializer):
+    """Lightweight nested serializer for human decision user."""
+
+    id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+
+
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Matching Decision - True Positive",
+            description="AI and human agreed on auto-execute action",
+            value={
+                "id": 1,
+                "customer": 1,
+                "claim_score": {
+                    "id": 1234,
+                    "overall_confidence": 0.97,
+                    "recommended_action": "auto_execute",
+                    "automation_tier": 1,
+                    "requires_human_review": False,
+                },
+                "ai_recommended_action": "auto_execute",
+                "ai_confidence": 0.97,
+                "human_action_taken": "auto_execute",
+                "human_decision_user": {"id": 5, "username": "jane.analyst"},
+                "human_decision_timestamp": "2025-01-26T14:30:00Z",
+                "actions_match": True,
+                "outcome": "true_positive",
+                "discrepancy_reason": "",
+                "created_at": "2025-01-26T14:30:00Z",
+                "_links": {
+                    "self": "http://localhost:8000/api/v1/shadow-results/1/",
+                    "collection": "http://localhost:8000/api/v1/shadow-results/",
+                },
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Non-Matching Decision - False Positive",
+            description="AI recommended auto-execute but human escalated",
+            value={
+                "id": 2,
+                "customer": 1,
+                "claim_score": {
+                    "id": 1235,
+                    "overall_confidence": 0.88,
+                    "recommended_action": "queue_review",
+                    "automation_tier": 2,
+                    "requires_human_review": False,
+                },
+                "ai_recommended_action": "queue_review",
+                "ai_confidence": 0.88,
+                "human_action_taken": "escalate",
+                "human_decision_user": {"id": 5, "username": "jane.analyst"},
+                "human_decision_timestamp": "2025-01-26T15:45:00Z",
+                "actions_match": False,
+                "outcome": "false_positive",
+                "discrepancy_reason": (
+                    "Missing prior authorization documentation not detected by AI"
+                ),
+                "created_at": "2025-01-26T15:45:00Z",
+                "_links": {
+                    "self": "http://localhost:8000/api/v1/shadow-results/2/",
+                    "collection": "http://localhost:8000/api/v1/shadow-results/",
+                },
+            },
+            response_only=True,
+        ),
+    ]
+)
+class ShadowModeResultSerializer(HATEOASMixin, serializers.ModelSerializer):
+    """
+    Serializer for ShadowModeResult model.
+
+    Tracks shadow mode predictions vs. actual human decisions for AI validation.
+    Used to measure AI accuracy before enabling autonomous execution.
+
+    **Outcome Types:**
+    - `true_positive`: AI recommended action, human agreed, outcome correct
+    - `true_negative`: AI recommended no action, human agreed, outcome correct
+    - `false_positive`: AI recommended action, human disagreed or outcome wrong
+    - `false_negative`: AI recommended no action, but action was needed
+
+    **Shadow Mode Workflow:**
+    1. AI generates ClaimScore with recommended_action
+    2. Human reviews and takes action (may agree or disagree)
+    3. ShadowModeResult records comparison
+    4. Aggregate accuracy informs automation stage progression
+    """
+
+    claim_score = ClaimScoreNestedSerializer(read_only=True)
+    human_decision_user = HumanDecisionUserSerializer(read_only=True)
+
+    class Meta:
+        model = ShadowModeResult
+        fields = [
+            "id",
+            "customer",
+            "claim_score",
+            "ai_recommended_action",
+            "ai_confidence",
+            "human_action_taken",
+            "human_decision_user",
+            "human_decision_timestamp",
+            "actions_match",
+            "outcome",
+            "discrepancy_reason",
+            "created_at",
+            "_links",
+        ]
+        read_only_fields = [
+            "id",
+            "customer",
+            "claim_score",
+            "human_decision_user",
+            "created_at",
         ]
 
 
