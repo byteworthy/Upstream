@@ -1,8 +1,37 @@
-"""
-Admin configuration for Dialysis models.
+"""Admin configuration for Dialysis models."""
 
-Note: DialysisMABaseline admin is registered in upstream/admin.py
-to maintain consistency with other models and avoid duplicate registration.
-"""
+from django.contrib import admin
+from upstream.products.dialysis.models import DialysisMABaseline
 
-from django.contrib import admin  # noqa: F401
+
+@admin.register(DialysisMABaseline)
+class DialysisMABaselineAdmin(admin.ModelAdmin):
+    """Admin interface for DialysisMABaseline model."""
+
+    list_display = (
+        "cpt",
+        "average_payment",
+        "sample_size",
+        "last_updated",
+        "created_at",
+    )
+    list_filter = ("last_updated",)
+    search_fields = ("cpt",)
+    ordering = ("cpt",)
+    readonly_fields = ("created_at", "updated_at", "created_by", "updated_by")
+
+    fieldsets = (
+        (
+            "Baseline Information",
+            {
+                "fields": ("cpt", "average_payment", "sample_size", "last_updated"),
+            },
+        ),
+        (
+            "Audit Information",
+            {
+                "fields": ("created_at", "updated_at", "created_by", "updated_by"),
+                "classes": ("collapse",),
+            },
+        ),
+    )

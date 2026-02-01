@@ -104,9 +104,9 @@
       ],
       "files": [
         "upstream/products/aba/models.py",
-        "upstream/products/aba/migrations/0001_initial.py"
+        "upstream/migrations/0028_aba_authorization_tracker.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 6,
@@ -122,7 +122,7 @@
       "files": [
         "upstream/products/aba/services.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 7,
@@ -138,7 +138,7 @@
       "files": [
         "upstream/products/aba/services.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 8,
@@ -153,7 +153,7 @@
       "files": [
         "upstream/products/aba/services.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 9,
