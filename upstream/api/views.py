@@ -2381,6 +2381,133 @@ class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
 
         serializer.save(customer=customer)
 
+    @extend_schema(
+        summary="Score a claim for automation",
+        description=(
+            "Calculate ML-based risk score for a claim and return automation "
+            "recommendation. Creates and persists a ClaimScore record. "
+            "Response time target: < 200ms for single claim."
+        ),
+        tags=["Automation"],
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "claim_id": {
+                        "type": "integer",
+                        "description": "ID of the claim to score",
+                    },
+                },
+                "required": ["claim_id"],
+            }
+        },
+        responses={
+            201: ClaimScoreSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+        examples=[
+            OpenApiExample(
+                "Score Request",
+                value={"claim_id": 12345},
+                request_only=True,
+            ),
+        ],
+    )
+    @action(detail=False, methods=["post"], throttle_classes=[BulkOperationThrottle])
+    def score(self, request):
+        """
+        Calculate risk score for a claim.
+
+        Accepts claim_id, retrieves claim data, runs scoring algorithm,
+        and returns the computed ClaimScore with automation recommendation.
+        """
+        claim_id = request.data.get("claim_id")
+        if not claim_id:
+            return Response(
+                {"error": {"code": "validation_error", "message": "claim_id required"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        customer = get_user_customer(user)
+
+        # Fetch and validate claim
+        try:
+            claim = ClaimRecord.objects.select_related("customer").get(id=claim_id)
+        except ClaimRecord.DoesNotExist:
+            return Response(
+                {"error": {"code": "not_found", "message": "Claim not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Verify ownership
+        if not user.is_superuser and claim.customer != customer:
+            return Response(
+                {"error": {"code": "forbidden", "message": "Cannot score this claim"}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Check if score already exists
+        existing_score = ClaimScore.objects.filter(claim=claim).first()
+        if existing_score:
+            serializer = ClaimScoreSerializer(
+                existing_score, context={"request": request}
+            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Build claim data dict for scoring service
+        claim_data = {
+            "payer": claim.payer,
+            "cpt": claim.cpt,
+            "cpt_group": claim.cpt_group,
+            "allowed_amount": claim.allowed_amount,
+            "outcome": claim.outcome,
+            "has_prior_auth": False,  # Not tracked in current model
+            "documentation_count": 0,  # Not tracked in current model
+        }
+
+        # Look up baseline and profile
+        baseline = RiskScoringService.lookup_baseline(
+            customer_id=claim.customer_id,
+            payer=claim.payer,
+            cpt=claim.cpt,
+        )
+        profile = RiskScoringService.get_profile_thresholds(claim.customer_id)
+
+        # Calculate score
+        result = RiskScoringService.calculate_score(
+            claim_data=claim_data,
+            baseline_data=baseline,
+            profile_thresholds=profile,
+        )
+
+        # Create and persist ClaimScore
+        claim_score = ClaimScore.objects.create(
+            claim=claim,
+            customer=claim.customer,
+            overall_confidence=result.overall_confidence,
+            coding_confidence=result.coding_confidence,
+            eligibility_confidence=result.eligibility_confidence,
+            medical_necessity_confidence=result.medical_necessity_confidence,
+            documentation_completeness=result.documentation_completeness,
+            denial_risk_score=result.denial_risk_score,
+            fraud_risk_score=result.fraud_risk_score,
+            compliance_risk_score=result.compliance_risk_score,
+            model_version="rf_v1.0",
+            feature_importance=result.feature_importance,
+            prediction_reasoning=result.prediction_reasoning,
+            recommended_action=result.recommended_action,
+            automation_tier=result.automation_tier,
+            requires_human_review=result.requires_human_review,
+            red_line_reason=result.red_line_reason,
+        )
+
+        serializer = ClaimScoreSerializer(claim_score, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -2623,194 +2750,3 @@ class ThrottledTokenVerifyView(BaseTokenVerifyView):
     """
 
     throttle_classes = [AuthenticationThrottle]
-
-
-# =============================================================================
-# Automation ViewSets (ClaimScore, CustomerAutomationProfile, ShadowModeResult)
-# =============================================================================
-
-
-@extend_schema_view(
-    list=extend_schema(
-        summary="List claim scores",
-        description=(
-            "Retrieve a paginated list of claim scores for the authenticated user's "
-            "customer. Supports filtering by confidence level, automation tier, and "
-            "recommended action. Results are ordered by creation date (newest first)."
-        ),
-        tags=["Automation"],
-        parameters=[
-            OpenApiParameter(
-                name="page",
-                type=int,
-                description="Page number for pagination (default: 1)",
-                required=False,
-            ),
-            OpenApiParameter(
-                name="page_size",
-                type=int,
-                description="Number of results per page (default: 100, max: 1000)",
-                required=False,
-            ),
-            OpenApiParameter(
-                name="automation_tier",
-                type=int,
-                description="Filter by automation tier (1, 2, or 3)",
-                required=False,
-            ),
-            OpenApiParameter(
-                name="recommended_action",
-                type=str,
-                description=(
-                    "Filter by recommended action: auto_execute, queue_review, "
-                    "escalate, block"
-                ),
-                required=False,
-            ),
-            OpenApiParameter(
-                name="min_confidence",
-                type=float,
-                description="Filter by minimum overall confidence (0.0-1.0)",
-                required=False,
-            ),
-            OpenApiParameter(
-                name="requires_human_review",
-                type=bool,
-                description="Filter by human review requirement",
-                required=False,
-            ),
-        ],
-        responses={
-            200: ClaimScoreSerializer(many=True),
-            401: ErrorResponseSerializer,
-            403: ErrorResponseSerializer,
-            429: ErrorResponseSerializer,
-        },
-    ),
-    retrieve=extend_schema(
-        summary="Get claim score details",
-        description=(
-            "Retrieve detailed scoring information for a specific claim including "
-            "all confidence metrics, risk scores, and automation decision."
-        ),
-        tags=["Automation"],
-        responses={
-            200: ClaimScoreSerializer,
-            401: ErrorResponseSerializer,
-            403: ErrorResponseSerializer,
-            404: ErrorResponseSerializer,
-            429: ErrorResponseSerializer,
-        },
-    ),
-    create=extend_schema(
-        summary="Create claim score",
-        description=(
-            "Create a new claim score record. The claim must belong to the "
-            "authenticated user's customer. All confidence and risk scores must "
-            "be between 0.0 and 1.0."
-        ),
-        tags=["Automation"],
-        examples=[
-            OpenApiExample(
-                "Create Claim Score",
-                value={
-                    "claim": 123,
-                    "overall_confidence": 0.92,
-                    "coding_confidence": 0.95,
-                    "eligibility_confidence": 0.90,
-                    "medical_necessity_confidence": 0.88,
-                    "documentation_completeness": 0.94,
-                    "denial_risk_score": 0.15,
-                    "fraud_risk_score": 0.05,
-                    "compliance_risk_score": 0.08,
-                    "model_version": "rf_v2.1",
-                    "feature_importance": {"payer_history": 0.35, "cpt_pattern": 0.25},
-                    "prediction_reasoning": "High confidence based on historical data.",
-                    "recommended_action": "auto_execute",
-                    "automation_tier": 1,
-                    "requires_human_review": False,
-                    "red_line_reason": "",
-                },
-                request_only=True,
-            ),
-        ],
-        responses={
-            201: ClaimScoreSerializer,
-            400: ErrorResponseSerializer,
-            401: ErrorResponseSerializer,
-            403: ErrorResponseSerializer,
-            429: ErrorResponseSerializer,
-        },
-    ),
-)
-class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
-    """
-    API endpoint for viewing and creating claim scores.
-
-    ClaimScores represent ML-based confidence scoring for automation decisions.
-    Each claim can have one score (OneToOneField relationship).
-
-    **Supported Operations:**
-    - list: Get paginated list of scores for your customer
-    - retrieve: Get detailed score for a specific claim
-    - create: Create a new score (validates claim ownership)
-
-    **Filtering:**
-    - automation_tier: Filter by tier (1=auto-execute, 2=queue, 3=escalate)
-    - recommended_action: Filter by action type
-    - min_confidence: Filter by minimum confidence threshold
-    - requires_human_review: Filter by human review requirement
-    """
-
-    queryset = ClaimScore.objects.all().order_by("-created_at")
-    serializer_class = ClaimScoreSerializer
-    permission_classes = [IsAuthenticated, IsCustomerMember]
-    throttle_classes = [ReadOnlyThrottle]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ["automation_tier", "recommended_action", "requires_human_review"]
-    ordering_fields = ["created_at", "overall_confidence", "automation_tier"]
-
-    def get_queryset(self):
-        """Filter queryset by customer and apply additional filters."""
-        queryset = super().get_queryset()
-
-        # Optimize with select_related for nested serializers
-        queryset = queryset.select_related("claim", "customer")
-
-        # Apply min_confidence filter
-        min_confidence = self.request.query_params.get("min_confidence")
-        if min_confidence:
-            try:
-                min_conf = float(min_confidence)
-                if 0.0 <= min_conf <= 1.0:
-                    queryset = queryset.filter(overall_confidence__gte=min_conf)
-            except ValueError:
-                pass
-
-        return queryset
-
-    def perform_create(self, serializer):
-        """Validate claim ownership before creating score."""
-        customer = get_user_customer(self.request.user)
-        if not customer:
-            from rest_framework.exceptions import PermissionDenied
-
-            raise PermissionDenied("User does not belong to a customer.")
-
-        # Validate claim belongs to the same customer
-        claim_id = self.request.data.get("claim")
-        if claim_id:
-            try:
-                claim = ClaimRecord.objects.get(pk=claim_id)
-                if claim.customer_id != customer.id:
-                    from rest_framework.exceptions import ValidationError
-
-                    raise ValidationError(
-                        {"claim": "Claim does not belong to your customer."}
-                    )
-            except ClaimRecord.DoesNotExist:
-                from rest_framework.exceptions import ValidationError
-
-                raise ValidationError({"claim": "Claim does not exist."})
-
-        serializer.save(customer=customer)

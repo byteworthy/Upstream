@@ -179,7 +179,7 @@
         "upstream/services/__init__.py",
         "upstream/services/scoring.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 11,
@@ -194,7 +194,7 @@
       "files": [
         "upstream/services/scoring.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 12,
@@ -209,7 +209,7 @@
       "files": [
         "upstream/services/scoring.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 13,
@@ -225,7 +225,7 @@
       "files": [
         "upstream/api/views.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 14,

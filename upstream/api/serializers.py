@@ -1569,6 +1569,16 @@ class ComplianceOfficerSerializer(serializers.Serializer):
     email = serializers.EmailField(read_only=True)
 
 
+class ComplianceOfficerIdField(serializers.PrimaryKeyRelatedField):
+    """Custom PrimaryKeyRelatedField that dynamically gets User queryset."""
+
+    def get_queryset(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        return User.objects.all()
+
+
 @extend_schema_serializer(
     examples=[
         OpenApiExample(
@@ -1680,6 +1690,13 @@ class CustomerAutomationProfileSerializer(HATEOASMixin, serializers.ModelSeriali
     """
 
     compliance_officer = ComplianceOfficerSerializer(read_only=True)
+    compliance_officer_id = ComplianceOfficerIdField(
+        source="compliance_officer",
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text="ID of the compliance officer user (write-only)",
+    )
 
     class Meta:
         model = CustomerAutomationProfile
@@ -1716,6 +1733,7 @@ class CustomerAutomationProfileSerializer(HATEOASMixin, serializers.ModelSeriali
             "undo_window_hours",
             # Compliance
             "compliance_officer",
+            "compliance_officer_id",
             "audit_all_actions",
             # Timestamps
             "created_at",

@@ -127,3 +127,31 @@ Successfully extracted service layer from views:
 - 38 comprehensive tests added (100% service coverage)
 - All services stateless, framework-agnostic, easily testable
 - Zero breaking changes - services ready for adoption in views
+
+## Iteration 1 - 2026-02-01T03:40:00Z
+Story: #4 - Create CustomerAutomationProfileSerializer
+
+### Implementation
+- Enhanced CustomerAutomationProfileSerializer with compliance_officer_id write field
+- Added ComplianceOfficerIdField custom field class to properly handle User queryset
+- Serializer now supports both reading (nested ComplianceOfficerSerializer) and writing (compliance_officer_id)
+- Files changed: upstream/api/serializers.py
+
+### Key Decisions
+- Used custom PrimaryKeyRelatedField subclass (ComplianceOfficerIdField) instead of setting queryset in __init__
+- This approach is cleaner and works properly with DRF's field initialization
+- Kept compliance_officer as read-only nested serializer for API responses
+- Added compliance_officer_id as write-only field for updates
+
+### Learnings
+- DRF PrimaryKeyRelatedField cannot have queryset=None at class definition time
+- Need to override get_queryset() method for dynamic querysets
+- Linter automatically moved ComplianceOfficerIdField outside the serializer class
+
+### Quality Gates
+- python manage.py check: PASSED
+- python manage.py makemigrations --check --dry-run: PASSED (No changes detected)
+- python manage.py spectacular --validate: PASSED (warnings only)
+
+### Status
+✅ Story #4 completed and ready for commit
