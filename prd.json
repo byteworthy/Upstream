@@ -288,7 +288,7 @@
       "files": [
         "upstream/tests_fixtures.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 18,
