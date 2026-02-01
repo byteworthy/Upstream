@@ -23,6 +23,7 @@ from ..models import (
     UserProfile,
     PayerMapping,
     CPTGroupMapping,
+    NetworkAlert,
 )
 from upstream.alerts.models import AlertEvent, OperatorJudgment
 from upstream.automation.models import (
@@ -1883,6 +1884,37 @@ class ShadowModeResultSerializer(HATEOASMixin, serializers.ModelSerializer):
             "human_decision_user",
             "created_at",
         ]
+
+
+class NetworkAlertSerializer(serializers.ModelSerializer):
+    """
+    Serializer for NetworkAlert platform-level alerts.
+
+    NetworkAlerts are cross-customer intelligence showing when 3+ customers
+    are affected by the same payer drift pattern.
+    """
+
+    is_resolved = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NetworkAlert
+        fields = [
+            "id",
+            "payer",
+            "drift_type",
+            "affected_customer_count",
+            "summary_text",
+            "severity",
+            "details",
+            "created_at",
+            "resolved_at",
+            "is_resolved",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def get_is_resolved(self, obj):
+        """Return whether the alert has been resolved."""
+        return obj.resolved_at is not None
 
 
 class HealthCheckSerializer(serializers.Serializer):

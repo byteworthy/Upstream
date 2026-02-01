@@ -116,7 +116,7 @@
       "id": 17,
       "title": "Add behavioral prediction to dashboard",
       "description": "Update DashboardView to include behavioral prediction counts.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 18,

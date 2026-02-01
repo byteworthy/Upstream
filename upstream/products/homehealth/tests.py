@@ -974,4 +974,5 @@ class HomeHealthEpisodeModelTest(TestCase):
         )
 
         self.assertEqual(episode.customer, self.customer)
-        self.assertIn(episode, self.customer.homehealth_episodes.all())
+        customer_episodes = HomeHealthEpisode.all_objects.filter(customer=self.customer)
+        self.assertIn(episode, customer_episodes)

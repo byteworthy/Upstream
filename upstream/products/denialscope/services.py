@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
 
+from upstream.constants import DENIAL_DOLLARS_SPIKE_THRESHOLD
 from upstream.models import ClaimRecord
 from upstream.ingestion.services import publish_event
 from upstream.products.denialscope.models import DenialAggregate, DenialSignal
@@ -278,6 +279,45 @@ class DenialScopeComputationService:
                     )
                     signals.append(signal)
 
+        # Signal 4: Absolute denial dollars spike (>$50K threshold)
+        # This detects when weekly denied dollars exceed the threshold
+        # regardless of relative change from baseline
+        for key, recent_data in recent_grouped.items():
+            payer, denial_reason = key
+            denied_dollars = recent_data["denied_dollars"]
+
+            if denied_dollars >= DENIAL_DOLLARS_SPIKE_THRESHOLD:
+                # Calculate severity based on how far over threshold
+                severity = self._severity_from_dollars_spike(denied_dollars)
+                confidence = min(
+                    denied_dollars / (DENIAL_DOLLARS_SPIKE_THRESHOLD * 2), 1.0
+                )
+
+                signal = self._create_signal(
+                    signal_type="denial_dollars_spike",
+                    payer=payer,
+                    denial_reason=denial_reason,
+                    window_start=recent_start,
+                    window_end=recent_end,
+                    severity=severity,
+                    confidence=confidence,
+                    summary=(
+                        f"Weekly denied dollars for {payer} ({denial_reason}) "
+                        f"exceeded ${DENIAL_DOLLARS_SPIKE_THRESHOLD:,.0f} threshold: "
+                        f"${denied_dollars:,.2f}"
+                    ),
+                    details={
+                        "denied_dollars": denied_dollars,
+                        "threshold": DENIAL_DOLLARS_SPIKE_THRESHOLD,
+                        "payer": payer,
+                        "denial_reason": denial_reason,
+                        "window_start": recent_start.isoformat(),
+                        "window_end": recent_end.isoformat(),
+                    },
+                    aggregates=recent_data["aggregates"],
+                )
+                signals.append(signal)
+
         return signals
 
     def _group_aggregates_in_db(self, start_date, end_date):
@@ -324,6 +364,17 @@ class DenialScopeComputationService:
         if delta >= 0.5:
             return "medium"
         return "low"
+
+    def _severity_from_dollars_spike(self, denied_dollars):
+        """Map absolute denied dollars to severity level based on threshold multiples."""
+        ratio = denied_dollars / DENIAL_DOLLARS_SPIKE_THRESHOLD
+        if ratio >= 3.0:  # 3x threshold ($150K+)
+            return "critical"
+        if ratio >= 2.0:  # 2x threshold ($100K+)
+            return "high"
+        if ratio >= 1.5:  # 1.5x threshold ($75K+)
+            return "medium"
+        return "low"  # Just over threshold
 
     def _create_signal(
         self,

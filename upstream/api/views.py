@@ -1381,6 +1381,60 @@ class DriftEventViewSet(ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelVi
 
 @extend_schema_view(
     list=extend_schema(
+        summary="List network alerts",
+        description=(
+            "Retrieve platform-level alerts showing cross-customer patterns. "
+            "NetworkAlerts are created when 3+ customers show the same payer drift."
+        ),
+        tags=["Network Intelligence"],
+    ),
+    retrieve=extend_schema(
+        summary="Get network alert details",
+        description="Retrieve details for a specific network alert.",
+        tags=["Network Intelligence"],
+    ),
+)
+class NetworkAlertViewSet(ETagMixin, viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for viewing platform-level network alerts.
+
+    NetworkAlerts show cross-customer intelligence - patterns that affect
+    multiple customers. These are platform-level (no customer FK) and
+    visible to all authenticated users.
+    """
+
+    queryset = NetworkAlert.objects.all().order_by("-created_at")
+    serializer_class = NetworkAlertSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ReadOnlyThrottle]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["payer", "drift_type", "severity"]
+    search_fields = ["payer", "summary_text"]
+    ordering_fields = ["created_at", "severity", "affected_customer_count"]
+
+    @extend_schema(
+        summary="Get active network alerts",
+        description="Retrieve unresolved network alerts.",
+        tags=["Network Intelligence"],
+    )
+    @action(detail=False, methods=["get"])
+    def active(self, request):
+        """Get unresolved network alerts."""
+        queryset = self.get_queryset().filter(resolved_at__isnull=True)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+@extend_schema_view(
+    list=extend_schema(
         summary="List payer mappings",
         description=(
             "Retrieve a list of payer name mappings for normalizing payer " "names."
@@ -1527,6 +1581,7 @@ class DashboardView(APIView):
                     "total_claims": 125000,
                     "total_uploads": 42,
                     "active_drift_events": 15,
+                    "behavioral_prediction_count": 3,
                     "last_report_date": "2024-01-20T10:30:00Z",
                     "denial_rate_trend": [
                         {
@@ -1631,6 +1686,16 @@ class DashboardView(APIView):
             active_drift_events = 0
             if latest_report:
                 active_drift_events = latest_report.drift_events.count()
+
+            # Count behavioral prediction events in last 7 days
+            from datetime import timedelta as td
+
+            seven_days_ago = timezone.now() - td(days=7)
+            behavioral_prediction_count = DriftEvent.objects.filter(
+                customer=customer,
+                drift_type="BEHAVIORAL_PREDICTION",
+                current_start__gte=seven_days_ago.date(),
+            ).count()
 
             # Get top drift payers from latest report
             top_drift_payers = []
@@ -2766,3 +2831,22 @@ class ThrottledTokenVerifyView(BaseTokenVerifyView):
     """
 
     throttle_classes = [AuthenticationThrottle]
+
+
+class NetworkAlertViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for viewing cross-customer network alerts.
+
+    Network alerts are platform-level (not customer-specific) so they
+    don't use CustomerFilterMixin. All authenticated users can view them.
+    """
+
+    from upstream.models import NetworkAlert
+    from upstream.api.serializers import NetworkAlertSerializer
+
+    queryset = NetworkAlert.objects.all().order_by("-created_at")
+    serializer_class = NetworkAlertSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["payer", "drift_type", "severity"]
+    search_fields = ["payer", "summary_text"]
+    ordering_fields = ["created_at", "severity", "affected_customer_count"]
