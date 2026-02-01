@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "task": {
+    "id": "CRIT-9",
+    "source": "security-audit",
+    "title": "Fix .env File Permissions (Critical Security Issue)",
+    "description": ".env file has world-readable/writable permissions (666), exposing FIELD_ENCRYPTION_KEY and all secrets. HIPAA violation.",
+    "severity": "CRITICAL",
+    "domain": "Security/DevOps",
+    "effort": "Small (<1 day)",
+    "url": null
+  },
+  "workflow": {
+    "id": "worktree-manager-crit9",
+    "startedAt": "2026-01-25T23:51:00Z",
+    "lastActivityAt": "2026-01-25T23:51:00Z",
+    "status": "active",
+    "currentPhase": "worktree-setup"
+  },
+  "git": {
+    "branch": "fix/env-permissions-security-crit9",
+    "baseSha": "cd1c7f839846efd1bae259a4bb7f9b7e56cd9476",
+    "currentSha": "cd1c7f839846efd1bae259a4bb7f9b7e56cd9476",
+    "mainRepoPath": "/workspaces/codespaces-django"
+  },
+  "policy": {},
+  "steps": [
+    {
+      "step": "worktree-created",
+      "status": "completed",
+      "startedAt": "2026-01-25T23:51:00Z",
+      "completedAt": "2026-01-25T23:51:00Z"
+    }
+  ],
+  "resume": {
+    "canResume": true,
+    "resumeFromStep": "worktree-created"
+  },
+  "agents": {
+    "reviewIterations": 0,
+    "issuesFound": 0,
+    "issuesFixed": 0
+  }
+}
