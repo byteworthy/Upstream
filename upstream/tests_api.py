@@ -48,7 +48,9 @@ class APITestBase(APITestCase):
 
         # Create users for Customer A
         self.user_a = User.objects.create_user(
-            username="user_a", email="user_a@example.com", password="testpass123"
+            username="user_a",
+            email="user_a@example.com",
+            password="testpass123",  # pragma: allowlist secret
         )
         self.profile_a = UserProfile.objects.create(
             user=self.user_a, customer=self.customer_a
@@ -56,7 +58,9 @@ class APITestBase(APITestCase):
 
         # Create users for Customer B
         self.user_b = User.objects.create_user(
-            username="user_b", email="user_b@example.com", password="testpass123"
+            username="user_b",
+            email="user_b@example.com",
+            password="testpass123",  # pragma: allowlist secret
         )
         self.profile_b = UserProfile.objects.create(
             user=self.user_b, customer=self.customer_b
@@ -66,7 +70,7 @@ class APITestBase(APITestCase):
         self.user_no_customer = User.objects.create_user(
             username="no_customer",
             email="no_customer@example.com",
-            password="testpass123",
+            password="testpass123",  # pragma: allowlist secret
         )
 
         self.client = APIClient()
@@ -173,7 +177,9 @@ class AuthEndpointTests(APITestBase):
     def test_token_obtain_with_valid_credentials(self):
         """Token obtain should return tokens with valid credentials."""
         response = self.client.post(
-            f"{API_BASE}/auth/token/", {"username": "user_a", "password": "testpass123"}
+            f"{API_BASE}/auth/token/",
+            {"username": "user_a", "password": "testpass123"},
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
@@ -183,7 +189,11 @@ class AuthEndpointTests(APITestBase):
         """Token obtain should return 401 with invalid credentials."""
         response = self.client.post(
             f"{API_BASE}/auth/token/",
-            {"username": "user_a", "password": "wrongpassword"},
+            {
+                "username": "user_a",
+                "password": "wrongpassword",
+            },  # pragma: allowlist secret
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -192,6 +202,7 @@ class AuthEndpointTests(APITestBase):
         response = self.client.post(
             f"{API_BASE}/auth/token/",
             {"username": "nonexistent", "password": "testpass123"},
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -199,13 +210,17 @@ class AuthEndpointTests(APITestBase):
         """Token refresh should return new access token."""
         # First obtain tokens
         obtain_response = self.client.post(
-            f"{API_BASE}/auth/token/", {"username": "user_a", "password": "testpass123"}
+            f"{API_BASE}/auth/token/",
+            {"username": "user_a", "password": "testpass123"},
+            format="json",
         )
         refresh_token = obtain_response.data["refresh"]
 
         # Then refresh
         response = self.client.post(
-            f"{API_BASE}/auth/token/refresh/", {"refresh": refresh_token}
+            f"{API_BASE}/auth/token/refresh/",
+            {"refresh": refresh_token},
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
@@ -213,7 +228,9 @@ class AuthEndpointTests(APITestBase):
     def test_token_refresh_with_invalid_token(self):
         """Token refresh should return 401 with invalid token."""
         response = self.client.post(
-            f"{API_BASE}/auth/token/refresh/", {"refresh": "invalid-token"}
+            f"{API_BASE}/auth/token/refresh/",
+            {"refresh": "invalid-token"},
+            format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
