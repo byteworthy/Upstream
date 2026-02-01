@@ -191,3 +191,178 @@ def get_stripe_customer(stripe_customer_id: str) -> Optional[dict]:
             str(e),
         )
         return None
+
+
+def create_checkout_session(
+    customer,
+    tier: str,
+    success_url: str = None,
+    cancel_url: str = None,
+) -> Optional[str]:
+    """
+    Create a Stripe Checkout session for subscription signup.
+
+    Args:
+        customer: Customer model instance with stripe_customer_id
+        tier: Subscription tier (essentials, professional, enterprise)
+        success_url: URL to redirect after successful checkout
+        cancel_url: URL to redirect if checkout is canceled
+
+    Returns:
+        Checkout session URL for redirect, or None if creation fails
+    """
+    stripe = get_stripe_client()
+    if stripe is None or not stripe.api_key:
+        logger.info("Stripe not configured, cannot create checkout session")
+        return None
+
+    # Validate tier
+    if tier not in STRIPE_PRICE_IDS:
+        logger.error("Invalid tier %s for checkout session", tier)
+        return None
+
+    # Get or create Stripe customer
+    stripe_customer_id = customer.stripe_customer_id
+    if not stripe_customer_id:
+        stripe_customer_id = create_stripe_customer(customer)
+        if stripe_customer_id:
+            # Update customer with Stripe ID
+            from upstream.models import Customer
+
+            Customer.objects.filter(pk=customer.pk).update(
+                stripe_customer_id=stripe_customer_id
+            )
+            customer.stripe_customer_id = stripe_customer_id
+        else:
+            logger.error(
+                "Cannot create checkout session without Stripe customer for %s",
+                customer.name,
+            )
+            return None
+
+    # Default URLs
+    base_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+    if success_url is None:
+        success_url = f"{base_url}/billing/success?session_id={{CHECKOUT_SESSION_ID}}"
+    if cancel_url is None:
+        cancel_url = f"{base_url}/billing/cancel"
+
+    try:
+        # Create Checkout session with trial period
+        checkout_session = stripe.checkout.Session.create(
+            customer=stripe_customer_id,
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price": STRIPE_PRICE_IDS[tier],
+                    "quantity": 1,
+                }
+            ],
+            mode="subscription",
+            success_url=success_url,
+            cancel_url=cancel_url,
+            subscription_data={
+                "trial_period_days": TRIAL_PERIOD_DAYS,
+                "metadata": {
+                    "upstream_customer_id": str(customer.id),
+                    "tier": tier,
+                },
+            },
+            metadata={
+                "upstream_customer_id": str(customer.id),
+                "tier": tier,
+            },
+        )
+
+        logger.info(
+            "Created checkout session %s for customer %s, tier %s",
+            checkout_session.id,
+            customer.name,
+            tier,
+        )
+
+        return checkout_session.url
+
+    except Exception as e:
+        logger.error(
+            "Failed to create checkout session for %s: %s",
+            customer.name,
+            str(e),
+        )
+        return None
+
+
+def get_checkout_session(session_id: str) -> Optional[dict]:
+    """
+    Retrieve Stripe Checkout session details.
+
+    Args:
+        session_id: Stripe Checkout session ID
+
+    Returns:
+        Checkout session object dict or None
+    """
+    stripe = get_stripe_client()
+    if stripe is None or not stripe.api_key:
+        return None
+
+    try:
+        return stripe.checkout.Session.retrieve(session_id)
+    except Exception as e:
+        logger.error(
+            "Failed to retrieve checkout session %s: %s",
+            session_id,
+            str(e),
+        )
+        return None
+
+
+def create_billing_portal_session(
+    customer,
+    return_url: str = None,
+) -> Optional[str]:
+    """
+    Create a Stripe Billing Portal session for subscription management.
+
+    Args:
+        customer: Customer model instance with stripe_customer_id
+        return_url: URL to redirect after portal session
+
+    Returns:
+        Portal session URL for redirect, or None if creation fails
+    """
+    stripe = get_stripe_client()
+    if stripe is None or not stripe.api_key:
+        return None
+
+    if not customer.stripe_customer_id:
+        logger.warning(
+            "Cannot create portal session - customer %s has no Stripe ID",
+            customer.name,
+        )
+        return None
+
+    base_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+    if return_url is None:
+        return_url = f"{base_url}/settings/billing"
+
+    try:
+        portal_session = stripe.billing_portal.Session.create(
+            customer=customer.stripe_customer_id,
+            return_url=return_url,
+        )
+
+        logger.info(
+            "Created billing portal session for customer %s",
+            customer.name,
+        )
+
+        return portal_session.url
+
+    except Exception as e:
+        logger.error(
+            "Failed to create billing portal session for %s: %s",
+            customer.name,
+            str(e),
+        )
+        return None
