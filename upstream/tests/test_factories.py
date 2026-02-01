@@ -27,6 +27,9 @@ from upstream.tests.factories import (
     IntegrationLogFactory,
     WebhookEndpointFactory,
     WebhookDeliveryFactory,
+    ClaimScoreFactory,
+    CustomerAutomationProfileFactory,
+    ShadowModeResultFactory,
 )
 
 
@@ -256,6 +259,142 @@ class TestFactories(TestCase):
             AlertRuleFactory,
             NotificationChannelFactory,
             WebhookDeliveryFactory,
+            ClaimScoreFactory,
+            CustomerAutomationProfileFactory,
+            ShadowModeResultFactory,
         ]
         # We need at least 10 factories
         self.assertGreaterEqual(len(factories), 10)
+
+    # =========================================================================
+    # Automation Model Factory Tests
+    # =========================================================================
+
+    def test_claim_score_factory(self):
+        """Test ClaimScoreFactory creates valid ClaimScore instances."""
+        score = ClaimScoreFactory()
+        score.full_clean()
+        self.assertIsNotNone(score.id)
+        self.assertIsNotNone(score.claim)
+        self.assertIsNotNone(score.customer)
+        self.assertGreaterEqual(score.overall_confidence, 0.0)
+        self.assertLessEqual(score.overall_confidence, 1.0)
+
+    def test_claim_score_factory_high_confidence(self):
+        """Test ClaimScoreFactory with high_confidence trait."""
+        score = ClaimScoreFactory(high_confidence=True)
+        score.full_clean()
+        self.assertEqual(score.overall_confidence, 0.97)
+        self.assertEqual(score.automation_tier, 1)
+        self.assertEqual(score.recommended_action, "auto_execute")
+
+    def test_claim_score_factory_medium_confidence(self):
+        """Test ClaimScoreFactory with medium_confidence trait."""
+        score = ClaimScoreFactory(medium_confidence=True)
+        score.full_clean()
+        self.assertEqual(score.overall_confidence, 0.82)
+        self.assertEqual(score.automation_tier, 2)
+        self.assertEqual(score.recommended_action, "queue_review")
+
+    def test_claim_score_factory_low_confidence(self):
+        """Test ClaimScoreFactory with low_confidence trait."""
+        score = ClaimScoreFactory(low_confidence=True)
+        score.full_clean()
+        self.assertEqual(score.overall_confidence, 0.55)
+        self.assertEqual(score.automation_tier, 3)
+        self.assertEqual(score.recommended_action, "escalate")
+
+    def test_claim_score_factory_red_line(self):
+        """Test ClaimScoreFactory with red_line trait."""
+        score = ClaimScoreFactory(red_line=True)
+        score.full_clean()
+        self.assertTrue(score.requires_human_review)
+        self.assertEqual(score.recommended_action, "block")
+        self.assertIn("SB 1120", score.red_line_reason)
+
+    def test_claim_score_factory_fraud_risk(self):
+        """Test ClaimScoreFactory with fraud_risk trait."""
+        score = ClaimScoreFactory(fraud_risk=True)
+        score.full_clean()
+        self.assertEqual(score.fraud_risk_score, 0.85)
+        self.assertTrue(score.requires_human_review)
+
+    def test_customer_automation_profile_factory(self):
+        """Test CustomerAutomationProfileFactory creates valid instances."""
+        profile = CustomerAutomationProfileFactory()
+        profile.full_clean()
+        self.assertIsNotNone(profile.id)
+        self.assertIsNotNone(profile.customer)
+        self.assertEqual(profile.automation_stage, "observe")
+
+    def test_customer_automation_profile_factory_observe_stage(self):
+        """Test CustomerAutomationProfileFactory with observe_stage trait."""
+        profile = CustomerAutomationProfileFactory(observe_stage=True)
+        profile.full_clean()
+        self.assertEqual(profile.automation_stage, "observe")
+        self.assertFalse(profile.auto_submit_claims)
+        self.assertTrue(profile.shadow_mode_enabled)
+
+    def test_customer_automation_profile_factory_full_autonomy(self):
+        """Test CustomerAutomationProfileFactory with full_autonomy_stage trait."""
+        profile = CustomerAutomationProfileFactory(full_autonomy_stage=True)
+        profile.full_clean()
+        self.assertEqual(profile.automation_stage, "full_autonomy")
+        self.assertTrue(profile.auto_submit_claims)
+        self.assertFalse(profile.shadow_mode_enabled)
+        self.assertEqual(profile.shadow_accuracy_rate, 0.99)
+
+    def test_customer_automation_profile_factory_conservative(self):
+        """Test CustomerAutomationProfileFactory with conservative trait."""
+        profile = CustomerAutomationProfileFactory(conservative=True)
+        profile.full_clean()
+        self.assertEqual(profile.auto_execute_confidence, 0.98)
+        self.assertEqual(profile.auto_execute_max_amount, 500)
+        self.assertEqual(profile.shadow_mode_min_accuracy, 0.98)
+
+    def test_customer_automation_profile_factory_aggressive(self):
+        """Test CustomerAutomationProfileFactory with aggressive trait."""
+        profile = CustomerAutomationProfileFactory(aggressive=True)
+        profile.full_clean()
+        self.assertEqual(profile.auto_execute_confidence, 0.90)
+        self.assertEqual(profile.auto_execute_max_amount, 5000)
+
+    def test_shadow_mode_result_factory(self):
+        """Test ShadowModeResultFactory creates valid instances."""
+        result = ShadowModeResultFactory()
+        result.full_clean()
+        self.assertIsNotNone(result.id)
+        self.assertIsNotNone(result.customer)
+        self.assertIsNotNone(result.claim_score)
+
+    def test_shadow_mode_result_factory_agreement(self):
+        """Test ShadowModeResultFactory with agreement trait."""
+        result = ShadowModeResultFactory(agreement=True)
+        result.full_clean()
+        self.assertTrue(result.actions_match)
+        self.assertEqual(result.outcome, "true_positive")
+        self.assertEqual(result.discrepancy_reason, "")
+
+    def test_shadow_mode_result_factory_ai_overconfident(self):
+        """Test ShadowModeResultFactory with ai_overconfident trait."""
+        result = ShadowModeResultFactory(ai_overconfident=True)
+        result.full_clean()
+        self.assertFalse(result.actions_match)
+        self.assertEqual(result.ai_recommended_action, "auto_execute")
+        self.assertEqual(result.human_action_taken, "escalate")
+        self.assertEqual(result.outcome, "false_positive")
+        self.assertIn("compliance concern", result.discrepancy_reason)
+
+    def test_shadow_mode_result_factory_ai_underconfident(self):
+        """Test ShadowModeResultFactory with ai_underconfident trait."""
+        result = ShadowModeResultFactory(ai_underconfident=True)
+        result.full_clean()
+        self.assertFalse(result.actions_match)
+        self.assertEqual(result.ai_recommended_action, "escalate")
+        self.assertEqual(result.human_action_taken, "auto_execute")
+        self.assertEqual(result.outcome, "false_negative")
+
+    def test_shadow_mode_result_inherits_customer(self):
+        """Test ShadowModeResultFactory inherits customer from claim_score."""
+        result = ShadowModeResultFactory()
+        self.assertEqual(result.customer, result.claim_score.customer)

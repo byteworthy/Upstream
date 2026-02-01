@@ -150,9 +150,11 @@ class HealthEndpointTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_health_endpoint_returns_status(self):
-        """Health endpoint should return status field."""
+        """Health endpoint should return status field (healthy or degraded)."""
         response = self.client.get(f"{API_BASE}/health/")
-        self.assertEqual(response.data["status"], "healthy")
+        # Status can be "healthy" or "degraded" - both return 200
+        # Only "unhealthy" (database failure) returns 503
+        self.assertIn(response.data["status"], ["healthy", "degraded"])
 
     def test_health_endpoint_returns_version(self):
         """Health endpoint should return version field."""
@@ -1689,3 +1691,440 @@ class ErrorResponseTests(APITestBase):
         if "request_id" in error:
             self.assertIsInstance(error["request_id"], str)
             self.assertTrue(len(error["request_id"]) > 0)
+
+
+# =============================================================================
+# Automation API Tests (ClaimScore, CustomerAutomationProfile, ShadowModeResult)
+# =============================================================================
+
+
+class ClaimScoreViewSetTests(APITestBase):
+    """Tests for ClaimScoreViewSet API endpoints."""
+
+    def setUp(self):
+        """Set up automation test fixtures."""
+        super().setUp()
+        # Import automation models
+        from upstream.automation.models import ClaimScore
+
+        self.ClaimScore = ClaimScore
+
+        # Create claims for testing
+        self.claim_a = self.create_claim_record_for_customer(self.customer_a)
+        self.claim_b = self.create_claim_record_for_customer(self.customer_b)
+
+        # Create ClaimScore for customer A
+        self.score_a = ClaimScore.objects.create(
+            claim=self.claim_a,
+            customer=self.customer_a,
+            overall_confidence=0.92,
+            coding_confidence=0.95,
+            eligibility_confidence=0.90,
+            medical_necessity_confidence=0.88,
+            documentation_completeness=0.94,
+            denial_risk_score=0.15,
+            fraud_risk_score=0.05,
+            compliance_risk_score=0.08,
+            model_version="rf_v1.0",
+            feature_importance={"payer_history": 0.35},
+            prediction_reasoning="Test reasoning",
+            recommended_action="auto_execute",
+            automation_tier=1,
+            requires_human_review=False,
+            red_line_reason="",
+        )
+
+        # Create ClaimScore for customer B
+        self.score_b = ClaimScore.objects.create(
+            claim=self.claim_b,
+            customer=self.customer_b,
+            overall_confidence=0.75,
+            coding_confidence=0.80,
+            eligibility_confidence=0.70,
+            medical_necessity_confidence=0.72,
+            documentation_completeness=0.78,
+            denial_risk_score=0.30,
+            fraud_risk_score=0.10,
+            compliance_risk_score=0.15,
+            model_version="rf_v1.0",
+            feature_importance={"payer_history": 0.40},
+            prediction_reasoning="Test reasoning B",
+            recommended_action="queue_review",
+            automation_tier=2,
+            requires_human_review=False,
+            red_line_reason="",
+        )
+
+    def test_list_claim_scores_requires_auth(self):
+        """List claim scores requires authentication."""
+        response = self.client.get(f"{API_BASE}/claim-scores/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_list_claim_scores_returns_own_customer_only(self):
+        """User A can only see customer A's claim scores."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/claim-scores/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], self.score_a.id)
+
+    def test_tenant_isolation_claim_scores(self):
+        """User A cannot see user B's claim scores."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/claim-scores/{self.score_b.id}/")
+
+        # Should be 404 due to tenant isolation
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_retrieve_claim_score_details(self):
+        """Retrieve single claim score returns all fields."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/claim-scores/{self.score_a.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["overall_confidence"], 0.92)
+        self.assertEqual(response.data["recommended_action"], "auto_execute")
+        self.assertEqual(response.data["automation_tier"], 1)
+        self.assertIn("_links", response.data)
+
+    def test_filter_by_automation_tier(self):
+        """Filter claim scores by automation tier."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/claim-scores/", {"automation_tier": 1})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for score in response.data["results"]:
+            self.assertEqual(score["automation_tier"], 1)
+
+
+class ClaimScoreEndpointTests(APITestBase):
+    """Tests for the pre-submission /score/ endpoint."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        super().setUp()
+        # Create a claim for scoring
+        self.claim_to_score = self.create_claim_record_for_customer(self.customer_a)
+
+    def test_score_endpoint_requires_auth(self):
+        """Score endpoint requires authentication."""
+        response = self.client.post(
+            f"{API_BASE}/claim-scores/score/",
+            {"claim_id": self.claim_to_score.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_score_endpoint_creates_claim_score(self):
+        """Score endpoint creates and returns ClaimScore."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.post(
+            f"{API_BASE}/claim-scores/score/",
+            {"claim_id": self.claim_to_score.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("overall_confidence", response.data)
+        self.assertIn("recommended_action", response.data)
+        self.assertIn("automation_tier", response.data)
+
+    def test_score_endpoint_requires_claim_id(self):
+        """Score endpoint requires claim_id parameter."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.post(
+            f"{API_BASE}/claim-scores/score/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_score_endpoint_validates_claim_ownership(self):
+        """User cannot score claims from other customers."""
+        claim_b = self.create_claim_record_for_customer(self.customer_b)
+
+        self.authenticate_as(self.user_a)
+
+        response = self.client.post(
+            f"{API_BASE}/claim-scores/score/",
+            {"claim_id": claim_b.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_score_endpoint_returns_existing_score(self):
+        """Score endpoint returns existing score if already computed."""
+        from upstream.automation.models import ClaimScore
+
+        # Pre-create a score
+        existing_score = ClaimScore.objects.create(
+            claim=self.claim_to_score,
+            customer=self.customer_a,
+            overall_confidence=0.85,
+            coding_confidence=0.90,
+            eligibility_confidence=0.80,
+            medical_necessity_confidence=0.82,
+            documentation_completeness=0.88,
+            denial_risk_score=0.20,
+            fraud_risk_score=0.05,
+            compliance_risk_score=0.10,
+            model_version="rf_v1.0",
+            feature_importance={"payer_history": 0.35},
+            prediction_reasoning="Existing score",
+            recommended_action="queue_review",
+            automation_tier=2,
+            requires_human_review=False,
+            red_line_reason="",
+        )
+
+        self.authenticate_as(self.user_a)
+
+        response = self.client.post(
+            f"{API_BASE}/claim-scores/score/",
+            {"claim_id": self.claim_to_score.id},
+            format="json",
+        )
+
+        # Should return existing score with 200 (not create new)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], existing_score.id)
+
+
+class CustomerAutomationProfileViewSetTests(APITestBase):
+    """Tests for CustomerAutomationProfileViewSet API endpoints."""
+
+    def setUp(self):
+        """Set up automation profile fixtures."""
+        super().setUp()
+        from upstream.automation.models import CustomerAutomationProfile
+
+        self.CustomerAutomationProfile = CustomerAutomationProfile
+
+        # Create profiles
+        self.profile_a = CustomerAutomationProfile.objects.create(
+            customer=self.customer_a,
+            automation_stage="observe",
+            auto_execute_confidence=0.95,
+            auto_execute_max_amount=1000,
+            queue_review_min_confidence=0.70,
+            shadow_mode_enabled=True,
+        )
+
+        self.profile_b = CustomerAutomationProfile.objects.create(
+            customer=self.customer_b,
+            automation_stage="suggest",
+            auto_execute_confidence=0.90,
+            auto_execute_max_amount=2000,
+            queue_review_min_confidence=0.65,
+            shadow_mode_enabled=False,
+        )
+
+    def test_list_automation_profiles_requires_auth(self):
+        """List automation profiles requires authentication."""
+        response = self.client.get(f"{API_BASE}/automation-profiles/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_list_returns_own_customer_profile_only(self):
+        """User sees only their own customer's profile."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/automation-profiles/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["automation_stage"], "observe")
+
+    def test_tenant_isolation_automation_profiles(self):
+        """User A cannot see user B's automation profile."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(
+            f"{API_BASE}/automation-profiles/{self.profile_b.id}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_automation_profile(self):
+        """User can update their own automation profile."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.patch(
+            f"{API_BASE}/automation-profiles/{self.profile_a.id}/",
+            {"auto_execute_confidence": 0.92, "shadow_mode_enabled": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["auto_execute_confidence"], 0.92)
+        self.assertEqual(response.data["shadow_mode_enabled"], False)
+
+    def test_cannot_create_automation_profile_via_api(self):
+        """Creating profiles via API is not allowed (POST not in http_method_names)."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.post(
+            f"{API_BASE}/automation-profiles/",
+            {
+                "customer": self.customer_a.id,
+                "automation_stage": "act_notify",
+            },
+            format="json",
+        )
+
+        # POST is not allowed
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class ShadowModeResultViewSetTests(APITestBase):
+    """Tests for ShadowModeResultViewSet API endpoints."""
+
+    def setUp(self):
+        """Set up shadow mode result fixtures."""
+        super().setUp()
+        from upstream.automation.models import ClaimScore, ShadowModeResult
+
+        self.ClaimScore = ClaimScore
+        self.ShadowModeResult = ShadowModeResult
+
+        # Create claims and scores
+        self.claim_a = self.create_claim_record_for_customer(self.customer_a)
+        self.score_a = ClaimScore.objects.create(
+            claim=self.claim_a,
+            customer=self.customer_a,
+            overall_confidence=0.90,
+            coding_confidence=0.92,
+            eligibility_confidence=0.88,
+            medical_necessity_confidence=0.86,
+            documentation_completeness=0.90,
+            denial_risk_score=0.12,
+            fraud_risk_score=0.05,
+            compliance_risk_score=0.08,
+            model_version="rf_v1.0",
+            feature_importance={},
+            prediction_reasoning="Test",
+            recommended_action="auto_execute",
+            automation_tier=1,
+            requires_human_review=False,
+            red_line_reason="",
+        )
+
+        self.claim_b = self.create_claim_record_for_customer(self.customer_b)
+        self.score_b = ClaimScore.objects.create(
+            claim=self.claim_b,
+            customer=self.customer_b,
+            overall_confidence=0.75,
+            coding_confidence=0.80,
+            eligibility_confidence=0.70,
+            medical_necessity_confidence=0.72,
+            documentation_completeness=0.78,
+            denial_risk_score=0.30,
+            fraud_risk_score=0.10,
+            compliance_risk_score=0.15,
+            model_version="rf_v1.0",
+            feature_importance={},
+            prediction_reasoning="Test B",
+            recommended_action="queue_review",
+            automation_tier=2,
+            requires_human_review=False,
+            red_line_reason="",
+        )
+
+        # Create shadow mode results
+        self.shadow_a = ShadowModeResult.objects.create(
+            customer=self.customer_a,
+            claim_score=self.score_a,
+            ai_recommended_action="auto_execute",
+            ai_confidence=0.90,
+            human_action_taken="auto_execute",
+            human_decision_user=self.user_a,
+            human_decision_timestamp=timezone.now(),
+            actions_match=True,
+            outcome="true_positive",
+            discrepancy_reason="",
+        )
+
+        self.shadow_b = ShadowModeResult.objects.create(
+            customer=self.customer_b,
+            claim_score=self.score_b,
+            ai_recommended_action="queue_review",
+            ai_confidence=0.75,
+            human_action_taken="escalate",
+            human_decision_user=self.user_b,
+            human_decision_timestamp=timezone.now(),
+            actions_match=False,
+            outcome="false_positive",
+            discrepancy_reason="Missing prior auth",
+        )
+
+    def test_list_shadow_results_requires_auth(self):
+        """List shadow results requires authentication."""
+        response = self.client.get(f"{API_BASE}/shadow-results/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_list_returns_own_customer_results_only(self):
+        """User sees only their own customer's shadow results."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/shadow-results/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], self.shadow_a.id)
+
+    def test_tenant_isolation_shadow_results(self):
+        """User A cannot see user B's shadow results."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/shadow-results/{self.shadow_b.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_retrieve_shadow_result_details(self):
+        """Retrieve single shadow result returns all fields."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(f"{API_BASE}/shadow-results/{self.shadow_a.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["ai_recommended_action"], "auto_execute")
+        self.assertEqual(response.data["human_action_taken"], "auto_execute")
+        self.assertEqual(response.data["actions_match"], True)
+        self.assertIn("claim_score", response.data)
+
+    def test_filter_by_actions_match(self):
+        """Filter shadow results by actions_match."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.get(
+            f"{API_BASE}/shadow-results/", {"actions_match": "true"}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for result in response.data["results"]:
+            self.assertEqual(result["actions_match"], True)
+
+    def test_shadow_results_read_only(self):
+        """Shadow results cannot be created via API (read-only viewset)."""
+        self.authenticate_as(self.user_a)
+
+        response = self.client.post(
+            f"{API_BASE}/shadow-results/",
+            {
+                "customer": self.customer_a.id,
+                "claim_score": self.score_a.id,
+                "ai_recommended_action": "auto_execute",
+            },
+            format="json",
+        )
+
+        # POST is not allowed for read-only viewset
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)

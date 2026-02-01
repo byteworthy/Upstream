@@ -14,6 +14,7 @@ from .report_generation import ReportGenerationService
 from .alert_processing import AlertProcessingService
 from .report_scheduler import ReportSchedulerService
 from .data_export import DataExportService
+from .scoring import RiskScoringService
 
 __all__ = [
     "DataQualityService",
@@ -21,4 +22,5 @@ __all__ = [
     "AlertProcessingService",
     "ReportSchedulerService",
     "DataExportService",
+    "RiskScoringService",
 ]

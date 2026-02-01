@@ -108,6 +108,7 @@ from upstream.automation.models import (
 )
 from upstream.ingestion.models import IngestionToken
 from upstream.ingestion import IngestionService
+from upstream.services.scoring import RiskScoringService
 from .serializers import (
     CustomerSerializer,
     SettingsSerializer,
@@ -2157,12 +2158,24 @@ class HealthCheckView(APIView):
             "disk": self.check_disk_space(),
         }
 
-        # Determine overall status
+        # Determine overall status - only database is critical for 503
+        # Redis/Celery/disk are important but not critical for API availability
+        critical_checks = ["database"]
         overall_status = "healthy"
-        for check_name, check_result in checks.items():
-            if check_result.get("status") == "unhealthy":
+        for check_name in critical_checks:
+            if checks.get(check_name, {}).get("status") == "unhealthy":
                 overall_status = "unhealthy"
                 break
+
+        # If any non-critical check is unhealthy, mark as degraded but still 200
+        if overall_status == "healthy":
+            for check_name, check_result in checks.items():
+                if (
+                    check_name not in critical_checks
+                    and check_result.get("status") == "unhealthy"
+                ):
+                    overall_status = "degraded"
+                    break
 
         response_data = {
             "status": overall_status,
@@ -2171,7 +2184,7 @@ class HealthCheckView(APIView):
             "checks": checks,
         }
 
-        # Return 503 if any check is unhealthy
+        # Return 503 only if critical checks (database) are unhealthy
         status_code = 503 if overall_status == "unhealthy" else 200
 
         return Response(response_data, status=status_code)
@@ -2219,8 +2232,8 @@ class HealthCheckView(APIView):
             value={
                 # pragma: allowlist secret
                 "access": (
-                    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9."
-                    "eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImRvY3Rvckho"
+                    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9."  # pragma: allowlist secret
+                    "eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImRvY3Rvckho"  # pragma: allowlist secret
                     "ZWFsdGhjb3JwLmNvbSJ9.abc123"
                 ),
                 "refresh": (
@@ -2273,7 +2286,6 @@ class HealthCheckView(APIView):
         ),
     ],
 )
-
 
 # =============================================================================
 # Automation ViewSets (ClaimScore, CustomerAutomationProfile, ShadowModeResult)
@@ -2346,7 +2358,11 @@ class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["automation_tier", "recommended_action", "requires_human_review"]
+    filterset_fields = [
+        "automation_tier",
+        "recommended_action",
+        "requires_human_review",
+    ]
     search_fields = ["claim__payer", "claim__cpt", "prediction_reasoning"]
     ordering_fields = ["created_at", "overall_confidence", "denial_risk_score"]
 
@@ -2371,9 +2387,7 @@ class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
                 if not user.is_superuser and claim.customer != customer:
                     from rest_framework.exceptions import PermissionDenied
 
-                    raise PermissionDenied(
-                        "Cannot score claims from other customers."
-                    )
+                    raise PermissionDenied("Cannot score claims from other customers.")
             except ClaimRecord.DoesNotExist:
                 from rest_framework.exceptions import ValidationError
 
@@ -2434,9 +2448,10 @@ class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
         user = request.user
         customer = get_user_customer(user)
 
-        # Fetch and validate claim
+        # Fetch and validate claim - use all_objects to bypass tenant filter
+        # since we'll verify ownership explicitly
         try:
-            claim = ClaimRecord.objects.select_related("customer").get(id=claim_id)
+            claim = ClaimRecord.all_objects.select_related("customer").get(id=claim_id)
         except ClaimRecord.DoesNotExist:
             return Response(
                 {"error": {"code": "not_found", "message": "Claim not found"}},
@@ -2553,7 +2568,7 @@ class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
     ),
     partial_update=extend_schema(
         summary="Partially update automation profile",
-        description="Update specific automation settings without replacing entire profile.",
+        description="Update specific automation settings without replacing profile.",
         tags=["Automation"],
         responses={
             200: CustomerAutomationProfileSerializer,

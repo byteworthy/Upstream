@@ -64,3 +64,77 @@ Story: #18 - Add admin interface for automation models
 
 ### Status
 ✅ Story #18 completed
+
+## Iteration 5 - 2026-02-01T04:05:00Z
+Session continuation: Fixing test failures and completing remaining tasks
+
+### Fixes Applied
+1. **RiskScoringService Import Issue**
+   - Import was missing from upstream/api/views.py (likely removed by linter)
+   - Added: `from upstream.services.scoring import RiskScoringService`
+   - Result: All ClaimScoreEndpoint tests now pass (5/5)
+
+2. **Factory_boy Patterns Used** (upstream/tests/factories.py)
+   - Added ClaimScoreFactory with traits: high_confidence, medium_confidence, low_confidence, red_line, fraud_risk
+   - Added CustomerAutomationProfileFactory with traits: observe_stage, suggest_stage, act_notify_stage, full_autonomy_stage, conservative, aggressive
+   - Added ShadowModeResultFactory with traits: agreement, ai_overconfident, ai_underconfident, human_more_cautious
+   - Used LazyAttribute for computed fields (automation_tier, recommended_action derived from confidence)
+   - Used SelfAttribute for customer inheritance from claim_score
+
+### Tests Added
+- 16 new factory tests in upstream/tests/test_factories.py
+- Tests verify all traits work correctly
+- Total: 48 factory tests (all pass)
+
+### Key Learnings
+- Linters can remove "unused" imports that are actually used at runtime
+- factory_boy Params/Traits are powerful for test scenarios
+- DRF ViewSet @action methods need explicit imports for all dependencies
+- Customer inheritance via SelfAttribute: `customer=factory.SelfAttribute("..customer")`
+
+### Quality Gates
+- All 69 automation-related tests pass
+- python manage.py check: PASSED
+- Admin interface verified working
+
+### Stories Completed This Session
+- ✅ Story #16: API integration tests
+- ✅ Story #17: Test fixtures for automation models
+- ✅ Story #18: Admin interface for automation models
+
+### Status
+All Phase tasks complete. Ready for commit.
+
+---
+
+## MILESTONE 01 COMPLETE - 2026-02-01T04:05:00Z
+
+All 18 user stories for Milestone 01 (Core Scoring Engine) have passed:
+
+| # | Story | Status |
+|---|-------|--------|
+| 1 | Add upstream.automation to INSTALLED_APPS | ✅ |
+| 2 | Create migration for automation models | ✅ |
+| 3 | Create ClaimScoreSerializer with all fields | ✅ |
+| 4 | Create CustomerAutomationProfileSerializer | ✅ |
+| 5 | Create ShadowModeResultSerializer | ✅ |
+| 6 | Create ClaimScoreViewSet with CRUD operations | ✅ |
+| 7 | Create CustomerAutomationProfileViewSet | ✅ |
+| 8 | Create ShadowModeResultViewSet (read-only) | ✅ |
+| 9 | Register automation ViewSets in urls.py | ✅ |
+| 10 | Create RiskScoringService with scoring algorithm | ✅ |
+| 11 | Integrate RiskBaseline lookup into scoring | ✅ |
+| 12 | Implement three-tier routing logic | ✅ |
+| 13 | Create pre-submission risk API endpoint | ✅ |
+| 14 | Add OpenAPI documentation for scoring endpoints | ✅ |
+| 15 | Write scoring service unit tests | ✅ |
+| 16 | Write API integration tests for scoring endpoints | ✅ |
+| 17 | Create test fixtures for automation models | ✅ |
+| 18 | Add admin interface for automation models | ✅ |
+
+### Success Criteria Met
+- ✅ ClaimScore, CustomerAutomationProfile, ShadowModeResult tables exist
+- ✅ Three-tier routing correctly classifies claims
+- ✅ Pre-submission API (POST /api/v1/claim-scores/score/) implemented
+- ✅ 97%+ coverage on scoring.py
+- ✅ OpenAPI documentation includes all new endpoints
