@@ -1,0 +1,55 @@
+{
+  "branchName": "milestone-03-frontend-ui",
+  "context": {
+    "phase": "3b",
+    "phaseName": "Frontend MVP UI Components",
+    "phaseGoal": "Build dashboard components, data tables, and visualizations with mock data",
+    "dependsOn": [],
+    "successCriteria": ["Dashboard with metric cards", "ClaimScore table with filtering", "Charts and visualizations"],
+    "qualityGates": ["cd frontend && npm run lint", "cd frontend && npm run build"]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create MetricCard component for dashboard",
+      "description": "Build reusable MetricCard component showing key metrics (total claims, denial rate, avg score). Use mock data. Location: frontend/src/components/dashboard/MetricCard.tsx",
+      "files": ["frontend/src/components/dashboard/MetricCard.tsx"],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Create ScoreDistribution pie chart",
+      "description": "Build pie chart showing claim score distribution by tier (auto-execute, queue-review, escalate). Use recharts library. Mock data. Location: frontend/src/components/dashboard/ScoreDistribution.tsx",
+      "files": ["frontend/src/components/dashboard/ScoreDistribution.tsx"],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Build ClaimScoreTable with sorting and filtering",
+      "description": "Create data table for claim scores with columns: claim ID, confidence, tier, action, date. Add sorting and filtering. Use mock data. Location: frontend/src/components/scores/ClaimScoreTable.tsx",
+      "files": ["frontend/src/components/scores/ClaimScoreTable.tsx", "frontend/src/components/scores/ScoreFilters.tsx"],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Create RiskScoreCard visualization",
+      "description": "Build circular progress indicator showing risk score with color gradient (green to red). Location: frontend/src/components/common/RiskScoreCard.tsx",
+      "files": ["frontend/src/components/common/RiskScoreCard.tsx"],
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Build AlertsTable component",
+      "description": "Create alerts table with severity badges, type, status filtering. Mock alert data. Location: frontend/src/components/alerts/AlertsTable.tsx",
+      "files": ["frontend/src/components/alerts/AlertsTable.tsx", "frontend/src/components/alerts/SeverityBadge.tsx"],
+      "passes": false
+    },
+    {
+      "id": 6,
+      "title": "Create WorkQueue component for Tier 2 review",
+      "description": "Build work queue showing claims needing review with action buttons (Approve, Reject, Escalate). Mock data. Location: frontend/src/components/queue/WorkQueue.tsx",
+      "files": ["frontend/src/components/queue/WorkQueue.tsx", "frontend/src/components/queue/QueueItem.tsx"],
+      "passes": false
+    }
+  ]
+}
