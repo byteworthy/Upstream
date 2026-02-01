@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class TokenRefreshError(Exception):
     """Exception raised when token refresh fails."""
+
     pass
 
 
@@ -137,12 +138,13 @@ class TokenManager:
             except Exception as e:
                 last_error = e
                 if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     logger.warning(
                         f"[Connection {self.connection_id}] Token refresh attempt "
                         f"{attempt + 1}/{max_retries} failed, retrying in {delay}s: {e}"
                     )
                     import time
+
                     time.sleep(delay)
                 else:
                     logger.error(
@@ -225,6 +227,7 @@ class TokenManager:
         """Update the EHRConnection's last token refresh timestamp."""
         try:
             from upstream.integrations.models import EHRConnection
+
             EHRConnection.objects.filter(id=self.connection_id).update(
                 updated_at=timezone.now()
             )
@@ -267,7 +270,7 @@ class TokenManager:
             "expires_at": expires_at.isoformat() if expires_at else None,
             "time_until_expiry": time_until_expiry,
             "needs_refresh": (
-                time_until_expiry is not None and
-                time_until_expiry < self.REFRESH_BUFFER_SECONDS
+                time_until_expiry is not None
+                and time_until_expiry < self.REFRESH_BUFFER_SECONDS
             ),
         }

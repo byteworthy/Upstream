@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 class CernerFHIRError(Exception):
     """Exception raised for Cerner FHIR API errors."""
+
     pass
 
 
@@ -68,7 +69,9 @@ class CernerFHIRClient(ResilientClient):
             connection: EHRConnection model instance with Cerner credentials
         """
         if connection.ehr_type != "cerner":
-            raise ValueError(f"Connection type must be 'cerner', got '{connection.ehr_type}'")
+            raise ValueError(
+                f"Connection type must be 'cerner', got '{connection.ehr_type}'"
+            )
 
         super().__init__(
             connection_name=f"cerner_{connection.id}",
@@ -175,8 +178,7 @@ class CernerFHIRClient(ResilientClient):
             if response.status_code == 429:
                 retry_after = int(response.headers.get("Retry-After", 60))
                 logger.warning(
-                    f"[{self.connection.name}] Rate limited, "
-                    f"waiting {retry_after}s"
+                    f"[{self.connection.name}] Rate limited, " f"waiting {retry_after}s"
                 )
                 time.sleep(retry_after)
                 raise CernerFHIRError("Rate limited - retrying")
@@ -236,8 +238,7 @@ class CernerFHIRClient(ResilientClient):
             logger.info(f"[{self.connection.name}] Fetching claims from {url}")
 
             response = self._make_request(
-                "GET", url,
-                params=params if "?" not in url else None
+                "GET", url, params=params if "?" not in url else None
             )
 
             # Process entries in bundle
@@ -287,7 +288,9 @@ class CernerFHIRClient(ResilientClient):
 
             # Cerner clinical notes reference
             if "clinical-notes" in url.lower():
-                parsed["clinical_notes_reference"] = ext.get("valueReference", {}).get("reference")
+                parsed["clinical_notes_reference"] = ext.get("valueReference", {}).get(
+                    "reference"
+                )
 
         return parsed
 
@@ -400,7 +403,7 @@ def poll_cerner_for_customer(connection: EHRConnection) -> EHRSyncLog:
             defaults={
                 "status": "success",
                 "upload_source": "batch",
-            }
+            },
         )
 
         with transaction.atomic():

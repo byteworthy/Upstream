@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 class EpicFHIRError(Exception):
     """Exception raised for Epic FHIR API errors."""
+
     pass
 
 
@@ -61,7 +62,9 @@ class EpicFHIRClient(ResilientClient):
             connection: EHRConnection model instance with Epic credentials
         """
         if connection.ehr_type != "epic":
-            raise ValueError(f"Connection type must be 'epic', got '{connection.ehr_type}'")
+            raise ValueError(
+                f"Connection type must be 'epic', got '{connection.ehr_type}'"
+            )
 
         super().__init__(
             connection_name=f"epic_{connection.id}",
@@ -196,7 +199,9 @@ class EpicFHIRClient(ResilientClient):
         while url and total_fetched < self.MAX_RESULTS:
             logger.info(f"[{self.connection.name}] Fetching EOBs from {url}")
 
-            response = self._make_request("GET", url, params=params if "?" not in url else None)
+            response = self._make_request(
+                "GET", url, params=params if "?" not in url else None
+            )
 
             # Process entries in bundle
             entries = response.get("entry", [])
@@ -366,7 +371,7 @@ def poll_epic_for_customer(connection: EHRConnection) -> EHRSyncLog:
             defaults={
                 "status": "success",
                 "upload_source": "batch",
-            }
+            },
         )
 
         with transaction.atomic():

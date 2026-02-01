@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class FHIRParseError(Exception):
     """Exception raised when FHIR resource parsing fails."""
+
     pass
 
 
@@ -313,7 +314,9 @@ class FHIRParser:
         if not financials["paid_amount"]:
             payment = eob.get("payment", {})
             if payment:
-                financials["paid_amount"] = self._extract_money(payment.get("amount", {}))
+                financials["paid_amount"] = self._extract_money(
+                    payment.get("amount", {})
+                )
 
         return financials
 
@@ -347,7 +350,9 @@ class FHIRParser:
                 code = coding.get("code")
                 system = coding.get("system", "")
                 # Look for CPT codes (HCPCS, CPT systems)
-                if code and ("cpt" in system.lower() or "hcpcs" in system.lower() or not system):
+                if code and (
+                    "cpt" in system.lower() or "hcpcs" in system.lower() or not system
+                ):
                     cpt_codes.append(code)
 
             # Extract modifiers
@@ -412,6 +417,7 @@ class FHIRParser:
     def _compute_source_hash(self, resource: Dict[str, Any]) -> str:
         """Compute hash of source resource for deduplication."""
         import json
+
         # Use canonical JSON representation for consistent hashing
         canonical = json.dumps(resource, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

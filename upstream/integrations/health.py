@@ -88,7 +88,9 @@ def check_connection_health(connection: EHRConnection) -> HealthCheckResult:
 
         result_kwargs["token_check"] = test_result.get("token_status") == "success"
         result_kwargs["api_check"] = test_result.get("api_status") == "success"
-        result_kwargs["healthy"] = result_kwargs["token_check"] and result_kwargs["api_check"]
+        result_kwargs["healthy"] = (
+            result_kwargs["token_check"] and result_kwargs["api_check"]
+        )
         result_kwargs["details"] = test_result
 
         if not result_kwargs["healthy"]:
@@ -105,12 +107,15 @@ def _get_client_for_connection(connection: EHRConnection):
     """Get the appropriate client class for the connection type."""
     if connection.ehr_type == "epic":
         from upstream.integrations.epic import EpicFHIRClient
+
         return EpicFHIRClient(connection)
     elif connection.ehr_type == "cerner":
         from upstream.integrations.cerner import CernerFHIRClient
+
         return CernerFHIRClient(connection)
     elif connection.ehr_type == "athena":
         from upstream.integrations.athena import AthenaHealthClient
+
         return AthenaHealthClient(connection)
     return None
 
@@ -200,8 +205,8 @@ def get_health_summary() -> Dict[str, Any]:
         # Track most recent check
         if connection.health_checked_at:
             if (
-                summary["last_checked"] is None or
-                connection.health_checked_at > summary["last_checked"]
+                summary["last_checked"] is None
+                or connection.health_checked_at > summary["last_checked"]
             ):
                 summary["last_checked"] = connection.health_checked_at
 
@@ -252,7 +257,7 @@ def create_health_alert(connection: EHRConnection, result: HealthCheckResult):
                 "conditions": {"type": "ehr_connection_health"},
                 "notification_channels": ["email"],
                 "enabled": True,
-            }
+            },
         )
 
         # Create alert

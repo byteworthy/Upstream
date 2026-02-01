@@ -15,11 +15,12 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class CircuitBreakerOpen(Exception):
     """Exception raised when circuit breaker is open."""
+
     pass
 
 
@@ -203,6 +204,7 @@ def with_circuit_breaker(
     Raises:
         CircuitBreakerOpen: If circuit is open and request blocked
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -217,7 +219,9 @@ def with_circuit_breaker(
             except Exception as e:
                 circuit_breaker.record_failure(e)
                 raise
+
         return wrapper
+
     return decorator
 
 
@@ -241,6 +245,7 @@ def retry_with_backoff(
     Returns:
         Decorated function with retry logic
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -252,8 +257,7 @@ def retry_with_backoff(
                     last_exception = e
                     if attempt < max_retries:
                         delay = min(
-                            base_delay * (exponential_base ** attempt),
-                            max_delay
+                            base_delay * (exponential_base**attempt), max_delay
                         )
                         logger.warning(
                             f"Retry {attempt + 1}/{max_retries} for {func.__name__} "
@@ -265,7 +269,9 @@ def retry_with_backoff(
                             f"All {max_retries} retries exhausted for {func.__name__}: {e}"
                         )
             raise last_exception
+
         return wrapper
+
     return decorator
 
 
@@ -336,7 +342,7 @@ class ResilientClient:
             except Exception as e:
                 last_exception = e
                 if attempt < self.max_retries:
-                    delay = min(1.0 * (2 ** attempt), 60.0)
+                    delay = min(1.0 * (2**attempt), 60.0)
                     logger.warning(
                         f"[{self.connection_name}] Retry {attempt + 1}/{self.max_retries} "
                         f"for {operation_name} after {delay:.2f}s: {e}"

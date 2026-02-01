@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class AthenaError(Exception):
     """Exception raised for athenahealth API errors."""
+
     pass
 
 
@@ -59,7 +60,9 @@ class AthenaHealthClient(ResilientClient):
             connection: EHRConnection model instance with athena credentials
         """
         if connection.ehr_type != "athena":
-            raise ValueError(f"Connection type must be 'athena', got '{connection.ehr_type}'")
+            raise ValueError(
+                f"Connection type must be 'athena', got '{connection.ehr_type}'"
+            )
 
         super().__init__(
             connection_name=f"athena_{connection.id}",
@@ -72,8 +75,9 @@ class AthenaHealthClient(ResilientClient):
         self.api_endpoint = connection.fhir_endpoint.rstrip("/")
         self.customer_salt = str(connection.customer_id)
 
-        # Get practice ID from configuration
-        self.practice_id = connection.configuration.get("practice_id", "")
+        # Get practice ID from configuration (JSON field, may not exist)
+        configuration = getattr(connection, 'configuration', None) or {}
+        self.practice_id = configuration.get("practice_id", "")
 
         # Initialize token manager
         self.token_manager = TokenManager(
@@ -137,6 +141,7 @@ class AthenaHealthClient(ResilientClient):
                     f"[{self.connection.name}] Rate limited, waiting {retry_after}s"
                 )
                 import time
+
                 time.sleep(retry_after)
                 raise AthenaError("Rate limited - retrying")
 
@@ -188,9 +193,7 @@ class AthenaHealthClient(ResilientClient):
 
         while total_fetched < self.MAX_RESULTS:
             params["offset"] = offset
-            logger.info(
-                f"[{self.connection.name}] Fetching claims, offset={offset}"
-            )
+            logger.info(f"[{self.connection.name}] Fetching claims, offset={offset}")
 
             try:
                 response = self._make_request("GET", "claims", params=params)
@@ -278,6 +281,7 @@ class AthenaHealthClient(ResilientClient):
 
         # Compute source hash for deduplication
         import json
+
         source_hash = hashlib.sha256(
             json.dumps(claim, sort_keys=True).encode()
         ).hexdigest()
@@ -428,7 +432,7 @@ def poll_athena_for_customer(connection: EHRConnection) -> EHRSyncLog:
             defaults={
                 "status": "success",
                 "upload_source": "batch",
-            }
+            },
         )
 
         with transaction.atomic():
