@@ -1,101 +1,95 @@
 {
-  "branchName": "ralph/phase-10-service-layer-extraction",
+  "branchName": "milestone-03-api-sdk",
   "context": {
-    "phase": "10",
-    "phaseName": "Architecture - Extract Service Layer",
-    "phaseGoal": "Move business logic from views to dedicated service classes, addressing ARCH medium priority issues",
-    "requirements": [
-      "ARCH-05",
-      "ARCH-06"
-    ],
-    "dependsOn": "None (foundational refactoring)",
+    "phase": "3d",
+    "phaseName": "TypeScript API Client SDK",
+    "phaseGoal": "Generate type-safe TypeScript SDK from OpenAPI spec for frontend consumption",
+    "dependsOn": [],
     "successCriteria": [
-      "Service classes exist for data quality, report generation, and alert processing",
-      "Each service has clear single responsibility",
-      "Services are testable in isolation (no view dependencies)",
-      "Service layer has 25+ comprehensive unit tests",
-      "All tests pass including existing integration tests"
+      "TypeScript SDK generated from OpenAPI spec",
+      "Type-safe API client with full IntelliSense",
+      "Published to npm or internal registry",
+      "React hooks for data fetching"
     ],
     "qualityGates": [
-      "python manage.py check",
-      "python manage.py test upstream.services -v 2",
-      "python manage.py test upstream.tests_api -v 2"
+      "cd frontend-sdk && npm run build",
+      "cd frontend-sdk && npm run typecheck"
     ]
   },
   "userStories": [
     {
       "id": 1,
-      "title": "Create DataQualityService for validation logic",
-      "description": "Extract data quality validation logic from views into upstream/services/data_quality.py. Create DataQualityService class with methods: validate_upload_format(file) -> dict, validate_claim_data(claims_df) -> list[str], compute_data_quality_score(upload) -> float, flag_suspicious_patterns(claims) -> list[dict]. Service should be stateless and framework-agnostic (no Django request/response dependencies). Returns structured validation results that views can format into API responses.",
+      "title": "Generate TypeScript types from OpenAPI",
+      "description": "Use openapi-typescript to generate TypeScript interfaces from the OpenAPI schema.",
       "acceptanceCriteria": [
-        "DataQualityService class exists with 4+ validation methods",
-        "Service is stateless (no instance variables storing request state)",
-        "Methods accept domain objects (Upload, ClaimRecord), not HTTP requests",
-        "Returns structured dicts/lists that views format into JSON",
-        "No Django request/response imports in service file",
-        "Comprehensive docstrings with parameter/return type documentation",
-        "Tests pass"
+        "frontend-sdk/ directory created",
+        "openapi-typescript installed",
+        "npm script to regenerate types",
+        "Types for all API endpoints generated",
+        "Types exported from index.ts"
       ],
       "files": [
-        "upstream/services/__init__.py",
-        "upstream/services/data_quality.py"
+        "frontend-sdk/package.json",
+        "frontend-sdk/src/types/api.ts",
+        "frontend-sdk/scripts/generate-types.ts"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 2,
-      "title": "Create ReportGenerationService for report logic",
-      "description": "Extract report generation logic into upstream/services/report_generation.py. Create ReportGenerationService class with methods: generate_payer_summary(customer, date_range) -> dict, generate_drift_report(customer, filters) -> dict, generate_recovery_stats(customer) -> dict, format_report_for_export(report_data, format='pdf'|'xlsx') -> bytes. Handles business logic for aggregating data, computing metrics, and formatting reports. Views remain thin - they call service methods and return HTTP responses.",
+      "title": "Create typed API client",
+      "description": "Build a type-safe fetch wrapper using generated types.",
       "acceptanceCriteria": [
-        "ReportGenerationService class with 4+ report generation methods",
-        "Methods accept domain parameters (customer_id, date ranges, filters)",
-        "Returns structured report data (dicts with metrics, summaries)",
-        "No HTTP response formatting in service (views handle that)",
-        "Format export method supports both PDF and Excel",
-        "Service methods are pure functions (deterministic, testable)",
-        "Tests pass"
+        "ApiClient class with typed methods",
+        "Automatic JWT token injection",
+        "Token refresh on 401",
+        "Request/response interceptors",
+        "Error handling with typed errors",
+        "Base URL configuration"
       ],
       "files": [
-        "upstream/services/report_generation.py"
+        "frontend-sdk/src/client.ts",
+        "frontend-sdk/src/auth.ts",
+        "frontend-sdk/src/errors.ts"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 3,
-      "title": "Create AlertProcessingService for alert logic",
-      "description": "Extract alert processing logic into upstream/services/alert_processing.py. Create AlertProcessingService class with methods: evaluate_alert_rules(drift_events) -> list[Alert], process_alert_delivery(alert, channels) -> list[Delivery], compute_alert_priority(alert_data) -> int, should_suppress_alert(alert, history) -> bool. Centralizes alert evaluation and delivery logic currently scattered across views and tasks. Enables easier testing of alert business rules without HTTP layer.",
+      "title": "Add React Query hooks",
+      "description": "Create React Query hooks for each API endpoint with proper typing.",
       "acceptanceCriteria": [
-        "AlertProcessingService class with 4+ alert methods",
-        "Rule evaluation logic extracted from views",
-        "Alert suppression logic centralized (currently DB queries in hot path)",
-        "Priority computation uses clear business rules",
-        "Service methods accept domain objects (Alert, AlertRule, DriftEvent)",
-        "Returns structured results (Alert objects, delivery status dicts)",
-        "Tests pass"
+        "@tanstack/react-query as peer dependency",
+        "useQuery hooks for GET endpoints",
+        "useMutation hooks for POST/PUT/DELETE",
+        "Automatic cache invalidation",
+        "Loading and error states typed",
+        "Optimistic updates for mutations"
       ],
       "files": [
-        "upstream/services/alert_processing.py"
+        "frontend-sdk/src/hooks/useClaims.ts",
+        "frontend-sdk/src/hooks/useAlerts.ts",
+        "frontend-sdk/src/hooks/useScores.ts",
+        "frontend-sdk/src/hooks/index.ts"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 4,
-      "title": "Add comprehensive service layer tests",
-      "description": "Create upstream/tests_services.py with 25+ tests covering all service methods. Test categories: (1) DataQualityService validation tests (valid/invalid formats, edge cases), (2) ReportGenerationService tests (aggregations, date ranges, empty data), (3) AlertProcessingService tests (rule evaluation, suppression logic, priority computation). Use pytest fixtures to create test data. Mock external dependencies (DB queries, file I/O) to test services in isolation. Verify services return expected data structures.",
+      "title": "Add SDK documentation and examples",
+      "description": "Create README with usage examples and API documentation.",
       "acceptanceCriteria": [
-        "tests_services.py created with 25+ test functions",
-        "Each service class has 8+ tests covering happy/sad paths",
-        "Tests use fixtures for test data creation",
-        "External dependencies mocked (Django ORM, file system)",
-        "Tests verify return types and data structures",
-        "Edge cases tested (empty inputs, invalid parameters, None values)",
-        "All tests pass",
-        "Test coverage > 90% for service layer"
+        "README.md with installation instructions",
+        "Usage examples for common operations",
+        "TypeDoc for API documentation",
+        "Example React component using SDK",
+        "Environment configuration guide"
       ],
       "files": [
-        "upstream/tests_services.py"
+        "frontend-sdk/README.md",
+        "frontend-sdk/examples/basic-usage.tsx"
       ],
-      "passes": true
+      "passes": false
     }
   ]
 }
