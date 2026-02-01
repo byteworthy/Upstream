@@ -122,7 +122,7 @@
       "id": 18,
       "title": "Run tests and apply migrations",
       "description": "Run python manage.py makemigrations, migrate, and test. Fix any failures.",
-      "passes": false
+      "passes": true
     }
   ]
 }
