@@ -29,6 +29,10 @@ from .views import (
     DashboardView,
     HealthCheckView,
     WebhookIngestionView,
+    # Automation ViewSets
+    ClaimScoreViewSet,
+    CustomerAutomationProfileViewSet,
+    ShadowModeResultViewSet,
 )
 from upstream.views.celery_health import (
     celery_health_check,
@@ -48,6 +52,14 @@ router.register(r"drift-events", DriftEventViewSet, basename="drift-event")
 router.register(r"payer-mappings", PayerMappingViewSet, basename="payer-mapping")
 router.register(r"cpt-mappings", CPTGroupMappingViewSet, basename="cpt-mapping")
 router.register(r"alerts", AlertEventViewSet, basename="alert-event")
+# Automation routes
+router.register(r"claim-scores", ClaimScoreViewSet, basename="claim-score")
+router.register(
+    r"automation-profiles",
+    CustomerAutomationProfileViewSet,
+    basename="automation-profile",
+)
+router.register(r"shadow-results", ShadowModeResultViewSet, basename="shadow-result")
 
 urlpatterns = [
     # Health check (no auth)

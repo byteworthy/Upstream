@@ -101,6 +101,11 @@ from ..models import (
     CPTGroupMapping,
 )
 from upstream.alerts.models import AlertEvent, OperatorJudgment
+from upstream.automation.models import (
+    ClaimScore,
+    CustomerAutomationProfile,
+    ShadowModeResult,
+)
 from upstream.ingestion.models import IngestionToken
 from upstream.ingestion import IngestionService
 from .serializers import (
@@ -121,6 +126,9 @@ from .serializers import (
     OperatorJudgmentSerializer,
     OperatorFeedbackSerializer,
     ErrorResponseSerializer,
+    ClaimScoreSerializer,
+    CustomerAutomationProfileSerializer,
+    ShadowModeResultSerializer,
 )
 from .permissions import IsCustomerMember, get_user_customer
 from .filters import ClaimRecordFilter, DriftEventFilter
@@ -2265,6 +2273,255 @@ class HealthCheckView(APIView):
         ),
     ],
 )
+
+
+# =============================================================================
+# Automation ViewSets (ClaimScore, CustomerAutomationProfile, ShadowModeResult)
+# =============================================================================
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List claim scores",
+        description=(
+            "Retrieve a paginated list of ML-based claim scores for automation "
+            "decisions. Each score includes confidence metrics, risk assessments, "
+            "and the recommended automation tier. Filtered by customer tenant."
+        ),
+        tags=["Automation"],
+        responses={
+            200: ClaimScoreSerializer(many=True),
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+    ),
+    retrieve=extend_schema(
+        summary="Get claim score details",
+        description=(
+            "Retrieve detailed scoring information for a specific claim, including "
+            "confidence metrics, risk factors, feature importance, and reasoning."
+        ),
+        tags=["Automation"],
+        responses={
+            200: ClaimScoreSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    ),
+    create=extend_schema(
+        summary="Create claim score",
+        description=(
+            "Generate a new ML-based score for a claim. The claim must belong to "
+            "the authenticated user's customer. Returns the computed confidence "
+            "scores, risk assessments, and recommended automation action."
+        ),
+        tags=["Automation"],
+        responses={
+            201: ClaimScoreSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+    ),
+)
+class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
+    """
+    API endpoint for ML-based claim scoring.
+
+    Provides confidence metrics for automation decisions:
+    - Tier 1 (Auto-Execute): High confidence, low risk
+    - Tier 2 (Queue Review): Medium confidence, moderate risk
+    - Tier 3 (Escalate): Low confidence, high risk, or red-line actions
+
+    Supports list, retrieve, and create operations with tenant isolation.
+    """
+
+    queryset = ClaimScore.objects.all().order_by("-created_at")
+    serializer_class = ClaimScoreSerializer
+    permission_classes = [IsAuthenticated, IsCustomerMember]
+    throttle_classes = [ReadOnlyThrottle]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["automation_tier", "recommended_action", "requires_human_review"]
+    search_fields = ["claim__payer", "claim__cpt", "prediction_reasoning"]
+    ordering_fields = ["created_at", "overall_confidence", "denial_risk_score"]
+
+    def get_queryset(self):
+        """Optimize queryset with select_related for claim details."""
+        queryset = super().get_queryset()
+        if self.action in ("retrieve", "list"):
+            queryset = queryset.select_related("customer", "claim")
+        return queryset
+
+    def perform_create(self, serializer):
+        """Validate claim ownership before creating score."""
+        user = self.request.user
+        customer = get_user_customer(user)
+
+        # Get claim from request data
+        claim_id = self.request.data.get("claim")
+        if claim_id:
+            try:
+                claim = ClaimRecord.objects.get(id=claim_id)
+                # Verify claim belongs to user's customer
+                if not user.is_superuser and claim.customer != customer:
+                    from rest_framework.exceptions import PermissionDenied
+
+                    raise PermissionDenied(
+                        "Cannot score claims from other customers."
+                    )
+            except ClaimRecord.DoesNotExist:
+                from rest_framework.exceptions import ValidationError
+
+                raise ValidationError({"claim": "Claim not found."})
+
+        serializer.save(customer=customer)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List automation profiles",
+        description=(
+            "Retrieve automation profiles with threshold configurations and "
+            "trust calibration stages. Each customer has one profile."
+        ),
+        tags=["Automation"],
+        responses={
+            200: CustomerAutomationProfileSerializer(many=True),
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+    ),
+    retrieve=extend_schema(
+        summary="Get automation profile",
+        description=(
+            "Retrieve detailed automation configuration including tier thresholds, "
+            "action toggles, shadow mode settings, and notification preferences."
+        ),
+        tags=["Automation"],
+        responses={
+            200: CustomerAutomationProfileSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    ),
+    update=extend_schema(
+        summary="Update automation profile",
+        description=(
+            "Update automation thresholds and configuration. Changes take effect "
+            "immediately for new claim scoring decisions."
+        ),
+        tags=["Automation"],
+        responses={
+            200: CustomerAutomationProfileSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+    ),
+    partial_update=extend_schema(
+        summary="Partially update automation profile",
+        description="Update specific automation settings without replacing entire profile.",
+        tags=["Automation"],
+        responses={
+            200: CustomerAutomationProfileSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+    ),
+)
+class CustomerAutomationProfileViewSet(
+    ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet
+):
+    """
+    API endpoint for customer automation configuration.
+
+    Manages trust calibration stages, tier thresholds, action toggles,
+    and shadow mode settings. Each customer has exactly one profile.
+    """
+
+    queryset = CustomerAutomationProfile.objects.all().order_by("-created_at")
+    serializer_class = CustomerAutomationProfileSerializer
+    permission_classes = [IsAuthenticated, IsCustomerMember]
+    throttle_classes = [ReadOnlyThrottle]
+    http_method_names = ["get", "put", "patch", "head", "options"]
+
+    def get_queryset(self):
+        """Optimize queryset with select_related."""
+        queryset = super().get_queryset()
+        if self.action in ("retrieve", "list", "update", "partial_update"):
+            queryset = queryset.select_related("customer", "compliance_officer")
+        return queryset
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List shadow mode results",
+        description=(
+            "Retrieve shadow mode comparison results showing AI predictions vs. "
+            "human decisions. Used to validate AI accuracy before enabling "
+            "autonomous execution."
+        ),
+        tags=["Automation"],
+        responses={
+            200: ShadowModeResultSerializer(many=True),
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+    ),
+    retrieve=extend_schema(
+        summary="Get shadow mode result",
+        description=(
+            "Retrieve detailed comparison between AI recommendation and human "
+            "decision, including outcome classification and discrepancy notes."
+        ),
+        tags=["Automation"],
+        responses={
+            200: ShadowModeResultSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    ),
+)
+class ShadowModeResultViewSet(
+    ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelViewSet
+):
+    """
+    API endpoint for shadow mode validation results (read-only).
+
+    Tracks AI predictions vs. human decisions to measure accuracy before
+    enabling autonomous execution. Results are created by the scoring
+    workflow, not directly via API.
+    """
+
+    queryset = ShadowModeResult.objects.all().order_by("-created_at")
+    serializer_class = ShadowModeResultSerializer
+    permission_classes = [IsAuthenticated, IsCustomerMember]
+    throttle_classes = [ReadOnlyThrottle]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["actions_match", "outcome"]
+    ordering_fields = ["created_at", "ai_confidence"]
+
+    def get_queryset(self):
+        """Optimize queryset with select_related."""
+        queryset = super().get_queryset()
+        if self.action in ("retrieve", "list"):
+            queryset = queryset.select_related(
+                "customer", "claim_score", "human_decision_user"
+            )
+        return queryset
+
+
 class ThrottledTokenObtainPairView(BaseTokenObtainPairView):
     """
     JWT token obtain view with strict rate limiting (HIGH-2).
@@ -2366,3 +2623,194 @@ class ThrottledTokenVerifyView(BaseTokenVerifyView):
     """
 
     throttle_classes = [AuthenticationThrottle]
+
+
+# =============================================================================
+# Automation ViewSets (ClaimScore, CustomerAutomationProfile, ShadowModeResult)
+# =============================================================================
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List claim scores",
+        description=(
+            "Retrieve a paginated list of claim scores for the authenticated user's "
+            "customer. Supports filtering by confidence level, automation tier, and "
+            "recommended action. Results are ordered by creation date (newest first)."
+        ),
+        tags=["Automation"],
+        parameters=[
+            OpenApiParameter(
+                name="page",
+                type=int,
+                description="Page number for pagination (default: 1)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=int,
+                description="Number of results per page (default: 100, max: 1000)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="automation_tier",
+                type=int,
+                description="Filter by automation tier (1, 2, or 3)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="recommended_action",
+                type=str,
+                description=(
+                    "Filter by recommended action: auto_execute, queue_review, "
+                    "escalate, block"
+                ),
+                required=False,
+            ),
+            OpenApiParameter(
+                name="min_confidence",
+                type=float,
+                description="Filter by minimum overall confidence (0.0-1.0)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="requires_human_review",
+                type=bool,
+                description="Filter by human review requirement",
+                required=False,
+            ),
+        ],
+        responses={
+            200: ClaimScoreSerializer(many=True),
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    ),
+    retrieve=extend_schema(
+        summary="Get claim score details",
+        description=(
+            "Retrieve detailed scoring information for a specific claim including "
+            "all confidence metrics, risk scores, and automation decision."
+        ),
+        tags=["Automation"],
+        responses={
+            200: ClaimScoreSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    ),
+    create=extend_schema(
+        summary="Create claim score",
+        description=(
+            "Create a new claim score record. The claim must belong to the "
+            "authenticated user's customer. All confidence and risk scores must "
+            "be between 0.0 and 1.0."
+        ),
+        tags=["Automation"],
+        examples=[
+            OpenApiExample(
+                "Create Claim Score",
+                value={
+                    "claim": 123,
+                    "overall_confidence": 0.92,
+                    "coding_confidence": 0.95,
+                    "eligibility_confidence": 0.90,
+                    "medical_necessity_confidence": 0.88,
+                    "documentation_completeness": 0.94,
+                    "denial_risk_score": 0.15,
+                    "fraud_risk_score": 0.05,
+                    "compliance_risk_score": 0.08,
+                    "model_version": "rf_v2.1",
+                    "feature_importance": {"payer_history": 0.35, "cpt_pattern": 0.25},
+                    "prediction_reasoning": "High confidence based on historical data.",
+                    "recommended_action": "auto_execute",
+                    "automation_tier": 1,
+                    "requires_human_review": False,
+                    "red_line_reason": "",
+                },
+                request_only=True,
+            ),
+        ],
+        responses={
+            201: ClaimScoreSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    ),
+)
+class ClaimScoreViewSet(ETagMixin, CustomerFilterMixin, viewsets.ModelViewSet):
+    """
+    API endpoint for viewing and creating claim scores.
+
+    ClaimScores represent ML-based confidence scoring for automation decisions.
+    Each claim can have one score (OneToOneField relationship).
+
+    **Supported Operations:**
+    - list: Get paginated list of scores for your customer
+    - retrieve: Get detailed score for a specific claim
+    - create: Create a new score (validates claim ownership)
+
+    **Filtering:**
+    - automation_tier: Filter by tier (1=auto-execute, 2=queue, 3=escalate)
+    - recommended_action: Filter by action type
+    - min_confidence: Filter by minimum confidence threshold
+    - requires_human_review: Filter by human review requirement
+    """
+
+    queryset = ClaimScore.objects.all().order_by("-created_at")
+    serializer_class = ClaimScoreSerializer
+    permission_classes = [IsAuthenticated, IsCustomerMember]
+    throttle_classes = [ReadOnlyThrottle]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["automation_tier", "recommended_action", "requires_human_review"]
+    ordering_fields = ["created_at", "overall_confidence", "automation_tier"]
+
+    def get_queryset(self):
+        """Filter queryset by customer and apply additional filters."""
+        queryset = super().get_queryset()
+
+        # Optimize with select_related for nested serializers
+        queryset = queryset.select_related("claim", "customer")
+
+        # Apply min_confidence filter
+        min_confidence = self.request.query_params.get("min_confidence")
+        if min_confidence:
+            try:
+                min_conf = float(min_confidence)
+                if 0.0 <= min_conf <= 1.0:
+                    queryset = queryset.filter(overall_confidence__gte=min_conf)
+            except ValueError:
+                pass
+
+        return queryset
+
+    def perform_create(self, serializer):
+        """Validate claim ownership before creating score."""
+        customer = get_user_customer(self.request.user)
+        if not customer:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("User does not belong to a customer.")
+
+        # Validate claim belongs to the same customer
+        claim_id = self.request.data.get("claim")
+        if claim_id:
+            try:
+                claim = ClaimRecord.objects.get(pk=claim_id)
+                if claim.customer_id != customer.id:
+                    from rest_framework.exceptions import ValidationError
+
+                    raise ValidationError(
+                        {"claim": "Claim does not belong to your customer."}
+                    )
+            except ClaimRecord.DoesNotExist:
+                from rest_framework.exceptions import ValidationError
+
+                raise ValidationError({"claim": "Claim does not exist."})
+
+        serializer.save(customer=customer)

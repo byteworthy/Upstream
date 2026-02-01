@@ -116,7 +116,7 @@
       "files": [
         "upstream/api/views.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 7,
@@ -132,7 +132,7 @@
       "files": [
         "upstream/api/views.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 8,
@@ -147,7 +147,7 @@
       "files": [
         "upstream/api/views.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 9,
@@ -162,7 +162,7 @@
       "files": [
         "upstream/api/urls.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 10,
