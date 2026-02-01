@@ -362,6 +362,7 @@ class EHRSyncLogAdminTestCase(TenantTestMixin, TestCase):
 # Story 2: EpicFHIRClient Tests
 # =============================================================================
 
+
 class EpicFHIRClientTestCase(TenantTestMixin, TestCase):
     """Tests for EpicFHIRClient class (Story 2)."""
 
@@ -409,7 +410,7 @@ class EpicFHIRClientTestCase(TenantTestMixin, TestCase):
 
         client = EpicFHIRClient(self.connection)
 
-        self.assertTrue(hasattr(client, 'get_token'))
+        self.assertTrue(hasattr(client, "get_token"))
         self.assertTrue(callable(client.get_token))
 
     def test_client_has_fetch_eobs_method(self):
@@ -418,7 +419,7 @@ class EpicFHIRClientTestCase(TenantTestMixin, TestCase):
 
         client = EpicFHIRClient(self.connection)
 
-        self.assertTrue(hasattr(client, 'fetch_eobs'))
+        self.assertTrue(hasattr(client, "fetch_eobs"))
         self.assertTrue(callable(client.fetch_eobs))
 
     def test_client_has_test_connection_method(self):
@@ -427,7 +428,7 @@ class EpicFHIRClientTestCase(TenantTestMixin, TestCase):
 
         client = EpicFHIRClient(self.connection)
 
-        self.assertTrue(hasattr(client, 'test_connection'))
+        self.assertTrue(hasattr(client, "test_connection"))
         self.assertTrue(callable(client.test_connection))
 
     def test_client_has_get_health_status_method(self):
@@ -436,18 +437,19 @@ class EpicFHIRClientTestCase(TenantTestMixin, TestCase):
 
         client = EpicFHIRClient(self.connection)
 
-        self.assertTrue(hasattr(client, 'get_health_status'))
+        self.assertTrue(hasattr(client, "get_health_status"))
 
         # Test that it returns expected fields
         status = client.get_health_status()
-        self.assertIn('connection_id', status)
-        self.assertIn('ehr_type', status)
-        self.assertEqual(status['ehr_type'], 'epic')
+        self.assertIn("connection_id", status)
+        self.assertIn("ehr_type", status)
+        self.assertEqual(status["ehr_type"], "epic")
 
 
 # =============================================================================
 # Story 3: Token Manager Tests
 # =============================================================================
+
 
 class TokenManagerTestCase(TenantTestMixin, TestCase):
     """Tests for OAuth 2.0 Token Manager (Story 3)."""
@@ -455,6 +457,7 @@ class TokenManagerTestCase(TenantTestMixin, TestCase):
     def setUp(self):
         super().setUp()
         from upstream.integrations.token_manager import TokenManager
+
         self.token_manager = TokenManager(
             connection_id=999,
             client_id="test-client",
@@ -479,27 +482,27 @@ class TokenManagerTestCase(TenantTestMixin, TestCase):
 
     def test_token_manager_has_get_token_method(self):
         """Test TokenManager has get_token() method."""
-        self.assertTrue(hasattr(self.token_manager, 'get_token'))
+        self.assertTrue(hasattr(self.token_manager, "get_token"))
         self.assertTrue(callable(self.token_manager.get_token))
 
     def test_token_manager_has_invalidate_token_method(self):
         """Test TokenManager has invalidate_token() method."""
-        self.assertTrue(hasattr(self.token_manager, 'invalidate_token'))
+        self.assertTrue(hasattr(self.token_manager, "invalidate_token"))
         self.assertTrue(callable(self.token_manager.invalidate_token))
 
     def test_token_manager_has_get_token_status_method(self):
         """Test TokenManager has get_token_status() method."""
-        self.assertTrue(hasattr(self.token_manager, 'get_token_status'))
+        self.assertTrue(hasattr(self.token_manager, "get_token_status"))
 
         status = self.token_manager.get_token_status()
-        self.assertIn('has_token', status)
-        self.assertIn('needs_refresh', status)
+        self.assertIn("has_token", status)
+        self.assertIn("needs_refresh", status)
 
     def test_token_manager_refresh_buffer(self):
         """Test TokenManager has refresh buffer constant."""
         from upstream.integrations.token_manager import TokenManager
 
-        self.assertTrue(hasattr(TokenManager, 'REFRESH_BUFFER_SECONDS'))
+        self.assertTrue(hasattr(TokenManager, "REFRESH_BUFFER_SECONDS"))
         self.assertEqual(TokenManager.REFRESH_BUFFER_SECONDS, 60)
 
 
@@ -507,12 +510,14 @@ class TokenManagerTestCase(TenantTestMixin, TestCase):
 # Story 4: FHIR Parser Tests
 # =============================================================================
 
+
 class FHIRParserTestCase(TenantTestMixin, TestCase):
     """Tests for FHIR EOB Parser (Story 4)."""
 
     def setUp(self):
         super().setUp()
         from upstream.integrations.fhir_parser import FHIRParser
+
         self.parser = FHIRParser(customer_salt="test-salt")
 
     def test_parser_initialization(self):
@@ -535,8 +540,14 @@ class FHIRParserTestCase(TenantTestMixin, TestCase):
             },
             "outcome": "complete",
             "total": [
-                {"category": {"coding": [{"code": "submitted"}]}, "amount": {"value": 1500.00}},
-                {"category": {"coding": [{"code": "benefit"}]}, "amount": {"value": 1200.00}},
+                {
+                    "category": {"coding": [{"code": "submitted"}]},
+                    "amount": {"value": 1500.00},
+                },
+                {
+                    "category": {"coding": [{"code": "benefit"}]},
+                    "amount": {"value": 1200.00},
+                },
             ],
             "item": [
                 {
@@ -552,11 +563,11 @@ class FHIRParserTestCase(TenantTestMixin, TestCase):
         result = self.parser.parse_eob(eob)
 
         # Verify extracted fields
-        self.assertEqual(result['payer'], "Blue Cross")
-        self.assertEqual(result['cpt'], "99213")
-        self.assertIn("25", result['modifier_codes'])
-        self.assertIn("J06.9", result['diagnosis_codes'])
-        self.assertEqual(result['outcome'], "PAID")
+        self.assertEqual(result["payer"], "Blue Cross")
+        self.assertEqual(result["cpt"], "99213")
+        self.assertIn("25", result["modifier_codes"])
+        self.assertIn("J06.9", result["diagnosis_codes"])
+        self.assertEqual(result["outcome"], "PAID")
 
     def test_parse_eob_deidentifies_patient_mrn(self):
         """Test parse_eob de-identifies patient MRN using hash."""
@@ -570,8 +581,8 @@ class FHIRParserTestCase(TenantTestMixin, TestCase):
         result = self.parser.parse_eob(eob)
 
         # MRN should be hashed, not raw
-        self.assertNotIn("MRN12345", result.get('patient_mrn_hash', ''))
-        self.assertTrue(len(result.get('patient_mrn_hash', '')) == 64)  # SHA-256 hex
+        self.assertNotIn("MRN12345", result.get("patient_mrn_hash", ""))
+        self.assertTrue(len(result.get("patient_mrn_hash", "")) == 64)  # SHA-256 hex
 
     def test_parse_eob_validates_required_fields(self):
         """Test parse_eob validates required fields present."""
@@ -603,10 +614,10 @@ class FHIRParserTestCase(TenantTestMixin, TestCase):
 
         result = self.parser.parse_eob(eob)
 
-        self.assertEqual(len(result['diagnosis_codes']), 3)
-        self.assertIn("J06.9", result['diagnosis_codes'])
-        self.assertIn("M54.5", result['diagnosis_codes'])
-        self.assertIn("E11.9", result['diagnosis_codes'])
+        self.assertEqual(len(result["diagnosis_codes"]), 3)
+        self.assertIn("J06.9", result["diagnosis_codes"])
+        self.assertIn("M54.5", result["diagnosis_codes"])
+        self.assertIn("E11.9", result["diagnosis_codes"])
 
     def test_parse_eob_computes_source_hash(self):
         """Test parse_eob computes source data hash for deduplication."""
@@ -619,13 +630,14 @@ class FHIRParserTestCase(TenantTestMixin, TestCase):
 
         result = self.parser.parse_eob(eob)
 
-        self.assertIn('source_data_hash', result)
-        self.assertEqual(len(result['source_data_hash']), 64)  # SHA-256 hex
+        self.assertIn("source_data_hash", result)
+        self.assertEqual(len(result["source_data_hash"]), 64)  # SHA-256 hex
 
 
 # =============================================================================
 # Story 8: CernerFHIRClient Tests
 # =============================================================================
+
 
 class CernerFHIRClientTestCase(TenantTestMixin, TestCase):
     """Tests for CernerFHIRClient class (Story 8)."""
@@ -671,7 +683,7 @@ class CernerFHIRClientTestCase(TenantTestMixin, TestCase):
 
         client = CernerFHIRClient(self.connection)
 
-        self.assertTrue(hasattr(client, 'fetch_claims'))
+        self.assertTrue(hasattr(client, "fetch_claims"))
         self.assertTrue(callable(client.fetch_claims))
 
     def test_client_has_rate_limiting(self):
@@ -680,13 +692,14 @@ class CernerFHIRClientTestCase(TenantTestMixin, TestCase):
 
         client = CernerFHIRClient(self.connection)
 
-        self.assertTrue(hasattr(client, 'RATE_LIMIT_DELAY'))
-        self.assertTrue(hasattr(client, 'MAX_REQUESTS_PER_MINUTE'))
+        self.assertTrue(hasattr(client, "RATE_LIMIT_DELAY"))
+        self.assertTrue(hasattr(client, "MAX_REQUESTS_PER_MINUTE"))
 
 
 # =============================================================================
 # Story 9: AthenaHealthClient Tests
 # =============================================================================
+
 
 class AthenaHealthClientTestCase(TenantTestMixin, TestCase):
     """Tests for AthenaHealthClient class (Story 9)."""
@@ -732,13 +745,14 @@ class AthenaHealthClientTestCase(TenantTestMixin, TestCase):
 
         client = AthenaHealthClient(self.connection)
 
-        self.assertTrue(hasattr(client, 'fetch_claims'))
+        self.assertTrue(hasattr(client, "fetch_claims"))
         self.assertTrue(callable(client.fetch_claims))
 
 
 # =============================================================================
 # Story 10: Health Monitoring Tests
 # =============================================================================
+
 
 class HealthMonitoringTestCase(TenantTestMixin, TestCase):
     """Tests for connection health monitoring (Story 10)."""
@@ -773,11 +787,11 @@ class HealthMonitoringTestCase(TenantTestMixin, TestCase):
 
         result_dict = result.to_dict()
 
-        self.assertIn('connection_id', result_dict)
-        self.assertIn('healthy', result_dict)
-        self.assertIn('token_check', result_dict)
-        self.assertIn('api_check', result_dict)
-        self.assertIn('checked_at', result_dict)
+        self.assertIn("connection_id", result_dict)
+        self.assertIn("healthy", result_dict)
+        self.assertIn("token_check", result_dict)
+        self.assertIn("api_check", result_dict)
+        self.assertIn("checked_at", result_dict)
 
     def test_check_all_connections_function_exists(self):
         """Test check_all_connections function exists."""
@@ -789,6 +803,7 @@ class HealthMonitoringTestCase(TenantTestMixin, TestCase):
 # =============================================================================
 # Story 13: Resilience Patterns Tests
 # =============================================================================
+
 
 class ResiliencePatternTestCase(TenantTestMixin, TestCase):
     """Tests for retry logic and circuit breakers (Story 13)."""
@@ -857,7 +872,7 @@ class ResiliencePatternTestCase(TenantTestMixin, TestCase):
             max_retries=3,
         )
 
-        self.assertTrue(hasattr(client, 'circuit_breaker'))
+        self.assertTrue(hasattr(client, "circuit_breaker"))
         self.assertIsNotNone(client.circuit_breaker)
 
     def test_retry_decorator_exists(self):

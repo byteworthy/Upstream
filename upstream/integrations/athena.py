@@ -76,7 +76,7 @@ class AthenaHealthClient(ResilientClient):
         self.customer_salt = str(connection.customer_id)
 
         # Get practice ID from configuration (JSON field, may not exist)
-        configuration = getattr(connection, 'configuration', None) or {}
+        configuration = getattr(connection, "configuration", None) or {}
         self.practice_id = configuration.get("practice_id", "")
 
         # Initialize token manager
