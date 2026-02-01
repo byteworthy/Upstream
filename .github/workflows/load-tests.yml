@@ -1,0 +1,251 @@
+name: Load Tests
+
+on:
+  # Manual trigger with configurable parameters
+  workflow_dispatch:
+    inputs:
+      user_count:
+        description: 'Number of concurrent users'
+        required: true
+        default: '50'
+        type: string
+      spawn_rate:
+        description: 'User spawn rate per second'
+        required: true
+        default: '5'
+        type: string
+      duration:
+        description: 'Test duration (e.g., 60s, 5m, 1h)'
+        required: true
+        default: '60s'
+        type: string
+      target_host:
+        description: 'Target host URL'
+        required: true
+        default: 'http://localhost:8000'
+        type: string
+      test_file:
+        description: 'Test file to run (leave empty for all)'
+        required: false
+        default: ''
+        type: string
+
+  # Scheduled runs on staging
+  schedule:
+    # Run daily at 2 AM UTC on staging
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcairo2 \
+            libpango-1.0-0 \
+            libpangocairo-1.0-0 \
+            libgdk-pixbuf2.0-0 \
+            shared-mime-info
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Set up environment
+        run: |
+          cp .env.example .env
+          echo "SECRET_KEY=load-test-secret-key-$(openssl rand -hex 32)" >> .env  # pragma: allowlist secret
+          echo "DEBUG=True" >> .env
+
+      - name: Run migrations
+        run: |
+          python manage.py migrate --noinput
+
+      - name: Create test user
+        run: |
+          python manage.py shell -c "
+          from django.contrib.auth.models import User
+          from upstream.models import Customer, UserProfile
+
+          # Create test customer
+          customer, _ = Customer.objects.get_or_create(
+              name='Load Test Customer',
+              defaults={'subscription_status': 'active'}
+          )
+
+          # Create test user
+          user, created = User.objects.get_or_create(
+              username='user_a',
+              defaults={
+                  'email': 'user_a@loadtest.example.com',
+                  'is_active': True,
+              }
+          )
+          if created:
+              user.set_password('testpass123')
+              user.save()
+
+          # Create user profile
+          UserProfile.objects.get_or_create(
+              user=user,
+              defaults={'customer': customer, 'role': 'customer_admin'}
+          )
+          print(f'Test user ready: {user.username}')
+          "
+
+      - name: Start Django server
+        run: |
+          python manage.py runserver 0.0.0.0:8000 &
+          sleep 10
+          curl -f http://localhost:8000/api/v1/health/ || exit 1
+          echo "Django server started successfully"
+
+      - name: Determine test parameters
+        id: params
+        run: |
+          # Use workflow_dispatch inputs or defaults for scheduled runs
+          USER_COUNT="${{ github.event.inputs.user_count || '50' }}"
+          SPAWN_RATE="${{ github.event.inputs.spawn_rate || '5' }}"
+          DURATION="${{ github.event.inputs.duration || '60s' }}"
+          TARGET_HOST="${{ github.event.inputs.target_host || 'http://localhost:8000' }}"
+          TEST_FILE="${{ github.event.inputs.test_file || '' }}"
+
+          echo "user_count=${USER_COUNT}" >> $GITHUB_OUTPUT
+          echo "spawn_rate=${SPAWN_RATE}" >> $GITHUB_OUTPUT
+          echo "duration=${DURATION}" >> $GITHUB_OUTPUT
+          echo "target_host=${TARGET_HOST}" >> $GITHUB_OUTPUT
+          echo "test_file=${TEST_FILE}" >> $GITHUB_OUTPUT
+
+      - name: Run Locust load tests
+        run: |
+          # Determine which test file to run
+          TEST_FILE="${{ steps.params.outputs.test_file }}"
+          if [ -z "$TEST_FILE" ]; then
+            LOCUST_FILE="locustfile.py"
+          else
+            LOCUST_FILE="$TEST_FILE"
+          fi
+
+          # Create results directory
+          mkdir -p load-test-results
+
+          # Run Locust in headless mode
+          locust \
+            -f "$LOCUST_FILE" \
+            --headless \
+            --users ${{ steps.params.outputs.user_count }} \
+            --spawn-rate ${{ steps.params.outputs.spawn_rate }} \
+            --run-time ${{ steps.params.outputs.duration }} \
+            --host ${{ steps.params.outputs.target_host }} \
+            --csv=load-test-results/results \
+            --html=load-test-results/report.html \
+            --only-summary \
+            2>&1 | tee load-test-results/output.log
+        env:
+          LOCUST_USERNAME: user_a
+          LOCUST_PASSWORD: testpass123  # pragma: allowlist secret
+
+      - name: Generate summary report
+        if: always()
+        run: |
+          echo "## Load Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Users:** ${{ steps.params.outputs.user_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Spawn Rate:** ${{ steps.params.outputs.spawn_rate }}/s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration:** ${{ steps.params.outputs.duration }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target:** ${{ steps.params.outputs.target_host }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Parse stats from CSV if available
+          if [ -f load-test-results/results_stats.csv ]; then
+            echo "### Endpoint Statistics" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Endpoint | Requests | Failures | Avg (ms) | P95 (ms) |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|----------|----------|----------|----------|" >> $GITHUB_STEP_SUMMARY
+
+            # Skip header, format stats
+            tail -n +2 load-test-results/results_stats.csv | while IFS=',' read -r type name requests failures median avg min max p50 p66 p75 p80 p90 p95 p98 p99 p999 p9999 p100 rest; do
+              if [ "$type" != "Aggregated" ]; then
+                printf "| %s | %s | %s | %.0f | %.0f |\n" "$name" "$requests" "$failures" "$avg" "$p95" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML Report available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- CSV data available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-results-${{ github.run_number }}
+          path: load-test-results/
+          retention-days: 30
+
+      - name: Check performance thresholds
+        if: always()
+        run: |
+          # Check if any endpoint exceeded thresholds
+          if [ -f load-test-results/results_stats.csv ]; then
+            FAILED=0
+
+            # Check P95 response times (500ms threshold for list, 200ms for detail)
+            while IFS=',' read -r type name requests failures median avg min max p50 p66 p75 p80 p90 p95 rest; do
+              if [ "$type" != "Type" ] && [ "$type" != "Aggregated" ]; then
+                # Convert p95 to integer for comparison
+                P95_INT=$(printf "%.0f" "$p95" 2>/dev/null || echo "0")
+
+                # Check list endpoints (500ms threshold)
+                if echo "$name" | grep -qE 'page=|status=|severity='; then
+                  if [ "$P95_INT" -gt 500 ]; then
+                    echo "::warning::P95 for '$name' is ${P95_INT}ms (threshold: 500ms)"
+                    FAILED=1
+                  fi
+                fi
+
+                # Check detail endpoints (200ms threshold)
+                if echo "$name" | grep -qE '\[id\]/'; then
+                  if [ "$P95_INT" -gt 200 ]; then
+                    echo "::warning::P95 for '$name' is ${P95_INT}ms (threshold: 200ms)"
+                    FAILED=1
+                  fi
+                fi
+
+                # Check failure rate (1% threshold)
+                if [ "$requests" != "0" ] && [ "$requests" != "Request Count" ]; then
+                  FAIL_RATE=$(awk "BEGIN {printf \"%.2f\", ($failures / $requests) * 100}")
+                  if awk "BEGIN {exit !($FAIL_RATE > 1)}"; then
+                    echo "::warning::Failure rate for '$name' is ${FAIL_RATE}% (threshold: 1%)"
+                    FAILED=1
+                  fi
+                fi
+              fi
+            done < load-test-results/results_stats.csv
+
+            if [ "$FAILED" -eq 1 ]; then
+              echo "::warning::Some performance thresholds were exceeded. Review the results."
+            else
+              echo "✅ All performance thresholds passed!"
+            fi
+          fi
