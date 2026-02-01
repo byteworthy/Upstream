@@ -44,13 +44,13 @@
       "id": 5,
       "title": "Complete DenialScope dollar spike detection",
       "description": "Update upstream/products/denialscope/services.py _compute_signals() to detect denial_dollars_spike when weekly denial dollars exceed $50K.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 6,
       "title": "Add tests for DenialScope dollar spike",
       "description": "Add tests to upstream/products/denialscope/tests.py for dollar spike detection.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 7,
