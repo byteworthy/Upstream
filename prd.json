@@ -184,7 +184,7 @@
       "files": [
         "upstream/products/ptot/constants.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 11,
