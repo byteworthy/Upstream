@@ -1,68 +1,85 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import 'tailwindcss';
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* Upstream Brand Colors and Theme */
+@theme {
+  /* Upstream Brand Colors */
+  --color-upstream-50: #f0f9ff;
+  --color-upstream-100: #e0f2fe;
+  --color-upstream-200: #bae6fd;
+  --color-upstream-300: #7dd3fc;
+  --color-upstream-400: #38bdf8;
+  --color-upstream-500: #0ea5e9;
+  --color-upstream-600: #0284c7;
+  --color-upstream-700: #0369a1;
+  --color-upstream-800: #075985;
+  --color-upstream-900: #0c4a6e;
+  --color-upstream-950: #082f49;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Status Colors */
+  --color-success-500: #22c55e;
+  --color-warning-500: #f59e0b;
+  --color-danger-500: #ef4444;
+
+  /* Semantic Colors */
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-primary: #0ea5e9;
+  --color-primary-foreground: #f8fafc;
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #1e293b;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #1e293b;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #0ea5e9;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
+/* Base styles */
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+    Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Dark mode support */
+.dark {
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-card: #1e293b;
+  --color-card-foreground: #f8fafc;
+  --color-primary: #38bdf8;
+  --color-primary-foreground: #0f172a;
+  --color-secondary: #334155;
+  --color-secondary-foreground: #f8fafc;
+  --color-muted: #334155;
+  --color-muted-foreground: #94a3b8;
+  --color-accent: #334155;
+  --color-accent-foreground: #f8fafc;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #f8fafc;
+  --color-border: #334155;
+  --color-input: #334155;
+  --color-ring: #38bdf8;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Dark mode transition */
+html {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
