@@ -10,27 +10,29 @@ import subprocess
 from datetime import datetime
 
 # Add project root to path
-sys.path.insert(0, '/workspaces/codespaces-django')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hello_world.settings')
+sys.path.insert(0, "/workspaces/codespaces-django")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hello_world.settings")
 
-LOG_FILE = '/workspaces/codespaces-django/progress.txt'
+LOG_FILE = "/workspaces/codespaces-django/progress.txt"
+
 
 def log(msg):
     """Log message to progress file and stdout."""
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] {msg}"
     print(line)
-    with open(LOG_FILE, 'a') as f:
-        f.write(line + '\n')
+    with open(LOG_FILE, "a") as f:
+        f.write(line + "\n")
+
 
 def run_tests(module):
     """Run tests for a module."""
     log(f"Running tests for {module}...")
     result = subprocess.run(
-        ['python', 'manage.py', 'test', module, '-v', '2'],
+        ["python", "manage.py", "test", module, "-v", "2"],
         capture_output=True,
         text=True,
-        cwd='/workspaces/codespaces-django'
+        cwd="/workspaces/codespaces-django",
     )
     if result.returncode == 0:
         log(f"✅ Tests passed for {module}")
@@ -40,14 +42,21 @@ def run_tests(module):
         log(result.stderr[-500:] if result.stderr else "No error output")
         return False
 
+
 def commit(message):
     """Commit changes to git."""
-    subprocess.run(['git', 'add', '-A'], cwd='/workspaces/codespaces-django')
+    subprocess.run(["git", "add", "-A"], cwd="/workspaces/codespaces-django")
     subprocess.run(
-        ['git', 'commit', '-m', message + '\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>'],
-        cwd='/workspaces/codespaces-django'
+        [
+            "git",
+            "commit",
+            "-m",
+            message + "\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>",
+        ],
+        cwd="/workspaces/codespaces-django",
     )
     log(f"Committed: {message}")
+
 
 def main():
     log("=" * 60)
@@ -57,14 +66,16 @@ def main():
     # Story 5: Integrate RPA with rules_engine.py
     log("\n--- Story 5: Integrating RPA with rules_engine.py ---")
 
-    rules_engine_path = '/workspaces/codespaces-django/upstream/automation/rules_engine.py'
+    rules_engine_path = (
+        "/workspaces/codespaces-django/upstream/automation/rules_engine.py"
+    )
 
     # Read current rules_engine.py
-    with open(rules_engine_path, 'r') as f:
+    with open(rules_engine_path, "r") as f:
         content = f.read()
 
     # Check if RPA integration already exists
-    if 'get_portal_for_payer' not in content:
+    if "get_portal_for_payer" not in content:
         # Find the _execute_action method and update it
         old_method = '''    def _execute_action(self, action: Action) -> ExecutionResult:
         """
@@ -186,7 +197,7 @@ def main():
 
         if old_method in content:
             content = content.replace(old_method, new_method)
-            with open(rules_engine_path, 'w') as f:
+            with open(rules_engine_path, "w") as f:
                 f.write(content)
             log("✅ Updated rules_engine.py with RPA integration")
         else:
@@ -195,8 +206,10 @@ def main():
         log("RPA integration already exists in rules_engine.py")
 
     # Run RPA tests
-    if run_tests('upstream.automation.rpa'):
-        commit("feat(rpa): integrate RPA module with rules engine\n\nStory 5: Add submit_reauth and submit_appeal action types")
+    if run_tests("upstream.automation.rpa"):
+        commit(
+            "feat(rpa): integrate RPA module with rules engine\n\nStory 5: Add submit_reauth and submit_appeal action types"
+        )
 
     log("\n--- Stories 6-12: PT/OT G-Codes Module ---")
     log("Creating PT/OT models and services...")
@@ -324,17 +337,19 @@ class PTOTProgressReport(models.Model):
         return f"{self.reporting_type} - Visit {self.visit_number} ({self.report_date})"
 '''
 
-    ptot_models_path = '/workspaces/codespaces-django/upstream/products/ptot/models.py'
-    with open(ptot_models_path, 'w') as f:
+    ptot_models_path = "/workspaces/codespaces-django/upstream/products/ptot/models.py"
+    with open(ptot_models_path, "w") as f:
         f.write(ptot_models_content)
     log("✅ Created PT/OT models")
 
     # Story 8: G-code constants
-    ptot_constants_path = '/workspaces/codespaces-django/upstream/products/ptot/constants.py'
-    with open(ptot_constants_path, 'r') as f:
+    ptot_constants_path = (
+        "/workspaces/codespaces-django/upstream/products/ptot/constants.py"
+    )
+    with open(ptot_constants_path, "r") as f:
         constants_content = f.read()
 
-    gcode_constants = '''
+    gcode_constants = """
 
 # =============================================================================
 # G-CODE FUNCTIONAL LIMITATION CONSTANTS
@@ -416,18 +431,20 @@ GCODE_ALERT_THRESHOLDS = {
     "progress_report_warning_visits": 8,  # Alert 2 visits before required
     "progress_report_due_visits": 10,     # Required at this visit
 }
-'''
+"""
 
     if "FUNCTIONAL_LIMITATION_CATEGORIES" not in constants_content:
-        with open(ptot_constants_path, 'a') as f:
+        with open(ptot_constants_path, "a") as f:
             f.write(gcode_constants)
         log("✅ Added G-code constants")
     else:
         log("G-code constants already exist")
 
     # Story 9-11: G-code validation services
-    ptot_services_path = '/workspaces/codespaces-django/upstream/products/ptot/services.py'
-    with open(ptot_services_path, 'r') as f:
+    ptot_services_path = (
+        "/workspaces/codespaces-django/upstream/products/ptot/services.py"
+    )
+    with open(ptot_services_path, "r") as f:
         services_content = f.read()
 
     gcode_services = '''
@@ -618,7 +635,7 @@ class PTOTGCodeService:
 '''
 
     if "PTOTGCodeService" not in services_content:
-        with open(ptot_services_path, 'a') as f:
+        with open(ptot_services_path, "a") as f:
             f.write(gcode_services)
         log("✅ Added G-code validation services")
     else:
@@ -627,18 +644,22 @@ class PTOTGCodeService:
     # Create migration
     log("Creating PT/OT migrations...")
     subprocess.run(
-        ['python', 'manage.py', 'makemigrations', 'ptot', '--name', 'add_gcode_models'],
-        cwd='/workspaces/codespaces-django',
-        capture_output=True
+        ["python", "manage.py", "makemigrations", "ptot", "--name", "add_gcode_models"],
+        cwd="/workspaces/codespaces-django",
+        capture_output=True,
     )
 
     # Commit PT/OT changes
-    commit("feat(ptot): add G-code functional limitation tracking\n\nStories 6-11: PT/OT G-code models, constants, and validation services")
+    commit(
+        "feat(ptot): add G-code functional limitation tracking\n\nStories 6-11: PT/OT G-code models, constants, and validation services"
+    )
 
     log("\n--- Stories 13-16: Home Health Certification Cycles ---")
 
     # Story 13: CertificationCycle model
-    homehealth_models_path = '/workspaces/codespaces-django/upstream/products/homehealth/models.py'
+    homehealth_models_path = (
+        "/workspaces/codespaces-django/upstream/products/homehealth/models.py"
+    )
 
     cert_cycle_model = '''
 # =============================================================================
@@ -725,7 +746,7 @@ class CertificationCycle(models.Model):
         return self.status == "ACTIVE" and self.days_until_deadline <= 45
 '''
 
-    with open(homehealth_models_path, 'r') as f:
+    with open(homehealth_models_path, "r") as f:
         hh_models_content = f.read()
 
     if "CertificationCycle" not in hh_models_content:
@@ -733,18 +754,20 @@ class CertificationCycle(models.Model):
         if "CustomerScopedManager" not in hh_models_content:
             hh_models_content = hh_models_content.replace(
                 "from django.db import models",
-                "from django.db import models\nfrom upstream.core.managers import CustomerScopedManager"
+                "from django.db import models\nfrom upstream.core.managers import CustomerScopedManager",
             )
 
         # Add the model
-        with open(homehealth_models_path, 'w') as f:
+        with open(homehealth_models_path, "w") as f:
             f.write(hh_models_content + cert_cycle_model)
         log("✅ Added CertificationCycle model")
     else:
         log("CertificationCycle model already exists")
 
     # Story 14-15: Certification cycle services
-    homehealth_services_path = '/workspaces/codespaces-django/upstream/products/homehealth/services.py'
+    homehealth_services_path = (
+        "/workspaces/codespaces-django/upstream/products/homehealth/services.py"
+    )
 
     cert_services = '''
 
@@ -929,11 +952,11 @@ class CertificationCycleService:
         )
 '''
 
-    with open(homehealth_services_path, 'r') as f:
+    with open(homehealth_services_path, "r") as f:
         hh_services_content = f.read()
 
     if "CertificationCycleService" not in hh_services_content:
-        with open(homehealth_services_path, 'a') as f:
+        with open(homehealth_services_path, "a") as f:
             f.write(cert_services)
         log("✅ Added certification cycle services")
     else:
@@ -942,29 +965,40 @@ class CertificationCycleService:
     # Create home health migration
     log("Creating Home Health migrations...")
     subprocess.run(
-        ['python', 'manage.py', 'makemigrations', 'homehealth', '--name', 'add_certification_cycle'],
-        cwd='/workspaces/codespaces-django',
-        capture_output=True
+        [
+            "python",
+            "manage.py",
+            "makemigrations",
+            "homehealth",
+            "--name",
+            "add_certification_cycle",
+        ],
+        cwd="/workspaces/codespaces-django",
+        capture_output=True,
     )
 
     # Commit home health changes
-    commit("feat(homehealth): add certification cycle tracking\n\nStories 13-15: 60-day certification cycles with 45/30/21/14 day alerts")
+    commit(
+        "feat(homehealth): add certification cycle tracking\n\nStories 13-15: 60-day certification cycles with 45/30/21/14 day alerts"
+    )
 
     # Story 17: Run full test suite
     log("\n--- Story 17: Running Full Test Suite ---")
 
     # Run all tests
     test_result = subprocess.run(
-        ['python', 'manage.py', 'test', 'upstream', '-v', '2', '--keepdb'],
+        ["python", "manage.py", "test", "upstream", "-v", "2", "--keepdb"],
         capture_output=True,
         text=True,
-        cwd='/workspaces/codespaces-django',
-        timeout=600
+        cwd="/workspaces/codespaces-django",
+        timeout=600,
     )
 
     if test_result.returncode == 0:
         log("✅ FULL TEST SUITE PASSED")
-        commit("test: verify all new features pass tests\n\nStory 17: Full test suite validation")
+        commit(
+            "test: verify all new features pass tests\n\nStory 17: Full test suite validation"
+        )
     else:
         log("⚠️ Some tests may have failed - check output")
         log(test_result.stdout[-1000:] if test_result.stdout else "No stdout")
@@ -976,15 +1010,16 @@ class CertificationCycleService:
 
     # Update prd.json
     import json
-    prd_path = '/workspaces/codespaces-django/prd.json'
-    with open(prd_path, 'r') as f:
+
+    prd_path = "/workspaces/codespaces-django/prd.json"
+    with open(prd_path, "r") as f:
         prd = json.load(f)
 
     # Mark all stories as complete
-    for story in prd['userStories']:
-        story['passes'] = True
+    for story in prd["userStories"]:
+        story["passes"] = True
 
-    with open(prd_path, 'w') as f:
+    with open(prd_path, "w") as f:
         json.dump(prd, f, indent=2)
 
     log("All stories marked as complete in prd.json")
