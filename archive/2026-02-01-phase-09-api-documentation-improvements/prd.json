@@ -1,0 +1,50 @@
+{
+  "branchName": "milestone-05-documentation",
+  "context": {
+    "phase": "5b",
+    "phaseName": "HIPAA & Security Documentation",
+    "phaseGoal": "Create HIPAA BAA template, security whitepaper, and deployment checklist",
+    "qualityGates": [
+      "test -f docs/legal/baa_template.md",
+      "test -f docs/security/security_whitepaper.md"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Generate HIPAA BAA document template",
+      "description": "Create BAA template in docs/legal/baa_template.md with HIPAA required clauses, AI-specific clauses, data use limitations, incident notification requirements.",
+      "files": [
+        "docs/legal/baa_template.md"
+      ],
+      "passes": true
+    },
+    {
+      "id": 2,
+      "title": "Create Security Whitepaper",
+      "description": "Write security docs in docs/security/security_whitepaper.md covering encryption, access control, HIPAA compliance, SOC 2 readiness.",
+      "files": [
+        "docs/security/security_whitepaper.md"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Create vendor security questionnaire",
+      "description": "Prepare answers in docs/security/vendor_questionnaire.md for common security assessment questions.",
+      "files": [
+        "docs/security/vendor_questionnaire.md"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Create production deployment checklist",
+      "description": "Document deployment steps in docs/deployment/production_checklist.md with env vars, migrations, DNS, SSL, monitoring.",
+      "files": [
+        "docs/deployment/production_checklist.md"
+      ],
+      "passes": false
+    }
+  ]
+}
