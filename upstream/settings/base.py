@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # Upstream application
     "upstream.apps.UpstreamConfig",
     "upstream.automation.apps.AutomationConfig",
+    "upstream.billing.apps.BillingConfig",
 ]
 
 MIDDLEWARE = [
