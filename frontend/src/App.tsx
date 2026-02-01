@@ -7,12 +7,9 @@ import { WorkQueue } from '@/pages/WorkQueue';
 import { Alerts } from '@/pages/Alerts';
 import { AlertDetail } from '@/pages/AlertDetail';
 import { Authorizations } from '@/pages/Authorizations';
+import { ExecutionLog } from '@/pages/ExecutionLog';
 
 // Placeholder pages - will be implemented in subsequent stories
-
-function ExecutionLogPage() {
-  return <div className="text-foreground">Execution Log - Coming soon</div>;
-}
 
 function SettingsPage() {
   return <div className="text-foreground">Settings - Coming soon</div>;
@@ -41,7 +38,7 @@ function App() {
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/alerts/:id" element={<AlertDetail />} />
         <Route path="/authorizations" element={<Authorizations />} />
-        <Route path="/execution-log" element={<ExecutionLogPage />} />
+        <Route path="/execution-log" element={<ExecutionLog />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>

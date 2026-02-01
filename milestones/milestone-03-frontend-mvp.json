@@ -249,7 +249,7 @@
       "files": [
         "frontend/src/components/common/RiskScoreCard.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 13,
