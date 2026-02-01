@@ -154,4 +154,12 @@ Story: #4 - Create CustomerAutomationProfileSerializer
 - python manage.py spectacular --validate: PASSED (warnings only)
 
 ### Status
-✅ Story #4 completed and ready for commit
+✅ Story #4 verified complete (already committed in 6ef0dffb)
+✅ Story marked as passing in prd.json
+
+### Additional Notes
+- Fixed test file naming conflicts (tests.py renamed to tests_legacy.py)
+- CustomerAutomationProfileSerializer acceptance criteria verified:
+  1. ✓ Serializer exists with all threshold fields
+  2. ✓ automation_stage choices properly handled via ModelSerializer
+  3. ✓ compliance_officer serialized as nested user (read) and ID (write)

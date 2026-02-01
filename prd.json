@@ -240,7 +240,7 @@
       "files": [
         "upstream/api/views.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 15,
@@ -257,7 +257,7 @@
       "files": [
         "upstream/tests_scoring.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 16,
