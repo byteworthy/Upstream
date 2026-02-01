@@ -100,6 +100,7 @@ from ..models import (
     PayerMapping,
     CPTGroupMapping,
     NetworkAlert,
+    NetworkAlert,
 )
 from upstream.alerts.models import AlertEvent, OperatorJudgment
 from upstream.automation.models import (

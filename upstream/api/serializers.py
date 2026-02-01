@@ -1104,9 +1104,34 @@ class DashboardSerializer(serializers.Serializer):
     total_claims = serializers.IntegerField()
     total_uploads = serializers.IntegerField()
     active_drift_events = serializers.IntegerField()
+    behavioral_prediction_count = serializers.IntegerField(
+        help_text="Number of behavioral prediction events in last 7 days"
+    )
     last_report_date = serializers.DateTimeField(allow_null=True)
     denial_rate_trend = serializers.ListField(child=serializers.DictField())
     top_drift_payers = serializers.ListField(child=serializers.DictField())
+
+
+# =============================================================================
+# Network Intelligence Serializers
+# =============================================================================
+
+
+class NetworkAlertSerializer(serializers.Serializer):
+    """
+    Serializer for NetworkAlert model.
+
+    Platform-level alerts for cross-customer intelligence patterns.
+    """
+
+    id = serializers.IntegerField(read_only=True)
+    payer = serializers.CharField()
+    drift_type = serializers.CharField()
+    affected_customer_count = serializers.IntegerField()
+    summary_text = serializers.CharField()
+    severity = serializers.CharField()
+    details = serializers.JSONField()
+    created_at = serializers.DateTimeField(read_only=True)
 
 
 # =============================================================================
