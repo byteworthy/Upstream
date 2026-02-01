@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("upstream", "0026_agentrun_codequalitymetric_databasequeryanalysis_and_more"),
     ]
