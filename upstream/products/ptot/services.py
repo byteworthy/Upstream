@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Optional
 import pytz
 
-from django.db.models import Sum
+from django.db.models import Sum, F
 from django.utils import timezone
 
 from upstream.alerts.models import AlertEvent, AlertRule
@@ -19,6 +19,9 @@ from upstream.products.ptot.constants import (
     calculate_units_from_minutes,
     is_time_based_cpt,
     get_time_based_cpts,
+    CPT_CODES_REQUIRING_GCODES,
+    PROGRESS_REPORT_VISIT_INTERVAL,
+    GCODE_ALERT_THRESHOLDS,
 )
 
 
@@ -113,9 +116,9 @@ class PTOTService:
             )
 
         # Get total minutes from claim
-        total_minutes = getattr(
-            claim, "total_minutes", None
-        ) or getattr(claim, "treatment_time", None)
+        total_minutes = getattr(claim, "total_minutes", None) or getattr(
+            claim, "treatment_time", None
+        )
 
         if total_minutes is None:
             return EightMinuteRuleResult(
@@ -127,9 +130,9 @@ class PTOTService:
         total_minutes = int(total_minutes)
 
         # Get billed units from claim
-        billed_units = getattr(
-            claim, "procedure_count", None
-        ) or getattr(claim, "units", None)
+        billed_units = getattr(claim, "procedure_count", None) or getattr(
+            claim, "units", None
+        )
 
         if billed_units is None:
             return EightMinuteRuleResult(
@@ -296,9 +299,7 @@ class PTOTService:
             return None
 
         if alert_rule is None:
-            alert_rule = self._get_or_create_alert_rule(
-                claim.customer, "ptot_8_minute"
-            )
+            alert_rule = self._get_or_create_alert_rule(claim.customer, "ptot_8_minute")
 
         payload = {
             "type": "ptot_8_minute_violation",
@@ -465,9 +466,7 @@ class PTOTService:
                         alert_rule = self._get_or_create_alert_rule(
                             claim.customer, "ptot_8_minute"
                         )
-                    alert = self.create_8_minute_alert(
-                        claim, validation, alert_rule
-                    )
+                    alert = self.create_8_minute_alert(claim, validation, alert_rule)
                     if alert:
                         results["alerts_created"] += 1
 
@@ -494,3 +493,546 @@ class PTOTService:
                                 results["alerts_created"] += 1
 
         return results
+
+
+# =============================================================================
+# G-CODE VALIDATION SERVICE
+# =============================================================================
+
+
+@dataclass
+class GCodeValidationResult:
+    """Result of G-code validation for a claim."""
+
+    is_valid: bool
+    requires_gcodes: bool = False
+    gcodes_present: bool = False
+    missing_gcodes: list = None
+    severity: str = "none"
+    message: str = ""
+    reporting_type: str = ""  # EVALUATION, PROGRESS, DISCHARGE
+    visit_number: int = 0
+
+    def __post_init__(self):
+        if self.missing_gcodes is None:
+            self.missing_gcodes = []
+
+
+@dataclass
+class ProgressReportDueResult:
+    """Result of checking if progress report is due."""
+
+    is_due: bool
+    patient_id: str = ""
+    visits_since_last_report: int = 0
+    visits_until_due: int = 0
+    last_report_date: datetime = None
+    severity: str = "none"
+    message: str = ""
+
+
+class PTOTGCodeService:
+    """
+    Service for validating G-code functional limitation reporting.
+
+    Medicare requires G-codes for functional limitations at:
+    - Initial evaluation (EVALUATION)
+    - Every 10th visit (PROGRESS)
+    - Discharge (DISCHARGE)
+
+    G-codes track 7 functional limitation categories:
+    - Mobility
+    - Changing/Maintaining Position
+    - Carrying/Moving Objects
+    - Self Care
+    - Other PT/OT Primary
+    - Other SLP Primary
+    - Swallowing
+    """
+
+    def __init__(self):
+        """Initialize the G-code validation service."""
+        self._alert_rule_cache = {}
+
+    def validate_gcode_reporting(self, claim) -> GCodeValidationResult:
+        """
+        Validate if a claim has required G-codes for Medicare compliance.
+
+        G-codes are required when:
+        - CPT code is an evaluation (97161-97168, 92521-92524)
+        - It's a 10th visit (progress report due)
+        - Claim indicates discharge
+
+        Args:
+            claim: ClaimRecord with cpt, modifiers, and optionally gcodes field
+
+        Returns:
+            GCodeValidationResult with validation details
+        """
+        # Get CPT code from claim
+        cpt_code = getattr(claim, "cpt", None)
+        if not cpt_code:
+            return GCodeValidationResult(
+                is_valid=True,
+                requires_gcodes=False,
+                message="No CPT code on claim",
+            )
+
+        # Check if this is an evaluation CPT that requires G-codes
+        is_evaluation = cpt_code in CPT_CODES_REQUIRING_GCODES
+
+        # Check for discharge indicator
+        is_discharge = self._check_is_discharge(claim)
+
+        # Check for progress report visit (10th visit)
+        visit_number = getattr(claim, "visit_number", 0) or 0
+        is_progress_report = (
+            visit_number > 0 and visit_number % PROGRESS_REPORT_VISIT_INTERVAL == 0
+        )
+
+        # Determine reporting type
+        if is_evaluation:
+            reporting_type = "EVALUATION"
+        elif is_discharge:
+            reporting_type = "DISCHARGE"
+        elif is_progress_report:
+            reporting_type = "PROGRESS"
+        else:
+            # G-codes not required for this claim
+            return GCodeValidationResult(
+                is_valid=True,
+                requires_gcodes=False,
+                visit_number=visit_number,
+                message=f"G-codes not required for CPT {cpt_code}",
+            )
+
+        # G-codes are required - check if present
+        gcodes_on_claim = self._extract_gcodes(claim)
+        gcodes_present = len(gcodes_on_claim) > 0
+
+        # Validate G-code completeness
+        missing = self._check_gcode_completeness(gcodes_on_claim, reporting_type)
+
+        if not missing:
+            return GCodeValidationResult(
+                is_valid=True,
+                requires_gcodes=True,
+                gcodes_present=True,
+                reporting_type=reporting_type,
+                visit_number=visit_number,
+                message=f"G-codes complete for {reporting_type}",
+            )
+
+        # Missing G-codes - determine severity
+        severity = (
+            "critical" if reporting_type in ("EVALUATION", "DISCHARGE") else "high"
+        )
+
+        return GCodeValidationResult(
+            is_valid=False,
+            requires_gcodes=True,
+            gcodes_present=gcodes_present,
+            missing_gcodes=missing,
+            severity=severity,
+            reporting_type=reporting_type,
+            visit_number=visit_number,
+            message=f"Missing G-codes for {reporting_type}: {', '.join(missing)}",
+        )
+
+    def check_progress_report_due(
+        self, patient_id: str, customer
+    ) -> ProgressReportDueResult:
+        """
+        Check if a patient's 10th visit progress report is due.
+
+        Args:
+            patient_id: Patient identifier
+            customer: Customer for scoping
+
+        Returns:
+            ProgressReportDueResult with due status
+        """
+        # Import here to avoid circular imports
+        from upstream.products.ptot.models import PTOTFunctionalLimitation
+
+        # Get active functional limitations for this patient
+        limitations = PTOTFunctionalLimitation.objects.filter(
+            customer=customer,
+            patient_id=patient_id,
+            status="ACTIVE",
+        ).order_by("-last_reported_date")
+
+        if not limitations.exists():
+            return ProgressReportDueResult(
+                is_due=False,
+                patient_id=patient_id,
+                message="No active functional limitations tracked",
+            )
+
+        # Get the most recent limitation record
+        limitation = limitations.first()
+        visits_since = limitation.visit_count_since_report
+
+        # Calculate visits until due
+        visits_until = PROGRESS_REPORT_VISIT_INTERVAL - visits_since
+        warning_threshold = GCODE_ALERT_THRESHOLDS["progress_report_warning_visits"]
+
+        # Determine status
+        if visits_since >= PROGRESS_REPORT_VISIT_INTERVAL:
+            is_due = True
+            severity = "critical"
+            message = (
+                f"Progress report OVERDUE: {visits_since} visits since last report"
+            )
+        elif visits_since >= warning_threshold:
+            is_due = False
+            severity = "warning"
+            message = f"Progress report due in {visits_until} visits"
+        else:
+            is_due = False
+            severity = "none"
+            message = f"Next progress report in {visits_until} visits"
+
+        return ProgressReportDueResult(
+            is_due=is_due,
+            patient_id=patient_id,
+            visits_since_last_report=visits_since,
+            visits_until_due=max(0, visits_until),
+            last_report_date=limitation.last_reported_date,
+            severity=severity,
+            message=message,
+        )
+
+    def increment_visit_count(self, patient_id: str, customer) -> int:
+        """
+        Increment visit count for patient's functional limitations.
+
+        Args:
+            patient_id: Patient identifier
+            customer: Customer for scoping
+
+        Returns:
+            New visit count
+        """
+        from upstream.products.ptot.models import PTOTFunctionalLimitation
+
+        updated = PTOTFunctionalLimitation.objects.filter(
+            customer=customer,
+            patient_id=patient_id,
+            status="ACTIVE",
+        ).update(
+            visit_count_since_report=F("visit_count_since_report") + 1,
+            updated_at=timezone.now(),
+        )
+
+        if updated > 0:
+            limitation = PTOTFunctionalLimitation.objects.filter(
+                customer=customer,
+                patient_id=patient_id,
+                status="ACTIVE",
+            ).first()
+            return limitation.visit_count_since_report if limitation else 0
+
+        return 0
+
+    def record_progress_report(
+        self, patient_id: str, customer, report_date=None, gcodes_reported: dict = None
+    ):
+        """
+        Record that a progress report was submitted, resetting visit counter.
+
+        Args:
+            patient_id: Patient identifier
+            customer: Customer for scoping
+            report_date: Date of report (defaults to today)
+            gcodes_reported: Dict of G-codes reported
+        """
+        from upstream.products.ptot.models import (
+            PTOTFunctionalLimitation,
+            PTOTProgressReport,
+        )
+
+        if report_date is None:
+            report_date = timezone.now().date()
+
+        # Get active limitations
+        limitations = PTOTFunctionalLimitation.objects.filter(
+            customer=customer,
+            patient_id=patient_id,
+            status="ACTIVE",
+        )
+
+        for limitation in limitations:
+            visit_number = limitation.visit_count_since_report
+
+            # Create progress report record
+            PTOTProgressReport.objects.create(
+                customer=customer,
+                functional_limitation=limitation,
+                report_date=report_date,
+                visit_number=visit_number,
+                reporting_type="PROGRESS",
+                gcodes_reported=gcodes_reported or {},
+            )
+
+            # Reset visit counter
+            limitation.visit_count_since_report = 0
+            limitation.last_reported_date = report_date
+            limitation.save()
+
+    def create_gcode_missing_alert(
+        self,
+        claim,
+        result: GCodeValidationResult,
+        alert_rule: Optional[AlertRule] = None,
+    ) -> Optional[AlertEvent]:
+        """
+        Create an AlertEvent for missing G-codes.
+
+        Args:
+            claim: ClaimRecord missing G-codes
+            result: Result from validate_gcode_reporting
+            alert_rule: AlertRule to use (auto-creates if not provided)
+
+        Returns:
+            Created AlertEvent or None if valid
+        """
+        if result.is_valid:
+            return None
+
+        if alert_rule is None:
+            alert_rule = self._get_or_create_gcode_alert_rule(claim.customer)
+
+        payload = {
+            "type": "ptot_gcode_missing",
+            "reporting_type": result.reporting_type,
+            "visit_number": result.visit_number,
+            "missing_gcodes": result.missing_gcodes,
+            "severity": result.severity,
+            "message": result.message,
+            "claim_id": claim.id if hasattr(claim, "id") else None,
+            "patient_id": getattr(claim, "patient_id", None),
+        }
+
+        alert = AlertEvent.objects.create(
+            customer=claim.customer,
+            alert_rule=alert_rule,
+            triggered_at=timezone.now(),
+            status="pending",
+            payload=payload,
+        )
+
+        return alert
+
+    def create_progress_report_alert(
+        self,
+        customer,
+        result: ProgressReportDueResult,
+        alert_rule: Optional[AlertRule] = None,
+    ) -> Optional[AlertEvent]:
+        """
+        Create an AlertEvent for progress report due/overdue.
+
+        Args:
+            customer: Customer to create alert for
+            result: Result from check_progress_report_due
+            alert_rule: AlertRule to use (auto-creates if not provided)
+
+        Returns:
+            Created AlertEvent or None if not due
+        """
+        if result.severity == "none":
+            return None
+
+        if alert_rule is None:
+            alert_rule = self._get_or_create_progress_alert_rule(customer)
+
+        payload = {
+            "type": "ptot_progress_report_due",
+            "patient_id": result.patient_id,
+            "visits_since_last_report": result.visits_since_last_report,
+            "visits_until_due": result.visits_until_due,
+            "last_report_date": (
+                result.last_report_date.isoformat() if result.last_report_date else None
+            ),
+            "is_overdue": result.is_due,
+            "severity": result.severity,
+            "message": result.message,
+        }
+
+        alert = AlertEvent.objects.create(
+            customer=customer,
+            alert_rule=alert_rule,
+            triggered_at=timezone.now(),
+            status="pending",
+            payload=payload,
+        )
+
+        return alert
+
+    def _check_is_discharge(self, claim) -> bool:
+        """Check if claim indicates discharge."""
+        # Check for discharge modifier or indicator
+        modifiers = getattr(claim, "modifiers", "") or ""
+        if "DC" in modifiers.upper():
+            return True
+
+        # Check for explicit discharge flag
+        if getattr(claim, "is_discharge", False):
+            return True
+
+        # Check for discharge in claim type or status
+        claim_type = getattr(claim, "claim_type", "") or ""
+        if "discharge" in claim_type.lower():
+            return True
+
+        return False
+
+    def _extract_gcodes(self, claim) -> list:
+        """Extract G-codes from claim."""
+        gcodes = []
+
+        # Check gcodes field
+        if hasattr(claim, "gcodes") and claim.gcodes:
+            if isinstance(claim.gcodes, list):
+                gcodes.extend(claim.gcodes)
+            elif isinstance(claim.gcodes, str):
+                # Parse comma-separated G-codes
+                gcodes.extend([g.strip() for g in claim.gcodes.split(",") if g.strip()])
+
+        # Check modifiers for G-codes (G8978-G8998 range)
+        modifiers = getattr(claim, "modifiers", "") or ""
+        for part in modifiers.split(","):
+            part = part.strip().upper()
+            if part.startswith("G89") and len(part) == 5:
+                gcodes.append(part)
+
+        # Check additional_codes field
+        if hasattr(claim, "additional_codes") and claim.additional_codes:
+            codes = claim.additional_codes
+            if isinstance(codes, list):
+                for code in codes:
+                    if isinstance(code, str) and code.upper().startswith("G89"):
+                        gcodes.append(code.upper())
+
+        return list(set(gcodes))  # Remove duplicates
+
+    def _check_gcode_completeness(
+        self, gcodes_present: list, reporting_type: str
+    ) -> list:
+        """
+        Check if G-code set is complete for reporting type.
+
+        For Medicare compliance, need:
+        - Current status G-code (G8978, G8981, G8984, etc.)
+        - Goal G-code (G8979, G8982, G8985, etc.)
+        - At discharge: Discharge G-code (G8980, G8983, G8986, etc.)
+
+        G-codes are organized by functional limitation category, with each category
+        having 3 sequential codes: current, goal, discharge.
+        - Mobility: G8978, G8979, G8980
+        - Changing Position: G8981, G8982, G8983
+        - etc.
+
+        To determine type: (gcode_num - 8978) % 3
+        - 0 = current
+        - 1 = goal
+        - 2 = discharge
+
+        Args:
+            gcodes_present: List of G-codes on claim
+            reporting_type: EVALUATION, PROGRESS, or DISCHARGE
+
+        Returns:
+            List of missing G-code types
+        """
+        if not gcodes_present:
+            if reporting_type == "DISCHARGE":
+                return ["current", "goal", "discharge"]
+            return ["current", "goal"]
+
+        # Classify each G-code by type
+        has_current = False
+        has_goal = False
+        has_discharge = False
+
+        for gcode in gcodes_present:
+            gcode = gcode.upper()
+            if not gcode.startswith("G89"):
+                continue
+
+            try:
+                gcode_num = int(gcode[1:])  # Remove 'G' and parse number
+                if gcode_num < 8978 or gcode_num > 8998:
+                    continue
+
+                # Type based on position: 0=current, 1=goal, 2=discharge
+                gcode_type = (gcode_num - 8978) % 3
+
+                if gcode_type == 0:
+                    has_current = True
+                elif gcode_type == 1:
+                    has_goal = True
+                elif gcode_type == 2:
+                    has_discharge = True
+
+            except ValueError:
+                continue
+
+        missing = []
+        if not has_current:
+            missing.append("current")
+        if not has_goal:
+            missing.append("goal")
+
+        # Check for discharge G-code (only at discharge)
+        if reporting_type == "DISCHARGE" and not has_discharge:
+            missing.append("discharge")
+
+        return missing
+
+    def _get_or_create_gcode_alert_rule(self, customer) -> AlertRule:
+        """Get or create alert rule for G-code missing alerts."""
+        cache_key = f"{customer.id}_ptot_gcode"
+        if cache_key in self._alert_rule_cache:
+            return self._alert_rule_cache[cache_key]
+
+        rule, _ = AlertRule.objects.get_or_create(
+            customer=customer,
+            name="PT/OT Missing G-Codes",
+            defaults={
+                "description": "Alert when required G-codes missing from claim",
+                "metric": "gcode_completeness",
+                "threshold_type": "eq",
+                "threshold_value": 0.0,
+                "enabled": True,
+                "severity": "critical",
+                "scope": {"service_type": "PT/OT", "alert_type": "gcode_missing"},
+            },
+        )
+
+        self._alert_rule_cache[cache_key] = rule
+        return rule
+
+    def _get_or_create_progress_alert_rule(self, customer) -> AlertRule:
+        """Get or create alert rule for progress report alerts."""
+        cache_key = f"{customer.id}_ptot_progress"
+        if cache_key in self._alert_rule_cache:
+            return self._alert_rule_cache[cache_key]
+
+        rule, _ = AlertRule.objects.get_or_create(
+            customer=customer,
+            name="PT/OT Progress Report Due",
+            defaults={
+                "description": "Alert when 10th visit progress report approaching",
+                "metric": "visits_since_report",
+                "threshold_type": "gte",
+                "threshold_value": 8.0,
+                "enabled": True,
+                "severity": "warning",
+                "scope": {"service_type": "PT/OT", "alert_type": "progress_report"},
+            },
+        )
+
+        self._alert_rule_cache[cache_key] = rule
+        return rule

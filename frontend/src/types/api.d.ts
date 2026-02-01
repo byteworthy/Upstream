@@ -118,6 +118,7 @@ export interface Alert {
   description: string;
   severity: AlertSeverity;
   alert_type: AlertType;
+  specialty: SpecialtyType | 'CORE';
   claim: number | null;
   claim_score: number | null;
   evidence: Record<string, unknown>;
@@ -235,4 +236,73 @@ export interface WorkQueueBulkActionRequest {
   ids: number[];
   action: 'approve' | 'reject' | 'escalate';
   notes?: string;
+}
+
+// Specialty Module types
+export type SpecialtyType = 'DIALYSIS' | 'ABA' | 'PTOT' | 'IMAGING' | 'HOME_HEALTH';
+
+export interface SpecialtyModule {
+  id: number;
+  specialty: SpecialtyType;
+  enabled: boolean;
+  enabled_at: string;
+  is_primary: boolean;
+}
+
+export interface CustomerProfile {
+  id: number;
+  name: string;
+  specialty_type: SpecialtyType | null;
+  specialty_modules: SpecialtyModule[];
+  enabled_specialties: SpecialtyType[];
+  _links?: Record<string, string>;
+}
+
+export interface SetPrimarySpecialtyRequest {
+  specialty_type: SpecialtyType;
+}
+
+export interface EnableSpecialtyRequest {
+  specialty: SpecialtyType;
+}
+
+// Alert with specialty field
+export interface AlertEvent {
+  id: number;
+  customer: number;
+  alert_rule: number;
+  drift_event: number | null;
+  report_run: number | null;
+  triggered_at: string;
+  status: 'pending' | 'sent' | 'failed' | 'acknowledged' | 'resolved';
+  specialty: SpecialtyType | 'CORE';
+  payload: Record<string, unknown>;
+  notification_sent_at: string | null;
+  error_message: string | null;
+  operator_judgments: OperatorJudgment[];
+  has_judgment: boolean;
+  latest_judgment_verdict: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OperatorJudgment {
+  id: number;
+  verdict: 'noise' | 'real' | 'needs_followup';
+  reason_codes_json: string[];
+  recovered_amount: string | null;
+  recovered_date: string | null;
+  notes: string;
+  operator_username: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlertEventListParams {
+  page?: number;
+  page_size?: number;
+  ordering?: string;
+  status?: string;
+  specialty?: string;
+  search?: string;
 }

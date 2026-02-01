@@ -208,3 +208,85 @@ def get_variance_threshold() -> float:
         float: Variance threshold (default 0.85)
     """
     return getattr(settings, "PTOT_VARIANCE_THRESHOLD", DEFAULT_VARIANCE_THRESHOLD)
+
+
+# =============================================================================
+# G-CODE FUNCTIONAL LIMITATION CONSTANTS
+# =============================================================================
+
+# 7 Functional Limitation Categories per CMS
+FUNCTIONAL_LIMITATION_CATEGORIES = {
+    "MOBILITY": {
+        "name": "Mobility",
+        "description": "Walking & Moving Around",
+        "gcodes": {"current": "G8978", "goal": "G8979", "discharge": "G8980"},
+    },
+    "CHANGING_POSITION": {
+        "name": "Changing/Maintaining Position",
+        "description": "Body Positions",
+        "gcodes": {"current": "G8981", "goal": "G8982", "discharge": "G8983"},
+    },
+    "CARRYING": {
+        "name": "Carrying/Moving Objects",
+        "description": "Lifting & Carrying",
+        "gcodes": {"current": "G8984", "goal": "G8985", "discharge": "G8986"},
+    },
+    "SELF_CARE": {
+        "name": "Self Care",
+        "description": "ADLs",
+        "gcodes": {"current": "G8987", "goal": "G8988", "discharge": "G8989"},
+    },
+    "OTHER_PT": {
+        "name": "Other PT/OT Primary",
+        "description": "Other PT/OT",
+        "gcodes": {"current": "G8990", "goal": "G8991", "discharge": "G8992"},
+    },
+    "OTHER_SLP": {
+        "name": "Other SLP Primary",
+        "description": "Speech-Language",
+        "gcodes": {"current": "G8993", "goal": "G8994", "discharge": "G8995"},
+    },
+    "SWALLOWING": {
+        "name": "Swallowing",
+        "description": "Eating & Swallowing",
+        "gcodes": {"current": "G8996", "goal": "G8997", "discharge": "G8998"},
+    },
+}
+
+# G-code ranges for validation
+GCODE_RANGES = {
+    "current": ("G8978", "G8996"),
+    "goal": ("G8979", "G8997"),
+    "discharge": ("G8980", "G8998"),
+}
+
+# Severity modifiers (low to high severity)
+SEVERITY_MODIFIERS = ["CH", "CI", "CJ", "CK", "CL", "CM", "CN"]
+
+# Progress report interval (every N visits)
+PROGRESS_REPORT_VISIT_INTERVAL = 10
+
+# Reporting types
+REPORTING_TYPES = ("EVALUATION", "PROGRESS", "DISCHARGE")
+
+# CPT codes that require G-codes (evaluations)
+CPT_CODES_REQUIRING_GCODES = [
+    "97161",  # PT Eval Low
+    "97162",  # PT Eval Moderate
+    "97163",  # PT Eval High
+    "97164",  # PT Re-Eval
+    "97165",  # OT Eval Low
+    "97166",  # OT Eval Moderate
+    "97167",  # OT Eval High
+    "97168",  # OT Re-Eval
+    "92521",  # SLP Eval
+    "92522",  # SLP Eval
+    "92523",  # SLP Eval
+    "92524",  # SLP Eval
+]
+
+# Alert thresholds
+GCODE_ALERT_THRESHOLDS = {
+    "progress_report_warning_visits": 8,  # Alert 2 visits before required
+    "progress_report_due_visits": 10,  # Required at this visit
+}

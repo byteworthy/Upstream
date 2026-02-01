@@ -1334,6 +1334,7 @@ class AlertEventSerializer(serializers.ModelSerializer):
             "report_run",
             "triggered_at",
             "status",
+            "specialty",
             "payload",
             "notification_sent_at",
             "error_message",
@@ -1343,7 +1344,13 @@ class AlertEventSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "triggered_at"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "triggered_at",
+            "specialty",
+        ]
 
     def get_operator_judgments(self, obj):
         """
@@ -1911,9 +1918,9 @@ class ShadowModeResultSerializer(HATEOASMixin, serializers.ModelSerializer):
         ]
 
 
-class NetworkAlertSerializer(serializers.ModelSerializer):
+class NetworkAlertDetailSerializer(serializers.ModelSerializer):
     """
-    Serializer for NetworkAlert platform-level alerts.
+    Detail serializer for NetworkAlert platform-level alerts.
 
     NetworkAlerts are cross-customer intelligence showing when 3+ customers
     are affected by the same payer drift pattern.
@@ -1948,3 +1955,129 @@ class HealthCheckSerializer(serializers.Serializer):
     status = serializers.CharField(help_text="Health status: 'healthy' or 'unhealthy'")
     version = serializers.CharField(help_text="Application version")
     timestamp = serializers.DateTimeField(help_text="Current server timestamp")
+
+
+# =============================================================================
+# Specialty Module Serializers
+# =============================================================================
+
+
+class CustomerSpecialtyModuleSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CustomerSpecialtyModule model.
+
+    Represents specialty add-on modules that customers can enable beyond
+    their primary specialty.
+
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "specialty": "ABA",
+        "enabled": true,
+        "enabled_at": "2025-01-15T10:30:00Z",
+        "is_primary": false
+    }
+    ```
+    """
+
+    class Meta:
+        from ..models import CustomerSpecialtyModule
+
+        model = CustomerSpecialtyModule
+        fields = ["id", "specialty", "enabled", "enabled_at", "is_primary"]
+        read_only_fields = ["id", "enabled_at"]
+
+
+class CustomerWithSpecialtiesSerializer(HATEOASMixin, serializers.ModelSerializer):
+    """
+    Extended Customer serializer with specialty module information.
+
+    Includes the customer's primary specialty, enabled add-on modules,
+    and a convenience list of all enabled specialties.
+
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "name": "Memorial Dialysis Center",
+        "specialty_type": "DIALYSIS",
+        "specialty_modules": [
+            {"id": 1, "specialty": "ABA", "enabled": true}
+        ],
+        "enabled_specialties": ["DIALYSIS", "ABA"],
+        "_links": {...}
+    }
+    ```
+    """
+
+    specialty_modules = CustomerSpecialtyModuleSerializer(many=True, read_only=True)
+    enabled_specialties = serializers.ListField(
+        child=serializers.CharField(),
+        read_only=True,
+        help_text="List of all enabled specialty codes (primary + add-ons)",
+    )
+
+    class Meta:
+        model = Customer
+        fields = [
+            "id",
+            "name",
+            "specialty_type",
+            "specialty_modules",
+            "enabled_specialties",
+            "_links",
+        ]
+        read_only_fields = ["id", "enabled_specialties"]
+
+
+class SetPrimarySpecialtySerializer(serializers.Serializer):
+    """
+    Request serializer for setting a customer's primary specialty.
+
+    Used during onboarding or when changing the primary specialty type.
+
+    **Request Example:**
+    ```json
+    {
+        "specialty_type": "DIALYSIS"
+    }
+    ```
+    """
+
+    specialty_type = serializers.ChoiceField(
+        choices=[
+            ("DIALYSIS", "Dialysis"),
+            ("ABA", "ABA Therapy"),
+            ("PTOT", "PT/OT"),
+            ("IMAGING", "Imaging"),
+            ("HOME_HEALTH", "Home Health"),
+        ],
+        help_text="The specialty to set as primary",
+    )
+
+
+class EnableSpecialtySerializer(serializers.Serializer):
+    """
+    Request serializer for enabling/disabling specialty modules.
+
+    Used to add or remove specialty add-ons for a customer.
+
+    **Request Example:**
+    ```json
+    {
+        "specialty": "ABA"
+    }
+    ```
+    """
+
+    specialty = serializers.ChoiceField(
+        choices=[
+            ("DIALYSIS", "Dialysis"),
+            ("ABA", "ABA Therapy"),
+            ("PTOT", "PT/OT"),
+            ("IMAGING", "Imaging"),
+            ("HOME_HEALTH", "Home Health"),
+        ],
+        help_text="The specialty module to enable or disable",
+    )

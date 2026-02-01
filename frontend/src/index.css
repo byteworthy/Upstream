@@ -1,114 +1,544 @@
+/* Premium Typography - Plus Jakarta Sans + IBM Plex Mono */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 @import 'tailwindcss';
 
-/* Upstream Brand Colors and Theme */
+/* ═══════════════════════════════════════════════════════════════════════════
+   UPSTREAM DESIGN SYSTEM - Healthcare Enterprise Warmth
+   Inspired by: Adonis, AthenaHealth, Anaplan, Tableau
+
+   Aesthetic: Warm, approachable, data-rich, trustworthy
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @theme {
-  /* Upstream Brand Colors */
-  --color-upstream-50: #f0f9ff;
-  --color-upstream-100: #e0f2fe;
-  --color-upstream-200: #bae6fd;
-  --color-upstream-300: #7dd3fc;
-  --color-upstream-400: #38bdf8;
-  --color-upstream-500: #0ea5e9;
-  --color-upstream-600: #0284c7;
-  --color-upstream-700: #0369a1;
-  --color-upstream-800: #075985;
-  --color-upstream-900: #0c4a6e;
-  --color-upstream-950: #082f49;
+  /* ─────────────────────────────────────────────────────────────────────────
+     WARM HEALTHCARE COLOR PALETTE
+     ───────────────────────────────────────────────────────────────────────── */
 
-  /* Status Colors */
+  /* Primary Sage/Teal - Trust, healing, healthcare */
+  --color-upstream-50: #f0fdf4;
+  --color-upstream-100: #dcfce7;
+  --color-upstream-200: #bbf7d0;
+  --color-upstream-300: #86efac;
+  --color-upstream-400: #4ade80;
+  --color-upstream-500: #22c55e;
+  --color-upstream-600: #16a34a;
+  --color-upstream-700: #15803d;
+  --color-upstream-800: #166534;
+  --color-upstream-900: #14532d;
+  --color-upstream-950: #052e16;
+
+  /* Accent Warm Coral/Amber - Attention, warmth */
+  --color-accent-warm-50: #fff7ed;
+  --color-accent-warm-100: #ffedd5;
+  --color-accent-warm-200: #fed7aa;
+  --color-accent-warm-300: #fdba74;
+  --color-accent-warm-400: #fb923c;
+  --color-accent-warm-500: #f97316;
+  --color-accent-warm-600: #ea580c;
+  --color-accent-warm-700: #c2410c;
+
+  /* Semantic Status Colors - Healthcare clarity */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
   --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
   --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
   --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
 
-  /* Semantic Colors */
-  --color-background: #ffffff;
-  --color-foreground: #0f172a;
+  /* Info Blue - Athena-inspired calm blue */
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     WARM LIGHT THEME - Cream undertones, approachable
+     ───────────────────────────────────────────────────────────────────────── */
+  --color-background: #fafaf9;
+  --color-foreground: #1c1917;
   --color-card: #ffffff;
-  --color-card-foreground: #0f172a;
-  --color-primary: #0ea5e9;
-  --color-primary-foreground: #f8fafc;
-  --color-secondary: #f1f5f9;
-  --color-secondary-foreground: #1e293b;
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-accent: #f1f5f9;
-  --color-accent-foreground: #1e293b;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #f8fafc;
-  --color-border: #e2e8f0;
-  --color-input: #e2e8f0;
-  --color-ring: #0ea5e9;
+  --color-card-foreground: #1c1917;
+  --color-primary: #16a34a;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f5f5f4;
+  --color-secondary-foreground: #292524;
+  --color-muted: #f5f5f4;
+  --color-muted-foreground: #78716c;
+  --color-accent: #f0fdf4;
+  --color-accent-foreground: #15803d;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e7e5e4;
+  --color-input: #e7e5e4;
+  --color-ring: #16a34a;
 
-  /* Border Radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
+  /* Warm surface hierarchy */
+  --color-surface-0: #ffffff;
+  --color-surface-1: #fafaf9;
+  --color-surface-2: #f5f5f4;
+  --color-surface-3: #e7e5e4;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     REFINED DESIGN TOKENS
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Tableau-inspired rounded corners */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
   --radius-full: 9999px;
+
+  /* Refined shadows - softer, warmer */
+  --shadow-xs: 0 1px 2px 0 rgb(28 25 23 / 0.03);
+  --shadow-sm: 0 1px 3px 0 rgb(28 25 23 / 0.04), 0 1px 2px -1px rgb(28 25 23 / 0.03);
+  --shadow-md: 0 4px 6px -1px rgb(28 25 23 / 0.05), 0 2px 4px -2px rgb(28 25 23 / 0.03);
+  --shadow-lg: 0 10px 15px -3px rgb(28 25 23 / 0.05), 0 4px 6px -4px rgb(28 25 23 / 0.03);
+  --shadow-xl: 0 20px 25px -5px rgb(28 25 23 / 0.06), 0 8px 10px -6px rgb(28 25 23 / 0.04);
+  --shadow-glow: 0 0 20px -5px rgb(22 163 74 / 0.15);
 }
 
-/* Base styles */
+/* ═══════════════════════════════════════════════════════════════════════════
+   WARM DARK THEME - Deep slate with warm undertones
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dark {
+  color-scheme: dark;
+  --color-background: #0f0f0e;
+  --color-foreground: #fafaf9;
+  --color-card: #1a1a19;
+  --color-card-foreground: #fafaf9;
+  --color-primary: #4ade80;
+  --color-primary-foreground: #052e16;
+  --color-secondary: #292524;
+  --color-secondary-foreground: #e7e5e4;
+  --color-muted: #292524;
+  --color-muted-foreground: #a8a29e;
+  --color-accent: #1a2e1e;
+  --color-accent-foreground: #4ade80;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #3d3a37;
+  --color-input: #292524;
+  --color-ring: #4ade80;
+
+  /* Dark surface hierarchy */
+  --color-surface-0: #1a1a19;
+  --color-surface-1: #212120;
+  --color-surface-2: #292524;
+  --color-surface-3: #3d3a37;
+
+  /* Dark shadows with subtle glow */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.2);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.35);
+  --shadow-glow: 0 0 30px -5px rgb(74 222 128 / 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE STYLES - Premium healthcare typography
+   ═══════════════════════════════════════════════════════════════════════════ */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Open Sans',
-    'Helvetica Neue',
-    sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+  line-height: 1.6;
 }
 
-/* Dark mode support */
+/* Monospace for data - IBM Plex Mono (professional, readable) */
+.font-mono,
+code,
+pre,
+[data-mono] {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-feature-settings: 'liga' 1;
+}
+
+/* Tabular numbers for data alignment - Tableau best practice */
+.tabular-nums,
+[data-numeric],
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Balanced headings - Anaplan style */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PREMIUM CARD COMPONENTS - Athena-inspired clarity
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.card-premium {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card-premium:hover {
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+}
+
+/* Interactive card with lift */
+.card-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Warm gradient mesh background */
+.gradient-mesh {
+  background-image:
+    radial-gradient(at 0% 0%, rgb(22 163 74 / 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgb(249 115 22 / 0.03) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgb(22 163 74 / 0.02) 0px, transparent 50%);
+}
+
+.dark .gradient-mesh {
+  background-image:
+    radial-gradient(at 0% 0%, rgb(74 222 128 / 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgb(251 146 60 / 0.04) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgb(74 222 128 / 0.03) 0px, transparent 50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATUS BADGES - Healthcare clarity with warmth
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.badge-success {
+  background: linear-gradient(135deg, var(--color-success-50), var(--color-success-100));
+  color: var(--color-success-700);
+  border: 1px solid color-mix(in srgb, var(--color-success-500) 40%, transparent);
+}
+
+.badge-warning {
+  background: linear-gradient(135deg, var(--color-warning-50), var(--color-warning-100));
+  color: var(--color-warning-700);
+  border: 1px solid color-mix(in srgb, var(--color-warning-500) 40%, transparent);
+}
+
+.badge-danger {
+  background: linear-gradient(135deg, var(--color-danger-50), var(--color-danger-100));
+  color: var(--color-danger-700);
+  border: 1px solid color-mix(in srgb, var(--color-danger-500) 40%, transparent);
+}
+
+.badge-info {
+  background: linear-gradient(135deg, var(--color-info-50), var(--color-info-100));
+  color: var(--color-info-600);
+  border: 1px solid color-mix(in srgb, var(--color-info-500) 40%, transparent);
+}
+
+.dark .badge-success {
+  background: color-mix(in srgb, var(--color-success-500) 15%, transparent);
+  color: #4ade80;
+  border-color: color-mix(in srgb, var(--color-success-500) 30%, transparent);
+}
+
+.dark .badge-warning {
+  background: color-mix(in srgb, var(--color-warning-500) 15%, transparent);
+  color: #fbbf24;
+  border-color: color-mix(in srgb, var(--color-warning-500) 30%, transparent);
+}
+
+.dark .badge-danger {
+  background: color-mix(in srgb, var(--color-danger-500) 15%, transparent);
+  color: #f87171;
+  border-color: color-mix(in srgb, var(--color-danger-500) 30%, transparent);
+}
+
+.dark .badge-info {
+  background: color-mix(in srgb, var(--color-info-500) 15%, transparent);
+  color: #60a5fa;
+  border-color: color-mix(in srgb, var(--color-info-500) 30%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   METRIC DISPLAY - Tableau-inspired data visualization
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.metric-display {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.metric-large {
+  font-size: 2.25rem;
+  line-height: 1.1;
+}
+
+.metric-trend-up {
+  color: var(--color-success-600);
+}
+
+.metric-trend-down {
+  color: var(--color-danger-600);
+}
+
+.metric-trend-neutral {
+  color: var(--color-muted-foreground);
+}
+
+/* Data grid - Anaplan-inspired */
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TABLE STYLES - Adonis-inspired worklist clarity
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.table-row-interactive {
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.table-row-interactive:hover {
+  background-color: var(--color-accent);
+}
+
+.table-row-unread {
+  background-color: color-mix(in srgb, var(--color-warning-500) 5%, transparent);
+  border-left: 3px solid var(--color-warning-500);
+}
+
+.table-row-critical {
+  background-color: color-mix(in srgb, var(--color-danger-500) 5%, transparent);
+  border-left: 3px solid var(--color-danger-500);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS - Subtle, professional
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: fadeInUp 0.35s ease-out forwards;
+}
+
+.stagger-1 { animation-delay: 0.04s; }
+.stagger-2 { animation-delay: 0.08s; }
+.stagger-3 { animation-delay: 0.12s; }
+.stagger-4 { animation-delay: 0.16s; }
+.stagger-5 { animation-delay: 0.2s; }
+.stagger-6 { animation-delay: 0.24s; }
+
+/* Live indicator pulse - healthcare monitoring */
+@keyframes pulse-health {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgb(22 163 74 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(22 163 74 / 0);
+  }
+}
+
+.live-indicator {
+  animation: pulse-health 2s ease-in-out infinite;
+}
+
+/* Skeleton loading - warm tones */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted) 0%,
+    var(--color-surface-0) 50%,
+    var(--color-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOCUS STATES - Accessible, warm
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring);
+}
+
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-ring);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ring) 15%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR - Refined, warm
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPECIALTY MODULE COLORS - Warm healthcare palette
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.specialty-dialysis { --specialty-color: #0891b2; }
+.specialty-aba { --specialty-color: #7c3aed; }
+.specialty-imaging { --specialty-color: #ea580c; }
+.specialty-homehealth { --specialty-color: #16a34a; }
+.specialty-ptot { --specialty-color: #db2777; }
+
+.specialty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--specialty-color) 12%, transparent);
+  color: var(--specialty-color);
+  border: 1px solid color-mix(in srgb, var(--specialty-color) 25%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHART COLORS - Tableau-inspired warm palette (4-6 colors max)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --chart-1: #16a34a; /* Primary green */
+  --chart-2: #0891b2; /* Teal */
+  --chart-3: #f97316; /* Warm orange */
+  --chart-4: #8b5cf6; /* Purple */
+  --chart-5: #ec4899; /* Pink */
+  --chart-6: #78716c; /* Neutral */
+}
+
 .dark {
-  --color-background: #0f172a;
-  --color-foreground: #f8fafc;
-  --color-card: #1e293b;
-  --color-card-foreground: #f8fafc;
-  --color-primary: #38bdf8;
-  --color-primary-foreground: #0f172a;
-  --color-secondary: #334155;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #334155;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #334155;
-  --color-accent-foreground: #f8fafc;
-  --color-destructive: #dc2626;
-  --color-destructive-foreground: #f8fafc;
-  --color-border: #334155;
-  --color-input: #334155;
-  --color-ring: #38bdf8;
+  --chart-1: #4ade80;
+  --chart-2: #22d3ee;
+  --chart-3: #fb923c;
+  --chart-4: #a78bfa;
+  --chart-5: #f472b6;
+  --chart-6: #a8a29e;
 }
 
-/* Dark mode transition */
-html {
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION - Accessibility
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Smooth theme transition for all elements */
-*,
-*::before,
-*::after {
-  transition:
-    background-color 0.2s ease-in-out,
-    border-color 0.2s ease-in-out,
-    color 0.2s ease-in-out;
-}
-
-/* Disable transitions for reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .live-indicator {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .card-premium {
+    box-shadow: none;
+    border: 1px solid #d1d5db;
   }
 }

@@ -1022,3 +1022,345 @@ class HomeHealthService:
             "pdgm_assigned": pdgm_assigned,
             "pdgm_assignment_rate": (pdgm_assigned / total * 100) if total else 0,
         }
+
+    # =========================================================================
+    # CERTIFICATION CYCLE MANAGEMENT
+    # =========================================================================
+
+    def create_initial_certification_cycle(self, episode):
+        """
+        Create the initial certification cycle for a new episode.
+
+        Args:
+            episode: HomeHealthEpisode instance
+
+        Returns:
+            Created CertificationCycle instance
+        """
+        from upstream.products.homehealth.models import CertificationCycle
+
+        # Calculate 60-day cycle end from SOC
+        cycle_end = episode.soc_date + timedelta(days=60)
+
+        cycle = CertificationCycle.objects.create(
+            customer=episode.customer,
+            episode=episode,
+            cycle_number=1,
+            cycle_start=episode.soc_date,
+            cycle_end=cycle_end,
+            status="ACTIVE",
+        )
+
+        return cycle
+
+    def get_active_certification_cycles(self, customer):
+        """
+        Get all active certification cycles for a customer.
+
+        Args:
+            customer: Customer instance
+
+        Returns:
+            QuerySet of CertificationCycle instances
+        """
+        from upstream.products.homehealth.models import CertificationCycle
+
+        return (
+            CertificationCycle.all_objects.filter(
+                customer=customer,
+                status="ACTIVE",
+            )
+            .select_related("episode")
+            .order_by("cycle_end")
+        )
+
+    def get_cycles_approaching_deadline(self, customer, days_ahead: int = 14) -> list:
+        """
+        Get certification cycles with recertification due within specified days.
+
+        Returns cycles organized by urgency level:
+        - 45 days: INFO - Recert window opening
+        - 30 days: MEDIUM - Recert deadline approaching
+        - 21 days: HIGH - Urgent recert needed
+        - 14 days: CRITICAL - Imminent expiration
+
+        Args:
+            customer: Customer instance
+            days_ahead: Maximum days ahead to look (default 14)
+
+        Returns:
+            list of dicts with cycle info and urgency level
+        """
+        from upstream.products.homehealth.models import CertificationCycle
+
+        today = date.today()
+        cutoff = today + timedelta(days=days_ahead)
+
+        cycles = (
+            CertificationCycle.all_objects.filter(
+                customer=customer,
+                status="ACTIVE",
+                cycle_end__gte=today,
+                cycle_end__lte=cutoff,
+            )
+            .select_related("episode")
+            .order_by("cycle_end")
+        )
+
+        results = []
+        for cycle in cycles:
+            days_remaining = (cycle.cycle_end - today).days
+
+            # Determine urgency level
+            if days_remaining <= 14:
+                severity = "critical"
+            elif days_remaining <= 21:
+                severity = "high"
+            elif days_remaining <= 30:
+                severity = "medium"
+            else:
+                severity = "info"
+
+            results.append(
+                {
+                    "cycle": cycle,
+                    "cycle_id": cycle.id,
+                    "episode_id": cycle.episode_id,
+                    "patient_identifier": cycle.episode.patient_identifier,
+                    "cycle_number": cycle.cycle_number,
+                    "cycle_end": cycle.cycle_end,
+                    "days_remaining": days_remaining,
+                    "severity": severity,
+                    "physician_recert_signed": cycle.physician_recert_signed,
+                }
+            )
+
+        return results
+
+    def check_certification_deadlines(self, customer) -> list:
+        """
+        Check all certification deadlines and return alerts for action.
+
+        Returns alerts at these thresholds:
+        - 45 days before: INFO alert
+        - 30 days before: MEDIUM alert
+        - 21 days before: HIGH alert
+        - 14 days before: CRITICAL alert
+        - Past deadline: EXPIRED
+
+        Args:
+            customer: Customer instance
+
+        Returns:
+            list of CertificationDeadlineResult with alerts
+        """
+        from upstream.products.homehealth.models import CertificationCycle
+
+        today = date.today()
+        results = []
+
+        # Get all active cycles
+        cycles = CertificationCycle.all_objects.filter(
+            customer=customer,
+            status="ACTIVE",
+        ).select_related("episode")
+
+        for cycle in cycles:
+            days_remaining = (cycle.cycle_end - today).days
+
+            # Skip if plenty of time remaining
+            if days_remaining > 45:
+                continue
+
+            # Determine severity and message
+            if days_remaining < 0:
+                severity = "critical"
+                message = f"Recertification EXPIRED {abs(days_remaining)} days ago"
+                if cycle.status != "EXPIRED":
+                    cycle.status = "EXPIRED"
+                    cycle.save()
+            elif days_remaining <= 14:
+                severity = "critical"
+                message = f"Recertification CRITICAL: {days_remaining} days remaining"
+            elif days_remaining <= 21:
+                severity = "high"
+                message = f"Recertification URGENT: {days_remaining} days remaining"
+            elif days_remaining <= 30:
+                severity = "medium"
+                message = f"Recertification approaching: {days_remaining} days"
+            else:  # 31-45 days
+                severity = "info"
+                message = f"Recertification window: {days_remaining} days"
+
+            results.append(
+                {
+                    "cycle_id": cycle.id,
+                    "episode_id": cycle.episode_id,
+                    "patient_identifier": cycle.episode.patient_identifier,
+                    "cycle_number": cycle.cycle_number,
+                    "cycle_start": cycle.cycle_start,
+                    "cycle_end": cycle.cycle_end,
+                    "days_remaining": days_remaining,
+                    "severity": severity,
+                    "message": message,
+                    "physician_recert_signed": cycle.physician_recert_signed,
+                    "requires_action": days_remaining <= 30
+                    and not cycle.physician_recert_signed,
+                }
+            )
+
+        # Sort by days remaining (most urgent first)
+        results.sort(key=lambda x: x["days_remaining"])
+        return results
+
+    def recertify_cycle(
+        self,
+        cycle,
+        physician_name: str = None,
+        recert_date: date = None,
+        create_next_cycle: bool = True,
+    ):
+        """
+        Process recertification for a cycle.
+
+        Args:
+            cycle: CertificationCycle instance
+            physician_name: Name of recertifying physician
+            recert_date: Date of recertification
+            create_next_cycle: Whether to create the next 60-day cycle
+
+        Returns:
+            tuple: (current_cycle, next_cycle or None)
+        """
+        # Mark current cycle as recertified
+        cycle.mark_recertified(
+            physician_name=physician_name,
+            recert_date=recert_date,
+        )
+
+        # Create next cycle if requested
+        next_cycle = None
+        if create_next_cycle:
+            next_cycle = cycle.create_next_cycle()
+
+        return cycle, next_cycle
+
+    def create_recertification_alert(
+        self,
+        customer,
+        cycle_result: dict,
+        alert_rule: Optional[AlertRule] = None,
+    ) -> Optional[AlertEvent]:
+        """
+        Create an AlertEvent for certification deadline.
+
+        Args:
+            customer: Customer instance
+            cycle_result: Result from check_certification_deadlines
+            alert_rule: AlertRule to use (auto-creates if not provided)
+
+        Returns:
+            Created AlertEvent or None if not actionable
+        """
+        # Only create alerts for medium severity and above
+        if cycle_result["severity"] not in ("medium", "high", "critical"):
+            return None
+
+        if alert_rule is None:
+            alert_rule = self._get_or_create_cert_alert_rule(customer)
+
+        payload = {
+            "type": "homehealth_recertification_due",
+            "cycle_id": cycle_result["cycle_id"],
+            "episode_id": cycle_result["episode_id"],
+            "patient_identifier": cycle_result["patient_identifier"],
+            "cycle_number": cycle_result["cycle_number"],
+            "cycle_start": str(cycle_result["cycle_start"]),
+            "cycle_end": str(cycle_result["cycle_end"]),
+            "days_remaining": cycle_result["days_remaining"],
+            "severity": cycle_result["severity"],
+            "message": cycle_result["message"],
+            "requires_action": cycle_result["requires_action"],
+        }
+
+        alert = AlertEvent.objects.create(
+            customer=customer,
+            alert_rule=alert_rule,
+            triggered_at=timezone.now(),
+            status="pending",
+            payload=payload,
+        )
+
+        return alert
+
+    def _get_or_create_cert_alert_rule(self, customer) -> AlertRule:
+        """Get or create alert rule for certification cycle alerts."""
+        cache_key = f"{customer.id}_homehealth_cert"
+        if cache_key in self._alert_rule_cache:
+            return self._alert_rule_cache[cache_key]
+
+        rule, _ = AlertRule.objects.get_or_create(
+            customer=customer,
+            name="Home Health Recertification Due",
+            defaults={
+                "description": "Alert when 60-day recertification deadline approaching",
+                "metric": "certification_days_remaining",
+                "threshold_type": "lte",
+                "threshold_value": 30.0,
+                "enabled": True,
+                "severity": "warning",
+                "scope": {
+                    "service_type": "HOME_HEALTH",
+                    "alert_type": "recertification",
+                },
+            },
+        )
+
+        self._alert_rule_cache[cache_key] = rule
+        return rule
+
+    def process_certification_alerts(self, customer) -> dict:
+        """
+        Process all certification deadline alerts for a customer.
+
+        Checks deadlines and creates alerts as needed.
+
+        Args:
+            customer: Customer instance
+
+        Returns:
+            dict with processing summary
+        """
+        deadline_results = self.check_certification_deadlines(customer)
+
+        summary = {
+            "total_cycles_checked": len(deadline_results),
+            "alerts_created": 0,
+            "critical_count": 0,
+            "high_count": 0,
+            "medium_count": 0,
+            "expired_count": 0,
+        }
+
+        alert_rule = None
+
+        for result in deadline_results:
+            severity = result["severity"]
+            if severity == "critical" and result["days_remaining"] < 0:
+                summary["expired_count"] += 1
+            elif severity == "critical":
+                summary["critical_count"] += 1
+            elif severity == "high":
+                summary["high_count"] += 1
+            elif severity == "medium":
+                summary["medium_count"] += 1
+
+            # Create alert for actionable items
+            if result["requires_action"] or severity == "critical":
+                if alert_rule is None:
+                    alert_rule = self._get_or_create_cert_alert_rule(customer)
+                alert = self.create_recertification_alert(customer, result, alert_rule)
+                if alert:
+                    summary["alerts_created"] += 1
+
+        return summary

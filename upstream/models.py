@@ -5,6 +5,14 @@ from upstream.core.tenant import CustomerScopedManager
 
 
 class Customer(models.Model):
+    SPECIALTY_CHOICES = [
+        ("DIALYSIS", "Dialysis"),
+        ("ABA", "ABA Therapy"),
+        ("PTOT", "PT/OT"),
+        ("IMAGING", "Imaging"),
+        ("HOME_HEALTH", "Home Health"),
+    ]
+
     name = models.CharField(max_length=255, unique=True)
     stripe_customer_id = models.CharField(
         max_length=255,
@@ -13,9 +21,124 @@ class Customer(models.Model):
         null=True,
         help_text="Stripe customer ID (cus_xxxxx)",
     )
+    specialty_type = models.CharField(
+        max_length=20,
+        choices=SPECIALTY_CHOICES,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Customer's primary specialty (selected during onboarding)",
+    )
 
     def __str__(self):
         return self.name
+
+    @property
+    def enabled_specialties(self):
+        """
+        Return list of all enabled specialty codes.
+        Includes primary specialty plus any enabled add-on modules.
+        """
+        specialties = set()
+        # Include primary specialty if set
+        if self.specialty_type:
+            specialties.add(self.specialty_type)
+        # Include enabled add-on modules
+        enabled_modules = self.specialty_modules.filter(enabled=True).values_list(
+            "specialty", flat=True
+        )
+        specialties.update(enabled_modules)
+        return list(specialties)
+
+    def has_specialty(self, specialty_code: str) -> bool:
+        """
+        Check if customer has a specific specialty enabled.
+        Checks primary specialty first, then add-on modules.
+        """
+        code = specialty_code.upper()
+        # Check primary specialty first
+        if self.specialty_type == code:
+            return True
+        # Check enabled add-on modules
+        return self.specialty_modules.filter(specialty=code, enabled=True).exists()
+
+
+class CustomerSpecialtyModule(models.Model):
+    """
+    Junction table tracking which specialty modules are enabled per customer.
+    Primary specialty is set on Customer.specialty_type.
+    Additional modules here represent paid add-ons (+$99/mo each).
+    """
+
+    SPECIALTY_CHOICES = [
+        ("DIALYSIS", "Dialysis"),
+        ("ABA", "ABA Therapy"),
+        ("PTOT", "PT/OT"),
+        ("IMAGING", "Imaging"),
+        ("HOME_HEALTH", "Home Health"),
+    ]
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="specialty_modules",
+    )
+    specialty = models.CharField(
+        max_length=20,
+        choices=SPECIALTY_CHOICES,
+        db_index=True,
+    )
+    enabled = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Whether this module is currently enabled",
+    )
+    enabled_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this module was first enabled",
+    )
+    is_primary = models.BooleanField(
+        default=False,
+        help_text="Whether this is the customer's primary specialty",
+    )
+    # For billing tracking (future expansion)
+    stripe_subscription_item_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe subscription item for add-on billing",
+    )
+
+    class Meta:
+        db_table = "upstream_customer_specialty_module"
+        unique_together = ("customer", "specialty")
+        indexes = [
+            # Composite index for customer + specialty lookups
+            models.Index(
+                fields=["customer", "specialty"],
+                name="csm_customer_specialty_idx",
+            ),
+            # Composite index for enabled modules lookup
+            models.Index(
+                fields=["customer", "enabled"],
+                name="csm_customer_enabled_idx",
+            ),
+            # Composite index for primary specialty lookup
+            models.Index(
+                fields=["customer", "is_primary"],
+                name="csm_customer_primary_idx",
+            ),
+            # Covering index for common query pattern
+            models.Index(
+                fields=["customer", "specialty", "enabled"],
+                name="csm_customer_spec_enabled_idx",
+            ),
+        ]
+
+    def __str__(self):
+        status = "enabled" if self.enabled else "disabled"
+        primary_marker = " (primary)" if self.is_primary else ""
+        return f"{self.customer.name} - {self.specialty} [{status}]{primary_marker}"
 
 
 class Settings(models.Model):

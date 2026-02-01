@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { CustomerProvider } from '@/contexts/CustomerContext';
 import { authApi } from '@/lib/api';
 import { clearTokens, getUser, setUser, isAuthenticated } from '@/lib/auth';
 import type { User } from '@/types/api';
@@ -40,18 +41,27 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        customerName={user?.customer?.name}
-      />
-      <div className="flex flex-1 flex-col lg:ml-0">
-        <Header user={user} onMenuClick={() => setSidebarOpen(true)} onLogout={handleLogout} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <Outlet />
-        </main>
+    <CustomerProvider>
+      <div className="flex min-h-screen bg-background gradient-mesh">
+        {/* Premium Sidebar */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          customerName={user?.customer?.name}
+        />
+
+        {/* Main Content Area */}
+        <div className="flex flex-1 flex-col min-w-0">
+          <Header user={user} onMenuClick={() => setSidebarOpen(true)} onLogout={handleLogout} />
+
+          {/* Premium Main Content */}
+          <main className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-[1600px] p-4 lg:p-6 xl:p-8">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </CustomerProvider>
   );
 }

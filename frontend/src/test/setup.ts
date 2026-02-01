@@ -23,7 +23,8 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as any).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}

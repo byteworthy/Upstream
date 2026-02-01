@@ -16,6 +16,8 @@ import type {
   ClaimScoreListParams,
   Alert,
   AlertListParams,
+  AlertEvent,
+  AlertEventListParams,
   AutomationProfile,
   ExecutionLog,
   DashboardMetrics,
@@ -23,6 +25,8 @@ import type {
   PaginatedResponse,
   WorkQueueItem,
   WorkQueueListParams,
+  CustomerProfile,
+  SpecialtyType,
 } from '@/types/api';
 
 // Create axios instance with base configuration
@@ -355,6 +359,76 @@ export const workQueueApi = {
       ids,
       reason,
     });
+    return response.data;
+  },
+};
+
+// Customer API (Specialty Modules)
+export const customerApi = {
+  /**
+   * Get current customer with specialty information
+   */
+  getMe: async (): Promise<CustomerProfile> => {
+    const response = await apiClient.get<CustomerProfile>('/customers/me/');
+    return response.data;
+  },
+
+  /**
+   * Set primary specialty (onboarding)
+   */
+  setPrimarySpecialty: async (specialtyType: SpecialtyType): Promise<CustomerProfile> => {
+    const response = await apiClient.post<CustomerProfile>('/customers/set_primary_specialty/', {
+      specialty_type: specialtyType,
+    });
+    return response.data;
+  },
+
+  /**
+   * Enable an additional specialty module (+$99/mo)
+   */
+  enableSpecialty: async (specialty: SpecialtyType): Promise<CustomerProfile> => {
+    const response = await apiClient.post<CustomerProfile>('/customers/enable_specialty/', {
+      specialty,
+    });
+    return response.data;
+  },
+
+  /**
+   * Disable a specialty module (cannot disable primary)
+   */
+  disableSpecialty: async (specialty: SpecialtyType): Promise<CustomerProfile> => {
+    const response = await apiClient.post<CustomerProfile>('/customers/disable_specialty/', {
+      specialty,
+    });
+    return response.data;
+  },
+};
+
+// Alert Events API (with specialty filtering)
+export const alertEventsApi = {
+  list: async (params?: AlertEventListParams): Promise<PaginatedResponse<AlertEvent>> => {
+    const response = await apiClient.get<PaginatedResponse<AlertEvent>>('/alert-events/', {
+      params,
+    });
+    return response.data;
+  },
+
+  get: async (id: number): Promise<AlertEvent> => {
+    const response = await apiClient.get<AlertEvent>(`/alert-events/${id}/`);
+    return response.data;
+  },
+
+  submitFeedback: async (
+    id: number,
+    feedback: {
+      verdict: 'noise' | 'real' | 'needs_followup';
+      reason_codes?: string[];
+      recovered_amount?: string;
+      recovered_date?: string;
+      notes?: string;
+    }
+  ): Promise<unknown> => {
+    const response = await apiClient.post(`/alert-events/${id}/feedback/`, feedback);
     return response.data;
   },
 };

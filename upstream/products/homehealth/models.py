@@ -353,3 +353,210 @@ class HomeHealthEpisode(BaseModel):
             return group
         except HomeHealthPDGMGroup.DoesNotExist:
             return None
+
+
+class CertificationCycle(BaseModel):
+    """
+    Track 60-day home health certification cycles.
+
+    Medicare requires recertification every 60 days for continued care.
+    This model tracks:
+    - Cycle timing and deadlines
+    - Physician recertification requirements
+    - Face-to-face requirements for recertification
+    - Alerts for approaching/overdue deadlines
+    """
+
+    STATUS_CHOICES = [
+        ("ACTIVE", "Active Cycle"),
+        ("PENDING_RECERT", "Pending Recertification"),
+        ("RECERTIFIED", "Recertified"),
+        ("DISCHARGED", "Patient Discharged"),
+        ("EXPIRED", "Expired - No Recertification"),
+    ]
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="certification_cycles",
+    )
+    episode = models.ForeignKey(
+        HomeHealthEpisode,
+        on_delete=models.CASCADE,
+        related_name="certification_cycles",
+    )
+
+    # Cycle identification
+    cycle_number = models.PositiveIntegerField(
+        default=1,
+        help_text="Certification cycle number (1 = initial, 2+ = recertification)",
+    )
+    cycle_start = models.DateField(
+        db_index=True,
+        help_text="Start date of this 60-day certification period",
+    )
+    cycle_end = models.DateField(
+        db_index=True,
+        help_text="End date of this certification period (start + 60 days)",
+    )
+
+    # Recertification requirements
+    physician_recert_signed = models.BooleanField(
+        default=False,
+        help_text="Whether physician has signed recertification",
+    )
+    physician_recert_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Date physician signed recertification",
+    )
+    physician_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Name of certifying physician",
+    )
+
+    # Face-to-face requirements (for recertification)
+    f2f_required = models.BooleanField(
+        default=False,
+        help_text="Whether F2F encounter required for this recertification",
+    )
+    f2f_completed = models.BooleanField(
+        default=False,
+        help_text="Whether required F2F has been completed",
+    )
+    f2f_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Date of F2F encounter for recertification",
+    )
+
+    # Status tracking
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="ACTIVE",
+        db_index=True,
+    )
+
+    # Alert tracking
+    alert_45_day_sent = models.BooleanField(
+        default=False,
+        help_text="15-day warning alert has been sent",
+    )
+    alert_30_day_sent = models.BooleanField(
+        default=False,
+        help_text="30-day warning alert has been sent",
+    )
+    alert_21_day_sent = models.BooleanField(
+        default=False,
+        help_text="21-day urgent alert has been sent",
+    )
+    alert_14_day_sent = models.BooleanField(
+        default=False,
+        help_text="14-day critical alert has been sent",
+    )
+
+    objects = CustomerScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        db_table = "upstream_certificationcycle"
+        verbose_name = "Certification Cycle"
+        verbose_name_plural = "Certification Cycles"
+        ordering = ["episode", "cycle_number"]
+        indexes = [
+            models.Index(
+                fields=["customer", "status", "cycle_end"],
+                name="cert_status_end_idx",
+            ),
+            models.Index(
+                fields=["customer", "episode"],
+                name="cert_customer_episode_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["episode", "cycle_number"],
+                name="unique_episode_cycle",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Cycle {self.cycle_number} for Episode {self.episode_id}"
+
+    @property
+    def days_remaining(self):
+        """Calculate days until cycle end."""
+        from datetime import date
+
+        if self.cycle_end:
+            return (self.cycle_end - date.today()).days
+        return None
+
+    @property
+    def is_expiring_soon(self):
+        """Check if cycle is expiring within 14 days."""
+        remaining = self.days_remaining
+        return remaining is not None and 0 < remaining <= 14
+
+    @property
+    def is_overdue(self):
+        """Check if recertification is overdue."""
+        from datetime import date
+
+        if self.status in ("RECERTIFIED", "DISCHARGED"):
+            return False
+        return self.cycle_end and date.today() > self.cycle_end
+
+    def calculate_cycle_end(self):
+        """Calculate and set cycle end date (start + 60 days)."""
+        from datetime import timedelta
+
+        if self.cycle_start:
+            self.cycle_end = self.cycle_start + timedelta(days=60)
+            return self.cycle_end
+        return None
+
+    def mark_recertified(self, physician_name=None, recert_date=None):
+        """
+        Mark this cycle as recertified.
+
+        Args:
+            physician_name: Name of certifying physician
+            recert_date: Date of recertification (defaults to today)
+        """
+        from datetime import date
+
+        self.physician_recert_signed = True
+        self.physician_recert_date = recert_date or date.today()
+        if physician_name:
+            self.physician_name = physician_name
+        self.status = "RECERTIFIED"
+        self.save()
+
+    def create_next_cycle(self):
+        """
+        Create the next certification cycle.
+
+        Returns:
+            CertificationCycle: The newly created cycle
+        """
+        from datetime import timedelta
+
+        if self.status != "RECERTIFIED":
+            raise ValueError(
+                "Cannot create next cycle until current cycle is recertified"
+            )
+
+        next_start = self.cycle_end + timedelta(days=1)
+        next_end = next_start + timedelta(days=60)
+
+        return CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=self.cycle_number + 1,
+            cycle_start=next_start,
+            cycle_end=next_end,
+            status="ACTIVE",
+        )

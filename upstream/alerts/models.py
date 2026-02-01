@@ -201,6 +201,22 @@ class AlertEvent(BaseModel):
     notification_sent_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True, null=True)
 
+    # Specialty module categorization
+    specialty = models.CharField(
+        max_length=20,
+        choices=[
+            ("DIALYSIS", "Dialysis"),
+            ("ABA", "ABA Therapy"),
+            ("PTOT", "PT/OT"),
+            ("IMAGING", "Imaging"),
+            ("HOME_HEALTH", "Home Health"),
+            ("CORE", "Core Platform"),
+        ],
+        default="CORE",
+        db_index=True,
+        help_text="Specialty module this alert belongs to",
+    )
+
     # Tenant isolation
     objects = CustomerScopedManager()
     all_objects = models.Manager()  # Unfiltered access for superusers
@@ -225,6 +241,16 @@ class AlertEvent(BaseModel):
             models.Index(
                 fields=["customer", "alert_rule", "status"],
                 name="alertevt_rule_status_idx",
+            ),
+            # Specialty filtering index
+            models.Index(
+                fields=["customer", "specialty", "-triggered_at"],
+                name="alertevt_specialty_idx",
+            ),
+            # Composite index for specialty + status filtering
+            models.Index(
+                fields=["customer", "specialty", "status"],
+                name="alertevt_spec_status_idx",
             ),
         ]
 

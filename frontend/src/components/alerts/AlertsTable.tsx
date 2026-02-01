@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { SeverityBadge } from './SeverityBadge';
-import type { Alert, AlertSeverity } from '@/types/api';
+import type { Alert, AlertSeverity, SpecialtyType } from '@/types/api';
 import { cn } from '@/lib/utils';
+import { SPECIALTY_LABELS } from '@/contexts/CustomerContext';
 
 interface AlertsTableProps {
   alerts: Alert[];
@@ -195,9 +196,16 @@ export function AlertsTable({ alerts, onAcknowledge, onResolve, isProcessing }: 
                 <SeverityBadge severity={alert.severity} />
               </TableCell>
               <TableCell>
-                <span className="text-sm text-muted-foreground">
-                  {alertTypeLabels[alert.alert_type] || alert.alert_type}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-muted-foreground">
+                    {alertTypeLabels[alert.alert_type] || alert.alert_type}
+                  </span>
+                  {alert.specialty && alert.specialty !== 'CORE' && (
+                    <span className="inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 text-xs font-medium bg-accent text-accent-foreground">
+                      {SPECIALTY_LABELS[alert.specialty as SpecialtyType]}
+                    </span>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 <span className="text-sm text-muted-foreground">

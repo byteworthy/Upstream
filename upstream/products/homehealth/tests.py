@@ -976,3 +976,425 @@ class HomeHealthEpisodeModelTest(TestCase):
         self.assertEqual(episode.customer, self.customer)
         customer_episodes = HomeHealthEpisode.all_objects.filter(customer=self.customer)
         self.assertIn(episode, customer_episodes)
+
+
+# ============================================================================
+# Certification Cycle Tests
+# ============================================================================
+
+
+class CertificationCycleModelTest(TestCase):
+    """Tests for CertificationCycle model."""
+
+    @classmethod
+    def setUpTestData(cls):
+        """Set up test data for all tests."""
+        from upstream.models import Customer
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        cls.customer = Customer.objects.create(name="Test HH Provider Cert")
+        cls.episode = HomeHealthEpisode.objects.create(
+            customer=cls.customer,
+            patient_identifier="PT_CERT_TEST",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+        )
+
+    def test_create_certification_cycle(self):
+        """Test creating a certification cycle."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=1,
+            cycle_start=date(2025, 6, 1),
+            cycle_end=date(2025, 7, 31),
+        )
+
+        self.assertEqual(cycle.cycle_number, 1)
+        self.assertEqual(cycle.cycle_start, date(2025, 6, 1))
+        self.assertEqual(cycle.cycle_end, date(2025, 7, 31))
+        self.assertEqual(cycle.status, "ACTIVE")
+
+    def test_certification_cycle_str(self):
+        """Test string representation."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=2,
+            cycle_start=date(2025, 8, 1),
+            cycle_end=date(2025, 9, 30),
+        )
+
+        self.assertIn("Cycle 2", str(cycle))
+
+    def test_calculate_cycle_end(self):
+        """Test automatic cycle end calculation."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        cycle = CertificationCycle(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=1,
+            cycle_start=date(2025, 6, 1),
+        )
+
+        end_date = cycle.calculate_cycle_end()
+        self.assertEqual(end_date, date(2025, 7, 31))  # 60 days from start
+        self.assertEqual(cycle.cycle_end, date(2025, 7, 31))
+
+    def test_days_remaining_property(self):
+        """Test days remaining property."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        # Cycle ending in 10 days
+        future_end = date.today() + timedelta(days=10)
+        cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=3,
+            cycle_start=date.today() - timedelta(days=50),
+            cycle_end=future_end,
+        )
+
+        self.assertEqual(cycle.days_remaining, 10)
+
+    def test_is_expiring_soon_property(self):
+        """Test is_expiring_soon property."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        # Cycle ending in 10 days (within 14 day window)
+        soon_cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=4,
+            cycle_start=date.today() - timedelta(days=50),
+            cycle_end=date.today() + timedelta(days=10),
+        )
+        self.assertTrue(soon_cycle.is_expiring_soon)
+
+        # Cycle ending in 30 days (outside window)
+        later_cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=5,
+            cycle_start=date.today() - timedelta(days=30),
+            cycle_end=date.today() + timedelta(days=30),
+        )
+        self.assertFalse(later_cycle.is_expiring_soon)
+
+    def test_is_overdue_property(self):
+        """Test is_overdue property."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        # Overdue cycle (ended yesterday)
+        overdue_cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=6,
+            cycle_start=date.today() - timedelta(days=61),
+            cycle_end=date.today() - timedelta(days=1),
+        )
+        self.assertTrue(overdue_cycle.is_overdue)
+
+        # Active cycle
+        active_cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=7,
+            cycle_start=date.today() - timedelta(days=30),
+            cycle_end=date.today() + timedelta(days=30),
+        )
+        self.assertFalse(active_cycle.is_overdue)
+
+    def test_mark_recertified(self):
+        """Test marking a cycle as recertified."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=8,
+            cycle_start=date(2025, 6, 1),
+            cycle_end=date(2025, 7, 31),
+        )
+
+        cycle.mark_recertified(
+            physician_name="Dr. Smith", recert_date=date(2025, 7, 25)
+        )
+
+        cycle.refresh_from_db()
+        self.assertEqual(cycle.status, "RECERTIFIED")
+        self.assertTrue(cycle.physician_recert_signed)
+        self.assertEqual(cycle.physician_name, "Dr. Smith")
+        self.assertEqual(cycle.physician_recert_date, date(2025, 7, 25))
+
+    def test_create_next_cycle(self):
+        """Test creating the next cycle after recertification."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=9,
+            cycle_start=date(2025, 6, 1),
+            cycle_end=date(2025, 7, 31),
+        )
+
+        cycle.mark_recertified()
+        next_cycle = cycle.create_next_cycle()
+
+        self.assertEqual(next_cycle.cycle_number, 10)
+        self.assertEqual(
+            next_cycle.cycle_start, date(2025, 8, 1)
+        )  # Day after previous end
+        self.assertEqual(next_cycle.cycle_end, date(2025, 9, 30))  # 60 days from start
+        self.assertEqual(next_cycle.status, "ACTIVE")
+
+    def test_create_next_cycle_requires_recertified(self):
+        """Test that creating next cycle requires recertified status."""
+        from upstream.products.homehealth.models import CertificationCycle
+
+        cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=10,
+            cycle_start=date(2025, 6, 1),
+            cycle_end=date(2025, 7, 31),
+            status="ACTIVE",  # Not recertified
+        )
+
+        with self.assertRaises(ValueError):
+            cycle.create_next_cycle()
+
+    def test_unique_episode_cycle_constraint(self):
+        """Test that episode + cycle_number must be unique."""
+        from django.db import IntegrityError
+        from upstream.products.homehealth.models import CertificationCycle
+
+        CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=self.episode,
+            cycle_number=11,
+            cycle_start=date(2025, 6, 1),
+            cycle_end=date(2025, 7, 31),
+        )
+
+        with self.assertRaises(IntegrityError):
+            CertificationCycle.objects.create(
+                customer=self.customer,
+                episode=self.episode,
+                cycle_number=11,  # Duplicate
+                cycle_start=date(2025, 8, 1),
+                cycle_end=date(2025, 9, 30),
+            )
+
+
+class CertificationCycleServiceTest(TestCase):
+    """Tests for HomeHealthService certification cycle methods."""
+
+    @classmethod
+    def setUpTestData(cls):
+        """Set up test data."""
+        from upstream.models import Customer
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        cls.customer = Customer.objects.create(name="Test HH Cert Service")
+        cls.episode = HomeHealthEpisode.objects.create(
+            customer=cls.customer,
+            patient_identifier="PT_SVC_TEST",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+        )
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.service = HomeHealthService()
+
+    def test_create_initial_certification_cycle(self):
+        """Test creating initial certification cycle for episode."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_INIT_CYCLE",
+            payer="Medicare",
+            soc_date=date(2025, 7, 1),
+        )
+
+        cycle = self.service.create_initial_certification_cycle(episode)
+
+        self.assertEqual(cycle.cycle_number, 1)
+        self.assertEqual(cycle.cycle_start, date(2025, 7, 1))
+        self.assertEqual(cycle.cycle_end, date(2025, 8, 30))  # 60 days
+        self.assertEqual(cycle.episode, episode)
+
+    def test_get_active_certification_cycles(self):
+        """Test getting active cycles for customer."""
+        from upstream.products.homehealth.models import (
+            CertificationCycle,
+            HomeHealthEpisode,
+        )
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_ACTIVE",
+            payer="Medicare",
+            soc_date=date(2025, 8, 1),
+        )
+
+        CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=episode,
+            cycle_number=1,
+            cycle_start=date(2025, 8, 1),
+            cycle_end=date(2025, 9, 30),
+            status="ACTIVE",
+        )
+
+        cycles = self.service.get_active_certification_cycles(self.customer)
+        self.assertEqual(cycles.count(), 1)
+
+    def test_check_certification_deadlines(self):
+        """Test checking certification deadlines."""
+        from upstream.products.homehealth.models import (
+            CertificationCycle,
+            HomeHealthEpisode,
+        )
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_DEADLINE",
+            payer="Medicare",
+            soc_date=date.today() - timedelta(days=50),
+        )
+
+        # Cycle ending in 10 days (critical)
+        CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=episode,
+            cycle_number=1,
+            cycle_start=date.today() - timedelta(days=50),
+            cycle_end=date.today() + timedelta(days=10),
+            status="ACTIVE",
+        )
+
+        results = self.service.check_certification_deadlines(self.customer)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["days_remaining"], 10)
+        self.assertEqual(results[0]["severity"], "critical")
+
+    def test_check_certification_deadlines_severity_levels(self):
+        """Test different severity levels for deadlines."""
+        from upstream.products.homehealth.models import (
+            CertificationCycle,
+            HomeHealthEpisode,
+        )
+
+        # Create episodes with cycles at different urgency levels
+        severities = [
+            (10, "critical"),  # 10 days
+            (18, "high"),  # 18 days (within 21)
+            (25, "medium"),  # 25 days (within 30)
+            (40, "info"),  # 40 days (within 45)
+        ]
+
+        for i, (days, expected_severity) in enumerate(severities):
+            ep = HomeHealthEpisode.objects.create(
+                customer=self.customer,
+                patient_identifier=f"PT_SEV_{i}",
+                payer="Medicare",
+                soc_date=date.today() - timedelta(days=60 - days),
+            )
+            CertificationCycle.objects.create(
+                customer=self.customer,
+                episode=ep,
+                cycle_number=1,
+                cycle_start=date.today() - timedelta(days=60 - days),
+                cycle_end=date.today() + timedelta(days=days),
+                status="ACTIVE",
+            )
+
+        results = self.service.check_certification_deadlines(self.customer)
+
+        # Results sorted by days_remaining
+        result_severities = {r["days_remaining"]: r["severity"] for r in results}
+
+        for days, expected in severities:
+            self.assertEqual(result_severities.get(days), expected)
+
+    def test_recertify_cycle(self):
+        """Test recertifying a cycle and creating next."""
+        from upstream.products.homehealth.models import (
+            CertificationCycle,
+            HomeHealthEpisode,
+        )
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_RECERT",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+        )
+
+        cycle = CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=episode,
+            cycle_number=1,
+            cycle_start=date(2025, 6, 1),
+            cycle_end=date(2025, 7, 31),
+            status="ACTIVE",
+        )
+
+        recerted_cycle, next_cycle = self.service.recertify_cycle(
+            cycle,
+            physician_name="Dr. Johnson",
+            create_next_cycle=True,
+        )
+
+        self.assertEqual(recerted_cycle.status, "RECERTIFIED")
+        self.assertTrue(recerted_cycle.physician_recert_signed)
+        self.assertIsNotNone(next_cycle)
+        self.assertEqual(next_cycle.cycle_number, 2)
+
+    def test_get_cycles_approaching_deadline(self):
+        """Test getting cycles approaching deadline within days."""
+        from upstream.products.homehealth.models import (
+            CertificationCycle,
+            HomeHealthEpisode,
+        )
+
+        # Create cycle ending in 7 days
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_APPROACH",
+            payer="Medicare",
+            soc_date=date.today() - timedelta(days=53),
+        )
+
+        CertificationCycle.objects.create(
+            customer=self.customer,
+            episode=episode,
+            cycle_number=1,
+            cycle_start=date.today() - timedelta(days=53),
+            cycle_end=date.today() + timedelta(days=7),
+            status="ACTIVE",
+        )
+
+        # Should find it with 14-day lookahead
+        results = self.service.get_cycles_approaching_deadline(
+            self.customer, days_ahead=14
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["days_remaining"], 7)
+        self.assertEqual(results[0]["severity"], "critical")
+
+        # Should not find it with 5-day lookahead
+        results = self.service.get_cycles_approaching_deadline(
+            self.customer, days_ahead=5
+        )
+        self.assertEqual(len(results), 0)

@@ -12,16 +12,21 @@ from decimal import Decimal
 
 from django.test import TestCase
 
+from upstream.products.ptot.services import (
+    PTOTService,
+    PTOTGCodeService,
+    THERAPY_CAP_THRESHOLD,
+    GCodeValidationResult,
+)
 from upstream.products.ptot.constants import (
     TIME_BASED_CPTS,
     calculate_units_from_minutes,
     is_time_based_cpt,
     get_minutes_per_unit,
     EIGHT_MINUTE_RULE_THRESHOLDS,
-)
-from upstream.products.ptot.services import (
-    PTOTService,
-    THERAPY_CAP_THRESHOLD,
+    FUNCTIONAL_LIMITATION_CATEGORIES,
+    CPT_CODES_REQUIRING_GCODES,
+    PROGRESS_REPORT_VISIT_INTERVAL,
 )
 
 
@@ -126,8 +131,8 @@ class CalculateUnitsFromMinutesTest(TestCase):
     def test_boundary_values(self):
         """Test boundary values for unit transitions."""
         test_cases = [
-            (7, 0),   # Just below 8
-            (8, 1),   # Exactly 8
+            (7, 0),  # Just below 8
+            (8, 1),  # Exactly 8
             (22, 1),  # Top of 1 unit
             (23, 2),  # Start of 2 units
             (37, 2),  # Top of 2 units
@@ -136,8 +141,9 @@ class CalculateUnitsFromMinutesTest(TestCase):
         for minutes, expected in test_cases:
             result = calculate_units_from_minutes(minutes)
             self.assertEqual(
-                result, expected,
-                f"{minutes} min should be {expected} units, got {result}"
+                result,
+                expected,
+                f"{minutes} min should be {expected} units, got {result}",
             )
 
 
@@ -147,18 +153,14 @@ class IsTimeBasedCPTTest(TestCase):
     def test_time_based_cpt_returns_true(self):
         """Test that time-based CPTs return True."""
         for cpt in ["97110", "97112", "97140"]:
-            self.assertTrue(
-                is_time_based_cpt(cpt),
-                f"CPT {cpt} should be time-based"
-            )
+            self.assertTrue(is_time_based_cpt(cpt), f"CPT {cpt} should be time-based")
 
     def test_non_time_based_cpt_returns_false(self):
         """Test that non-time-based CPTs return False."""
         non_time_based = ["99213", "99214", "99215", "XXXXX"]
         for cpt in non_time_based:
             self.assertFalse(
-                is_time_based_cpt(cpt),
-                f"CPT {cpt} should NOT be time-based"
+                is_time_based_cpt(cpt), f"CPT {cpt} should NOT be time-based"
             )
 
 
@@ -185,17 +187,17 @@ class PTOTServiceEightMinuteRuleTest(TestCase):
     def test_valid_billing_returns_valid(self):
         """Test valid billing scenarios return is_valid=True."""
         valid_cases = [
-            ("97110", 15, 1),   # 15 min = 1 unit
-            ("97110", 22, 1),   # 22 min = 1 unit (max for 1)
-            ("97110", 23, 2),   # 23 min = 2 units
-            ("97110", 45, 3),   # 45 min = 3 units
+            ("97110", 15, 1),  # 15 min = 1 unit
+            ("97110", 22, 1),  # 22 min = 1 unit (max for 1)
+            ("97110", 23, 2),  # 23 min = 2 units
+            ("97110", 45, 3),  # 45 min = 3 units
         ]
         for cpt, minutes, units in valid_cases:
             claim = MockClaim(cpt=cpt, total_minutes=minutes, units=units)
             result = self.service.validate_8_minute_rule(claim)
             self.assertTrue(
                 result.is_valid,
-                f"{minutes}min/{units}u should be valid: {result.message}"
+                f"{minutes}min/{units}u should be valid: {result.message}",
             )
 
     def test_overbilling_detected(self):
@@ -436,6 +438,292 @@ class EightMinuteRuleThresholdsTest(TestCase):
             current_max = EIGHT_MINUTE_RULE_THRESHOLDS[sorted_units[i]][1]
             next_min = EIGHT_MINUTE_RULE_THRESHOLDS[sorted_units[i + 1]][0]
             self.assertEqual(
-                next_min, current_max + 1,
-                f"Gap between {sorted_units[i]} and {sorted_units[i+1]}"
+                next_min,
+                current_max + 1,
+                f"Gap between {sorted_units[i]} and {sorted_units[i+1]}",
+            )
+
+
+# =============================================================================
+# G-CODE VALIDATION TESTS
+# =============================================================================
+
+
+class MockGCodeClaim:
+    """Mock claim with G-code fields for testing."""
+
+    def __init__(
+        self,
+        cpt=None,
+        gcodes=None,
+        modifiers="",
+        visit_number=0,
+        is_discharge=False,
+        customer=None,
+        patient_id=None,
+    ):
+        self.cpt = cpt
+        self.gcodes = gcodes or []
+        self.modifiers = modifiers
+        self.visit_number = visit_number
+        self.is_discharge = is_discharge
+        self.customer = customer or MockCustomer()
+        self.patient_id = patient_id
+        self.id = 1
+
+
+class FunctionalLimitationCategoriesTest(TestCase):
+    """Tests for FUNCTIONAL_LIMITATION_CATEGORIES constant."""
+
+    def test_has_seven_categories(self):
+        """Test that there are exactly 7 functional limitation categories."""
+        self.assertEqual(len(FUNCTIONAL_LIMITATION_CATEGORIES), 7)
+
+    def test_all_categories_have_required_fields(self):
+        """Test all categories have name, description, and gcodes."""
+        required_fields = ["name", "description", "gcodes"]
+        for key, category in FUNCTIONAL_LIMITATION_CATEGORIES.items():
+            for field in required_fields:
+                self.assertIn(field, category, f"Category {key} missing {field}")
+
+    def test_all_categories_have_gcode_types(self):
+        """Test all categories have current, goal, and discharge gcodes."""
+        gcode_types = ["current", "goal", "discharge"]
+        for key, category in FUNCTIONAL_LIMITATION_CATEGORIES.items():
+            for gcode_type in gcode_types:
+                self.assertIn(
+                    gcode_type,
+                    category["gcodes"],
+                    f"Category {key} missing {gcode_type} gcode",
+                )
+
+
+class CPTCodesRequiringGCodesTest(TestCase):
+    """Tests for CPT_CODES_REQUIRING_GCODES constant."""
+
+    def test_includes_pt_evaluations(self):
+        """Test PT evaluation codes are included."""
+        pt_evals = ["97161", "97162", "97163", "97164"]
+        for cpt in pt_evals:
+            self.assertIn(cpt, CPT_CODES_REQUIRING_GCODES)
+
+    def test_includes_ot_evaluations(self):
+        """Test OT evaluation codes are included."""
+        ot_evals = ["97165", "97166", "97167", "97168"]
+        for cpt in ot_evals:
+            self.assertIn(cpt, CPT_CODES_REQUIRING_GCODES)
+
+    def test_includes_slp_evaluations(self):
+        """Test SLP evaluation codes are included."""
+        slp_evals = ["92521", "92522", "92523", "92524"]
+        for cpt in slp_evals:
+            self.assertIn(cpt, CPT_CODES_REQUIRING_GCODES)
+
+
+class GCodeValidationResultTest(TestCase):
+    """Tests for GCodeValidationResult dataclass."""
+
+    def test_create_valid_result(self):
+        """Test creating a valid G-code result."""
+        result = GCodeValidationResult(
+            is_valid=True,
+            requires_gcodes=True,
+            gcodes_present=True,
+            reporting_type="EVALUATION",
+        )
+        self.assertTrue(result.is_valid)
+        self.assertTrue(result.requires_gcodes)
+        self.assertEqual(result.missing_gcodes, [])
+
+    def test_create_invalid_result_with_missing(self):
+        """Test creating an invalid result with missing G-codes."""
+        result = GCodeValidationResult(
+            is_valid=False,
+            requires_gcodes=True,
+            gcodes_present=False,
+            missing_gcodes=["current", "goal"],
+            severity="critical",
+            reporting_type="EVALUATION",
+        )
+        self.assertFalse(result.is_valid)
+        self.assertEqual(len(result.missing_gcodes), 2)
+
+
+class PTOTGCodeServiceValidationTest(TestCase):
+    """Tests for PTOTGCodeService G-code validation."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.service = PTOTGCodeService()
+
+    def test_evaluation_cpt_requires_gcodes(self):
+        """Test evaluation CPT codes require G-codes."""
+        for cpt in ["97161", "97162", "97163"]:
+            claim = MockGCodeClaim(cpt=cpt, gcodes=[])
+            result = self.service.validate_gcode_reporting(claim)
+
+            self.assertTrue(result.requires_gcodes)
+            self.assertEqual(result.reporting_type, "EVALUATION")
+
+    def test_non_evaluation_cpt_no_gcodes_required(self):
+        """Test non-evaluation CPT codes don't require G-codes."""
+        claim = MockGCodeClaim(cpt="97110", visit_number=5)
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.is_valid)
+        self.assertFalse(result.requires_gcodes)
+
+    def test_10th_visit_requires_progress_report(self):
+        """Test 10th visit requires progress report G-codes."""
+        claim = MockGCodeClaim(cpt="97110", visit_number=10, gcodes=[])
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.requires_gcodes)
+        self.assertEqual(result.reporting_type, "PROGRESS")
+        self.assertEqual(result.visit_number, 10)
+
+    def test_20th_visit_requires_progress_report(self):
+        """Test 20th visit also requires progress report."""
+        claim = MockGCodeClaim(cpt="97110", visit_number=20, gcodes=[])
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.requires_gcodes)
+        self.assertEqual(result.reporting_type, "PROGRESS")
+
+    def test_discharge_requires_gcodes(self):
+        """Test discharge claims require G-codes."""
+        claim = MockGCodeClaim(cpt="97110", is_discharge=True, gcodes=[])
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.requires_gcodes)
+        self.assertEqual(result.reporting_type, "DISCHARGE")
+
+    def test_discharge_modifier_detected(self):
+        """Test DC modifier triggers discharge requirement."""
+        claim = MockGCodeClaim(cpt="97110", modifiers="DC,GP")
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.requires_gcodes)
+        self.assertEqual(result.reporting_type, "DISCHARGE")
+
+    def test_valid_evaluation_with_gcodes(self):
+        """Test evaluation with complete G-codes is valid."""
+        claim = MockGCodeClaim(
+            cpt="97161",
+            gcodes=["G8978", "G8979"],  # current and goal
+        )
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.is_valid)
+        self.assertTrue(result.gcodes_present)
+
+    def test_missing_current_gcode_detected(self):
+        """Test missing current G-code is detected."""
+        claim = MockGCodeClaim(
+            cpt="97161",
+            gcodes=["G8979"],  # Only goal, missing current
+        )
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertFalse(result.is_valid)
+        self.assertIn("current", result.missing_gcodes)
+
+    def test_missing_goal_gcode_detected(self):
+        """Test missing goal G-code is detected."""
+        claim = MockGCodeClaim(
+            cpt="97161",
+            gcodes=["G8978"],  # Only current, missing goal
+        )
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertFalse(result.is_valid)
+        self.assertIn("goal", result.missing_gcodes)
+
+    def test_discharge_missing_discharge_gcode(self):
+        """Test discharge missing discharge G-code."""
+        claim = MockGCodeClaim(
+            cpt="97110",
+            is_discharge=True,
+            gcodes=["G8978", "G8979"],  # Current and goal, but no discharge
+        )
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertFalse(result.is_valid)
+        self.assertIn("discharge", result.missing_gcodes)
+
+    def test_complete_discharge_gcodes_valid(self):
+        """Test discharge with all three G-codes is valid."""
+        claim = MockGCodeClaim(
+            cpt="97110",
+            is_discharge=True,
+            gcodes=["G8978", "G8979", "G8980"],  # current, goal, discharge
+        )
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.is_valid)
+
+    def test_evaluation_severity_is_critical(self):
+        """Test missing G-codes on evaluation is critical severity."""
+        claim = MockGCodeClaim(cpt="97161", gcodes=[])
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertEqual(result.severity, "critical")
+
+    def test_progress_severity_is_high(self):
+        """Test missing G-codes on progress report is high severity."""
+        claim = MockGCodeClaim(cpt="97110", visit_number=10, gcodes=[])
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertEqual(result.severity, "high")
+
+    def test_no_cpt_skips_validation(self):
+        """Test claim without CPT skips validation."""
+        claim = MockGCodeClaim(cpt=None)
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.is_valid)
+        self.assertFalse(result.requires_gcodes)
+
+    def test_gcodes_extracted_from_modifiers(self):
+        """Test G-codes can be extracted from modifiers field."""
+        claim = MockGCodeClaim(
+            cpt="97161",
+            modifiers="G8978,G8979,GP",
+        )
+        result = self.service.validate_gcode_reporting(claim)
+
+        self.assertTrue(result.is_valid)
+        self.assertTrue(result.gcodes_present)
+
+
+class ProgressReportIntervalTest(TestCase):
+    """Tests for progress report visit interval."""
+
+    def test_interval_is_10_visits(self):
+        """Test progress report required every 10 visits."""
+        self.assertEqual(PROGRESS_REPORT_VISIT_INTERVAL, 10)
+
+    def test_visits_requiring_progress(self):
+        """Test specific visit numbers require progress reports."""
+        service = PTOTGCodeService()
+
+        for visit in [10, 20, 30, 40, 50]:
+            claim = MockGCodeClaim(cpt="97110", visit_number=visit, gcodes=[])
+            result = service.validate_gcode_reporting(claim)
+
+            self.assertTrue(
+                result.requires_gcodes, f"Visit {visit} should require G-codes"
+            )
+            self.assertEqual(result.reporting_type, "PROGRESS")
+
+    def test_non_interval_visits_no_gcodes(self):
+        """Test non-10th visits don't require G-codes."""
+        service = PTOTGCodeService()
+
+        for visit in [1, 5, 9, 11, 15, 19]:
+            claim = MockGCodeClaim(cpt="97110", visit_number=visit)
+            result = service.validate_gcode_reporting(claim)
+
+            self.assertFalse(
+                result.requires_gcodes, f"Visit {visit} should NOT require G-codes"
             )

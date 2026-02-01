@@ -92,6 +92,7 @@ from .throttling import (
 
 from ..models import (
     Customer,
+    CustomerSpecialtyModule,
     Settings,
     Upload,
     ClaimRecord,
@@ -112,6 +113,9 @@ from upstream.ingestion import IngestionService
 from upstream.services.scoring import RiskScoringService
 from .serializers import (
     CustomerSerializer,
+    CustomerWithSpecialtiesSerializer,
+    SetPrimarySpecialtySerializer,
+    EnableSpecialtySerializer,
     SettingsSerializer,
     UploadSerializer,
     UploadSummarySerializer,
@@ -231,6 +235,12 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for viewing customer information.
     Users can only see their own customer.
+
+    Includes specialty module management:
+    - GET /customers/me/ - Get current customer with specialty info
+    - POST /customers/set_primary_specialty/ - Set primary specialty (onboarding)
+    - POST /customers/enable_specialty/ - Enable add-on module
+    - POST /customers/disable_specialty/ - Disable add-on module
     """
 
     queryset = Customer.objects.all()
@@ -240,12 +250,209 @@ class CustomerViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return Customer.objects.all()
+            return Customer.objects.prefetch_related("specialty_modules").all()
 
         customer = get_user_customer(user)
         if customer:
-            return Customer.objects.filter(id=customer.id)
+            return Customer.objects.prefetch_related("specialty_modules").filter(
+                id=customer.id
+            )
         return Customer.objects.none()
+
+    @extend_schema(
+        summary="Get current customer with specialties",
+        description=(
+            "Get the authenticated user's customer profile including "
+            "primary specialty, enabled add-on modules, and convenience "
+            "list of all enabled specialties."
+        ),
+        tags=["Customers"],
+        responses={
+            200: CustomerWithSpecialtiesSerializer,
+            401: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        """Get current user's customer with specialty information."""
+        customer = get_user_customer(request.user)
+        if not customer:
+            return Response(
+                {"error": "No customer found for user"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Prefetch specialty modules for efficiency
+        customer = (
+            Customer.objects.prefetch_related("specialty_modules")
+            .filter(id=customer.id)
+            .first()
+        )
+
+        serializer = CustomerWithSpecialtiesSerializer(
+            customer, context={"request": request}
+        )
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Set primary specialty",
+        description=(
+            "Set the customer's primary specialty. Typically done during "
+            "onboarding. Creates a corresponding CustomerSpecialtyModule "
+            "entry marked as primary."
+        ),
+        tags=["Customers"],
+        request=SetPrimarySpecialtySerializer,
+        responses={
+            200: CustomerWithSpecialtiesSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=False, methods=["post"])
+    def set_primary_specialty(self, request):
+        """Set primary specialty during onboarding."""
+        customer = get_user_customer(request.user)
+        if not customer:
+            return Response(
+                {"error": "No customer found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = SetPrimarySpecialtySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        specialty = serializer.validated_data["specialty_type"]
+
+        # Update customer's primary specialty
+        customer.specialty_type = specialty
+        customer.save(update_fields=["specialty_type"])
+
+        # Create or update specialty module as primary and enabled
+        CustomerSpecialtyModule.objects.update_or_create(
+            customer=customer,
+            specialty=specialty,
+            defaults={"is_primary": True, "enabled": True},
+        )
+
+        # Ensure other modules are not marked as primary
+        CustomerSpecialtyModule.objects.filter(customer=customer).exclude(
+            specialty=specialty
+        ).update(is_primary=False)
+
+        # Refresh customer and return
+        customer.refresh_from_db()
+        return Response(
+            CustomerWithSpecialtiesSerializer(
+                customer, context={"request": request}
+            ).data
+        )
+
+    @extend_schema(
+        summary="Enable specialty module",
+        description=(
+            "Enable an additional specialty module for the customer. "
+            "This is typically a paid add-on (+$99/mo per module). "
+            "Cannot enable a specialty that is already the primary."
+        ),
+        tags=["Customers"],
+        request=EnableSpecialtySerializer,
+        responses={
+            200: CustomerWithSpecialtiesSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=False, methods=["post"])
+    def enable_specialty(self, request):
+        """Enable an additional specialty module."""
+        customer = get_user_customer(request.user)
+        if not customer:
+            return Response(
+                {"error": "No customer found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = EnableSpecialtySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        specialty = serializer.validated_data["specialty"]
+
+        # Create or enable module
+        module, created = CustomerSpecialtyModule.objects.get_or_create(
+            customer=customer,
+            specialty=specialty,
+            defaults={
+                "enabled": True,
+                "is_primary": customer.specialty_type == specialty,
+            },
+        )
+
+        if not created and not module.enabled:
+            module.enabled = True
+            module.save(update_fields=["enabled"])
+
+        # Refresh and return
+        customer.refresh_from_db()
+        return Response(
+            CustomerWithSpecialtiesSerializer(
+                customer, context={"request": request}
+            ).data
+        )
+
+    @extend_schema(
+        summary="Disable specialty module",
+        description=(
+            "Disable a specialty module. Cannot disable the primary specialty. "
+            "The module is not deleted, just marked as disabled."
+        ),
+        tags=["Customers"],
+        request=EnableSpecialtySerializer,
+        responses={
+            200: CustomerWithSpecialtiesSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    )
+    @action(detail=False, methods=["post"])
+    def disable_specialty(self, request):
+        """Disable a specialty module."""
+        customer = get_user_customer(request.user)
+        if not customer:
+            return Response(
+                {"error": "No customer found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = EnableSpecialtySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        specialty = serializer.validated_data["specialty"]
+
+        # Cannot disable primary specialty
+        if customer.specialty_type == specialty:
+            return Response(
+                {"error": "Cannot disable primary specialty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Disable module (don't delete, just mark as disabled)
+        CustomerSpecialtyModule.objects.filter(
+            customer=customer,
+            specialty=specialty,
+        ).update(enabled=False)
+
+        # Refresh and return
+        customer.refresh_from_db()
+        return Response(
+            CustomerWithSpecialtiesSerializer(
+                customer, context={"request": request}
+            ).data
+        )
 
 
 @extend_schema_view(
@@ -1767,12 +1974,21 @@ class DashboardView(APIView):
         summary="List alert events",
         description=(
             "Retrieve a paginated list of alert events with operator "
-            "feedback. Read-only to preserve audit trail."
+            "feedback. Read-only to preserve audit trail. "
+            "By default, filters to customer's enabled specialties + CORE alerts."
         ),
         tags=["Alerts"],
         parameters=[
             OpenApiParameter(
                 name="status", type=str, description="Filter by alert status"
+            ),
+            OpenApiParameter(
+                name="specialty",
+                type=str,
+                description=(
+                    "Filter by specialty (comma-separated). "
+                    "Options: DIALYSIS, ABA, PTOT, IMAGING, HOME_HEALTH, CORE"
+                ),
             ),
             OpenApiParameter(
                 name="search", type=str, description="Search by payer name"
@@ -1799,6 +2015,10 @@ class AlertEventViewSet(ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelVi
     """
     API endpoint for alert events with operator feedback (HIGH-8).
     Read-only to preserve audit trail - alerts cannot be modified or deleted.
+
+    Specialty Filtering:
+    - By default, non-superusers only see alerts for their enabled specialties + CORE
+    - Use ?specialty=DIALYSIS,ABA to filter to specific specialties
     """
 
     queryset = (
@@ -1813,10 +2033,42 @@ class AlertEventViewSet(ETagMixin, CustomerFilterMixin, viewsets.ReadOnlyModelVi
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["status"]
+    filterset_fields = ["status", "specialty"]
     search_fields = ["drift_event__payer"]
     ordering_fields = ["triggered_at", "status"]
     ordering = ["-triggered_at"]
+
+    def get_queryset(self):
+        """
+        Override get_queryset to add specialty filtering.
+
+        For non-superusers, automatically filters to:
+        - CORE alerts (always shown)
+        - Alerts matching customer's enabled specialties
+
+        Explicit specialty filter (?specialty=X) takes precedence.
+        """
+        queryset = super().get_queryset()
+
+        # Check if explicit specialty filter is provided
+        specialty_param = self.request.query_params.get("specialty")
+        if specialty_param:
+            # User explicitly requested specific specialties
+            specialties = [s.strip().upper() for s in specialty_param.split(",")]
+            queryset = queryset.filter(specialty__in=specialties)
+        else:
+            # Auto-filter to customer's enabled specialties + CORE
+            user = self.request.user
+            if not user.is_superuser:
+                customer = get_user_customer(user)
+                if customer:
+                    # Get enabled specialties
+                    enabled = customer.enabled_specialties or []
+                    # Always include CORE alerts
+                    allowed = ["CORE"] + enabled
+                    queryset = queryset.filter(specialty__in=allowed)
+
+        return queryset
 
     @action(detail=True, methods=["post"], url_path="feedback")
     @extend_schema(

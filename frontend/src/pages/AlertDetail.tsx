@@ -44,6 +44,7 @@ export function AlertDetail() {
             'Claim #CLM-000123 has a 92% denial risk score due to potential coding issues. The diagnosis codes do not match the procedure codes billed.',
           severity: 'critical',
           alert_type: 'denial_risk',
+          specialty: 'CORE',
           claim: 123,
           claim_score: 1,
           evidence: {

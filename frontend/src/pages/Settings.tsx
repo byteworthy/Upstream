@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Settings2, AlertTriangle } from 'lucide-react';
+import {
+  Save,
+  RotateCcw,
+  Settings2,
+  AlertTriangle,
+  Activity,
+  Users,
+  Scan,
+  Home,
+  HeartPulse,
+  Loader2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,9 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { ThresholdSlider } from '@/components/settings/ThresholdSlider';
 import { ActionToggle } from '@/components/settings/ActionToggle';
 import { toast } from 'sonner';
+import {
+  useCustomer,
+  SPECIALTY_LABELS,
+  SPECIALTY_DESCRIPTIONS,
+  type SpecialtyType,
+} from '@/contexts/CustomerContext';
 
 interface AutomationSettings {
   automationStage: 'learning' | 'assisted' | 'supervised' | 'autonomous';
@@ -338,6 +356,9 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      {/* Specialty Modules */}
+      <SpecialtyModulesCard />
+
       {/* Save Button (Mobile) */}
       {hasChanges && (
         <div className="fixed bottom-4 left-4 right-4 sm:hidden">
@@ -348,5 +369,119 @@ export function Settings() {
         </div>
       )}
     </div>
+  );
+}
+
+// Icon mapping for specialties
+const SPECIALTY_ICONS: Record<SpecialtyType, React.ElementType> = {
+  DIALYSIS: Activity,
+  ABA: Users,
+  IMAGING: Scan,
+  HOME_HEALTH: Home,
+  PTOT: HeartPulse,
+};
+
+// All specialty types in display order
+const ALL_SPECIALTIES: SpecialtyType[] = ['DIALYSIS', 'ABA', 'IMAGING', 'HOME_HEALTH', 'PTOT'];
+
+function SpecialtyModulesCard() {
+  const { customer, loading, hasSpecialty, enableSpecialty, disableSpecialty } = useCustomer();
+  const [togglingSpecialty, setTogglingSpecialty] = useState<SpecialtyType | null>(null);
+
+  const handleToggle = async (specialty: SpecialtyType, enabled: boolean) => {
+    setTogglingSpecialty(specialty);
+    try {
+      if (enabled) {
+        await enableSpecialty(specialty);
+      } else {
+        await disableSpecialty(specialty);
+      }
+    } catch {
+      // Error is handled by context with toast
+    } finally {
+      setTogglingSpecialty(null);
+    }
+  };
+
+  const isPrimary = (specialty: SpecialtyType) => customer?.specialty_type === specialty;
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5" />
+            Specialty Modules
+          </CardTitle>
+          <CardDescription>Loading specialty configuration...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings2 className="h-5 w-5" />
+          Specialty Modules
+        </CardTitle>
+        <CardDescription>
+          Enable or disable specialty modules. Your primary specialty cannot be disabled.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {ALL_SPECIALTIES.map((specialty) => {
+          const Icon = SPECIALTY_ICONS[specialty];
+          const isEnabled = hasSpecialty(specialty);
+          const isPrimarySpec = isPrimary(specialty);
+          const isToggling = togglingSpecialty === specialty;
+
+          return (
+            <div
+              key={specialty}
+              className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground">
+                      {SPECIALTY_LABELS[specialty]}
+                    </span>
+                    {isPrimarySpec && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary">
+                        Primary
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {SPECIALTY_DESCRIPTIONS[specialty]}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {!isPrimarySpec && <span className="text-xs text-muted-foreground">+$99/mo</span>}
+                {isToggling ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <Switch
+                    checked={isEnabled}
+                    onCheckedChange={(checked) => handleToggle(specialty, checked)}
+                    disabled={isPrimarySpec}
+                    aria-label={`Toggle ${SPECIALTY_LABELS[specialty]}`}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }

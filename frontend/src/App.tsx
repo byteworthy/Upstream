@@ -9,6 +9,8 @@ import { AlertDetail } from '@/pages/AlertDetail';
 import { Authorizations } from '@/pages/Authorizations';
 import { ExecutionLog } from '@/pages/ExecutionLog';
 import { Settings } from '@/pages/Settings';
+import { SpecialtyRoute } from '@/components/guards';
+import { DialysisPage, ABAPage, ImagingPage, HomeHealthPage, PTOTPage } from '@/pages/specialty';
 
 // Placeholder pages - will be implemented in subsequent stories
 
@@ -37,6 +39,47 @@ function App() {
         <Route path="/authorizations" element={<Authorizations />} />
         <Route path="/execution-log" element={<ExecutionLog />} />
         <Route path="/settings" element={<Settings />} />
+        {/* Specialty-protected routes */}
+        <Route
+          path="/specialty/dialysis"
+          element={
+            <SpecialtyRoute specialty="DIALYSIS">
+              <DialysisPage />
+            </SpecialtyRoute>
+          }
+        />
+        <Route
+          path="/specialty/aba"
+          element={
+            <SpecialtyRoute specialty="ABA">
+              <ABAPage />
+            </SpecialtyRoute>
+          }
+        />
+        <Route
+          path="/specialty/imaging"
+          element={
+            <SpecialtyRoute specialty="IMAGING">
+              <ImagingPage />
+            </SpecialtyRoute>
+          }
+        />
+        <Route
+          path="/specialty/homehealth"
+          element={
+            <SpecialtyRoute specialty="HOME_HEALTH">
+              <HomeHealthPage />
+            </SpecialtyRoute>
+          }
+        />
+        <Route
+          path="/specialty/ptot"
+          element={
+            <SpecialtyRoute specialty="PTOT">
+              <PTOTPage />
+            </SpecialtyRoute>
+          }
+        />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

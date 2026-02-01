@@ -1,10 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, TrendingDown, BarChart3, Calendar } from 'lucide-react';
+import {
+  FileText,
+  TrendingDown,
+  BarChart3,
+  Calendar,
+  Activity,
+  Users,
+  Scan,
+  Home,
+  HeartPulse,
+} from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { ScoreDistribution } from '@/components/dashboard/ScoreDistribution';
 import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { dashboardApi } from '@/lib/api';
+import { useCustomer, SPECIALTY_LABELS, type SpecialtyType } from '@/contexts/CustomerContext';
 import type { DashboardMetrics } from '@/types/api';
 
 type DateRange = '7d' | '30d' | '90d';
@@ -38,6 +50,7 @@ export function Dashboard() {
             description: 'Claim #12345 has a 92% denial risk score',
             severity: 'high',
             alert_type: 'denial_risk',
+            specialty: 'CORE',
             claim: 12345,
             claim_score: 1,
             evidence: {},
@@ -57,6 +70,7 @@ export function Dashboard() {
             description: 'Patient auth expires in 3 days',
             severity: 'medium',
             alert_type: 'authorization_expiring',
+            specialty: 'CORE',
             claim: null,
             claim_score: null,
             evidence: {},
@@ -76,6 +90,7 @@ export function Dashboard() {
             description: 'Required documentation not found for claim #67890',
             severity: 'medium',
             alert_type: 'documentation_missing',
+            specialty: 'CORE',
             claim: 67890,
             claim_score: 2,
             evidence: {},
@@ -177,6 +192,75 @@ export function Dashboard() {
           }
         />
         <RecentAlerts alerts={metrics?.recent_alerts || []} />
+      </div>
+
+      {/* Specialty Widgets */}
+      <SpecialtyWidgets />
+    </div>
+  );
+}
+
+// Specialty widget icons
+const SPECIALTY_ICONS: Record<SpecialtyType, React.ElementType> = {
+  DIALYSIS: Activity,
+  ABA: Users,
+  IMAGING: Scan,
+  HOME_HEALTH: Home,
+  PTOT: HeartPulse,
+};
+
+// Specialty widget descriptions
+const SPECIALTY_WIDGET_DESCRIPTIONS: Record<SpecialtyType, string> = {
+  DIALYSIS: 'MA payment variance and ESRD PPS monitoring',
+  ABA: 'Authorization cycles and unit exhaustion tracking',
+  IMAGING: 'RBM requirements and AUC compliance',
+  HOME_HEALTH: 'PDGM validation and certification cycles',
+  PTOT: '8-minute rule compliance and G-code reporting',
+};
+
+function SpecialtyWidgets() {
+  const { hasSpecialty, loading } = useCustomer();
+
+  if (loading) {
+    return null;
+  }
+
+  const enabledSpecialties = (
+    ['DIALYSIS', 'ABA', 'IMAGING', 'HOME_HEALTH', 'PTOT'] as SpecialtyType[]
+  ).filter(hasSpecialty);
+
+  if (enabledSpecialties.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-foreground">Specialty Modules</h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {enabledSpecialties.map((specialty) => {
+          const Icon = SPECIALTY_ICONS[specialty];
+          return (
+            <Card key={specialty} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-4 w-4 text-primary" />
+                  </div>
+                  {SPECIALTY_LABELS[specialty]}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {SPECIALTY_WIDGET_DESCRIPTIONS[specialty]}
+                </p>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-2xl font-bold text-foreground">--</span>
+                  <span className="text-xs text-muted-foreground">Active alerts</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
