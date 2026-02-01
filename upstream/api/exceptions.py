@@ -1,14 +1,23 @@
 """
 Custom exception handler for standardized API error responses.
 
-Provides consistent error format across all API endpoints:
+Provides consistent error format across all API endpoints with RFC 7807 alignment:
 {
     "error": {
         "code": "validation_error",
         "message": "Invalid input data",
-        "details": {"field_name": ["error message"]}
+        "details": {"field_name": ["error message"]},
+        "type": "/errors/validation-error",  // Optional RFC 7807 type URI
+        "request_id": "abc123"  // Optional for debugging
     }
 }
+
+The error response format includes:
+- code: Machine-readable error code (e.g., validation_error, not_found)
+- message: Human-readable error message
+- details: Optional field-level errors or additional context
+- type: Optional RFC 7807 problem type URI for error documentation
+- request_id: Optional request ID from RequestIdMiddleware for support tracking
 """
 
 from rest_framework.views import exception_handler
@@ -36,13 +45,28 @@ def custom_exception_handler(exc, context):
     """
     Custom exception handler that returns standardized error responses.
 
+    Enhances error responses with request tracking and RFC 7807 alignment.
+    Extracts request_id from middleware for debugging support, and includes
+    optional type URI for error documentation.
+
     Args:
         exc: The exception instance
         context: Dict containing 'view' and 'request' keys
 
     Returns:
-        Response object with standardized error format
+        Response object with standardized error format including:
+        - code: Machine-readable error code
+        - message: Human-readable description
+        - details: Field-level errors or additional context
+        - type: Optional RFC 7807 problem type URI
+        - request_id: Optional request ID for support tracking
     """
+    # Extract request_id from middleware if available
+    request_id = None
+    if context and "request" in context:
+        request = context["request"]
+        request_id = getattr(request, "id", None)  # From RequestIdMiddleware
+
     # Call DRF's default exception handler first to get the standard error response
     response = exception_handler(exc, context)
 
@@ -66,45 +90,80 @@ def custom_exception_handler(exc, context):
                 extra={
                     "view": context.get("view"),
                     "request": context.get("request"),
+                    "request_id": request_id,
                 },
             )
             error_code = "internal_server_error"
             error_message = "An unexpected error occurred. Please try again later."
             status_code = 500
-            details = None
+            # Include request_id in details for 500 errors to aid debugging
+            details = {"request_id": request_id} if request_id else None
 
-        # Create standardized response
+        # Create standardized response with RFC 7807 type and request tracking
+        error_data = {
+            "code": error_code,
+            "message": error_message,
+            "details": details,
+            "type": _get_error_type_uri(error_code),
+        }
+        if request_id:
+            error_data["request_id"] = request_id
+
         response = Response(
-            {
-                "error": {
-                    "code": error_code,
-                    "message": error_message,
-                    "details": details,
-                }
-            },
+            {"error": error_data},
             status=status_code,
         )
         return response
 
     # Transform DRF error responses to our standard format
-    error_data = get_error_data(exc, response)
+    error_data = get_error_data(exc, response, context)
+
+    # Add RFC 7807 type URI
+    error_data["type"] = _get_error_type_uri(error_data["code"])
+
+    # Add request_id if available
+    if request_id:
+        error_data["request_id"] = request_id
 
     response.data = {"error": error_data}
 
     return response
 
 
-def get_error_data(exc, response):
+def _get_error_type_uri(error_code):
+    """
+    Generate RFC 7807 problem type URI for error documentation.
+
+    Maps error codes to URI paths that could link to API documentation.
+    This provides machine-readable error type identification following RFC 7807.
+
+    Args:
+        error_code: The error code string (e.g., "validation_error")
+
+    Returns:
+        URI string for the error type (e.g., "/errors/validation-error")
+    """
+    # Convert snake_case to kebab-case for URI
+    return f"/errors/{error_code.replace('_', '-')}"
+
+
+def get_error_data(exc, response, context):
     """
     Extract standardized error data from exception.
 
     Args:
         exc: The exception instance
         response: DRF Response object
+        context: Request context dict
 
     Returns:
         Dict with code, message, and details keys
     """
+    # Extract request_id for throttle and other errors that need tracking
+    request_id = None
+    if context and "request" in context:
+        request = context["request"]
+        request_id = getattr(request, "id", None)
     # Determine error code based on exception type
     if isinstance(exc, ValidationError):
         error_code = "validation_error"
@@ -157,7 +216,10 @@ def get_error_data(exc, response):
     elif isinstance(exc, Throttled):
         error_code = "throttled"
         error_message = "Request was throttled. Please try again later."
+        # Include wait_seconds for client-side retry logic and request_id for tracking
         details = {"wait_seconds": exc.wait if hasattr(exc, "wait") else None}
+        if request_id:
+            details["request_id"] = request_id
 
     else:
         # Generic error for other DRF exceptions
