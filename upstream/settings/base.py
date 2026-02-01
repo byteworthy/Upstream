@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django_browser_reload",
     # Upstream application
     "upstream.apps.UpstreamConfig",
+    "upstream.automation.apps.AutomationConfig",
 ]
 
 MIDDLEWARE = [
