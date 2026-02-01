@@ -76,6 +76,11 @@ class AlertRule(BaseModel):
             models.Index(
                 fields=["customer", "enabled"], name="idx_alertrule_customer_enabled"
             ),
+            models.Index(
+                fields=["customer", "-routing_priority"],
+                name="alertrule_eval_priority_idx",
+                condition=models.Q(enabled=True),
+            ),
         ]
 
     def __str__(self):
