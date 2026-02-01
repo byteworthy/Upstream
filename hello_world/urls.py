@@ -28,6 +28,7 @@ urlpatterns = [
     path("portal/", include("upstream.urls")),
     path("api/v1/", include("upstream.api.urls")),
     path("", include("upstream.urls_data_quality")),  # Data Quality dashboards
+    path("webhooks/", include("upstream.billing.urls")),  # Stripe webhooks
     path("__reload__/", include("django_browser_reload.urls")),
     path("", include("django_prometheus.urls")),  # Metrics endpoint at /metrics
 ]
