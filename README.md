@@ -1,40 +1,121 @@
-# 📡 Upstream
+# Upstream
 
-**Early-warning intelligence for healthcare revenue operations.**
+**Early-Warning Payer Risk Intelligence Platform with Autonomous Execution**
 
 ## What Upstream Does
 
-Upstream is an **early-warning intelligence system** for healthcare revenue operations. It detects when payers change their behavior—denying more claims, changing policies, or creating new revenue risks—usually 30-60 days before traditional monthly reporting would catch it.
+Upstream detects when payers change their behavior—denying more claims, changing policies, slowing payments—**30-60 days before traditional monthly reporting would catch it**. Then executes fixes autonomously.
 
-**For Operators**: Think of Upstream as a smoke detector for your revenue cycle. It doesn't fight the fire for you, but it tells you early when something's wrong so you can act before it becomes expensive.
+### The Core Problem
 
-### Core Features
+Healthcare operators are **BLIND** to payer changes until denials spike. By then, damage has compounded. Traditional RCM tools are REACTIVE (fix denials after they happen). Upstream is PROACTIVE (prevent denials before submission).
 
-- 📊 **DriftWatch (Denial Rate Detection)** — Detects week-over-week changes in payer denial rates. Catches when a payer who normally denies 8% suddenly denies 15%.
-- 💰 **DenialScope (Dollar Spike Detection)** — Flags sudden increases in denial dollars by payer or reason code. Identifies $50K+ revenue leaks before they compound.
-- 📁 **Claim Upload & Normalization** — CSV upload with automatic payer name and CPT code mapping. Works with your existing data.
-- ⚠️ **Smart Alerting** — Statistical thresholds flag significant changes, not noise. Email alerts with evidence and context.
-- 📈 **Weekly Analysis** — Runs automatically. You get early signals, not month-end surprises.
+### The Business Value
 
-### Who Should Use Upstream
+| Advantage | Description |
+|-----------|-------------|
+| **TIME ADVANTAGE** | See payer changes 30-60 days early (vs competitors' 1-2 weeks) |
+| **PREVENTION** | Stop denials before submission (vs appealing after denial) |
+| **AUTONOMY** | Fixes execute without manual approval (vs "review and approve" workflows) |
+| **SPECIALTY INTELLIGENCE** | Built for your vertical (vs generic RCM platforms) |
 
-**Primary Users**:
+### Core Philosophy
+
+> "You see the problem coming. You have time to act. The system acts for you."
+
+---
+
+## How It Works
+
+### 1. Detection Layer (Faster than Competitors)
+
+- **Real-time EHR webhooks**: 1-2 day alerts for submitted claims
+- **Calendar-based prevention**: 30-day authorization expiration alerts
+- **Behavioral prediction**: Day 3 detection vs competitors' day 14
+- **Payment timing trends**: Detect cash flow stress before denials spike
+
+### 2. Intelligence Layer (Smarter than Competitors)
+
+- **Pre-submission risk scoring**: Flag high-risk claims BEFORE sending
+- **Specialty-specific baselines**:
+  - **Dialysis**: MA payment variance (when MA pays <85% of traditional Medicare)
+  - **ABA**: Authorization exhaustion projection (30-day reauth alerts)
+  - **Imaging**: RBM requirement tracking (eviCore/AIM PA rules by payer)
+  - **Home Health**: PDGM grouper validation + F2F/NOA deadline tracking
+- **Network effects**: Cross-customer intelligence ("8 practices affected by UHC rule change")
+
+### 3. Execution Layer (More Autonomous than Competitors)
+
+- **Pre-approved rules engine**: Execute first, notify after
+- **Payer portal automation**: RPA for form submission, reauth requests, appeals
+- **Zero-touch workflows**: No manual approval bottlenecks
+- **Audit trail**: Log every autonomous action for compliance
+
+---
+
+## Detection Engines
+
+| Engine | Purpose | Alert Trigger |
+|--------|---------|---------------|
+| **DriftWatch** | Denial rate detection | Week-over-week change >10%, p-value <0.05 |
+| **DenialScope** | Dollar spike detection | >$50K weekly denial spike |
+| **DelayGuard** | Payment timing detection | 4-week worsening trend |
+| **Authorization Tracking** | Calendar-based prevention | 30/14/3 days before expiration |
+| **Pre-Submission Scoring** | Risk scoring | Risk score >70 (HIGH) |
+| **Behavioral Prediction** | Early pattern detection | Day 3 detection of anomalies |
+
+---
+
+## Specialty Modules
+
+### Dialysis Intelligence
+- MA Payment Variance Tracking (Traditional Medicare vs MA)
+- ESRD PPS Drift Alerts
+- TDAPA/TPNIES Add-on Detection
+
+### ABA Therapy Intelligence
+- Authorization Cycle Tracking (30/14/3 day alerts)
+- Visit Exhaustion Projection
+- BCBA Credential Expiration
+
+### Imaging Center Intelligence
+- RBM Requirement Tracking (eviCore, AIM)
+- AUC Compliance Validation
+- Medical Necessity Scoring
+
+### Home Health Intelligence
+- PDGM Grouper Validation (432+ combinations)
+- Face-to-Face Timing Validation
+- NOA Deadline Tracking
+
+---
+
+## Who Should Use Upstream
+
+**Target Users**: Owner-operated healthcare businesses (dialysis centers, ABA therapy providers, imaging centers, home health agencies) with 1-25 locations, thin margins, and high sensitivity to cash flow disruption.
+
+**Primary Roles**:
 - Revenue Cycle Directors who need early visibility into payer behavior changes
 - Billing Managers tracking denial trends and payer policy shifts
 - RCM Analysts investigating root causes of revenue variance
 
-**What You'll See**:
-- Alerts when payers change denial behavior outside normal variance
-- Evidence tables showing which claims, payers, and codes are affected
-- Historical context to distinguish new issues from recurring patterns
-- Actionable signals, not raw data dumps
-
-**Time to Value**: 
+**Time to Value**:
 - Setup: 30 minutes (upload claims, configure alerts)
 - First insight: After first weekly run (~5 days)
 - Routine use: 5-minute daily check, 20-minute weekly review
 
-**Read more**: See `OPERATOR_GUIDE.md` for detailed workflows and decision frameworks.
+---
+
+## Competitive Positioning
+
+| Capability | Upstream | Adonis | Waystar | Rivet |
+|------------|----------|--------|---------|-------|
+| Detection Speed | **Day 3** | Day 14 | Day 30+ | Day 30+ |
+| Execution | **Autonomous** | Manual approval | Manual | Manual |
+| Intelligence | Behavioral prediction | Post-denial | Claims workflow | Contract benchmarking |
+| Specialty Focus | **Built-in** | Generic | Generic | Generic |
+
+---
 
 ## Tech Stack
 
@@ -42,9 +123,11 @@ Upstream is an **early-warning intelligence system** for healthcare revenue oper
 |-------|------------|-----|
 | **Backend** | Python 3.12, Django 5.x | Rapid iteration, batteries included |
 | **API** | Django REST Framework | Industry standard, JWT auth ready |
-| **Database** | SQLite (dev), PostgreSQL (prod) | Simple dev, scalable prod |
+| **Database** | PostgreSQL (prod), SQLite (dev) | Simple dev, scalable prod |
+| **Task Queue** | Celery + Redis | Async processing, scheduled tasks |
+| **Frontend** | React 19, Vite 7, Tailwind CSS v4 | Modern, performant SPA |
+| **Testing** | pytest, Vitest, Playwright | Full stack coverage |
 | **Security** | django-auditlog, encrypted fields | PHI compliance ready |
-| **Frontend** | Django Templates → React (planned) | Server-first, SPA later |
 
 ---
 
@@ -71,11 +154,24 @@ python manage.py runserver
 
 Visit `http://localhost:8000` to access the application.
 
-### Running Payer Drift Analysis
+### Frontend Development
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Visit `http://localhost:5173` for the React frontend.
+
+### Running Detection Engines
 
 ```bash
 # Run weekly payer drift detection for all customers
 python manage.py run_weekly_payer_drift
+
+# Check expiring authorizations
+python manage.py check_expiring_authorizations
 ```
 
 ### API Access
@@ -96,7 +192,7 @@ open http://localhost:8000/api/v1/docs/
 
 ```
 upstream/
-├── models.py              # Customer, ClaimRecord, DriftEvent, etc.
+├── models.py              # Customer, ClaimRecord, AlertEvent, etc.
 ├── views.py               # Web portal views
 ├── api/
 │   ├── serializers.py     # DRF serializers
@@ -104,24 +200,98 @@ upstream/
 │   ├── permissions.py     # Multi-tenant access control
 │   └── urls.py            # API routes
 ├── services/
-│   └── payer_drift.py     # Core drift detection algorithm
+│   ├── payer_drift.py     # DriftWatch detection algorithm
+│   ├── scoring.py         # Pre-submission risk scoring
+│   └── detection/         # Detection engines
+├── products/              # Specialty modules
+│   ├── dialysis/          # MA variance, ESRD PPS
+│   ├── aba/               # Authorization tracking
+│   ├── imaging/           # PA requirements
+│   └── homehealth/        # PDGM validation
 ├── management/commands/   # CLI commands for scheduled tasks
 ├── fixtures/              # Demo data for onboarding
 └── templates/             # Django HTML templates
+
+frontend/
+├── src/
+│   ├── components/        # React components
+│   │   ├── common/        # Shared UI components
+│   │   ├── layout/        # Navigation, sidebar, header
+│   │   ├── dashboard/     # Dashboard widgets
+│   │   ├── claims/        # Claims scoring views
+│   │   ├── alerts/        # Alert management
+│   │   ├── execution/     # Execution log timeline
+│   │   └── settings/      # Automation settings
+│   ├── pages/             # Route pages
+│   ├── hooks/             # Custom hooks (useDarkMode, etc.)
+│   └── services/          # API client
+├── e2e/                   # Playwright E2E tests
+└── vitest.config.ts       # Test configuration
 ```
 
 ---
 
-## Roadmap
+## Alert Types (40+)
 
-### Phase 1: Core Platform ✅
-Multi-tenant architecture, CSV uploads, payer drift detection, API layer
+### Detection Alerts
+- `denial_rate_drift` - Denial rate spike detected
+- `denial_dollar_spike` - Significant denial dollars increase
+- `payment_timing_slowdown` - Payment timing increased
+- `payer_behavior_shift_day_3` - Early detection of denial rate change
 
-### Phase 2: Enhanced Analytics
-Trend visualization, custom date ranges, CPT group-level drift, payer benchmarking
+### Authorization Alerts
+- `authorization_expiring_30_days` - Reauth deadline approaching (MEDIUM)
+- `authorization_expiring_14_days` - Urgent reauth needed (HIGH)
+- `authorization_expiring_3_days` - Critical reauth deadline (CRITICAL)
+- `authorization_units_exhausting` - Will exhaust visits before reauth
 
-### Phase 3: Enterprise
-SSO/SAML, role-based access, webhook integrations, audit logging dashboard
+### Specialty Alerts
+- `dialysis_ma_payment_variance` - MA underpaying vs baseline
+- `aba_modifier_missing` - Required modifier not present
+- `rbm_pa_required_missing` - PA required but not requested
+- `pdgm_grouping_mismatch` - Assigned group != calculated group
+
+### Pre-Submission Alerts
+- `high_risk_claim` - Claim flagged for review
+- `missing_required_modifier` - Required modifier not present
+- `diagnosis_mismatch` - Diagnosis doesn't support CPT
+
+---
+
+## Autonomous Actions
+
+| Action | Description |
+|--------|-------------|
+| `submit_reauth_request` | Auto-submit reauthorization to payer portal |
+| `generate_and_submit_appeal` | Create + submit appeal letter |
+| `hold_for_review` | Flag claim for human review |
+| `auto_add_modifier` | Add missing required modifier |
+| `request_prior_authorization` | Submit PA request to RBM |
+| `escalate_to_human` | Send to manual review queue |
+
+---
+
+## Milestones
+
+| # | Name | Status | Stories |
+|---|------|--------|---------|
+| 01 | Core Scoring Engine | Complete | 18/18 |
+| 02 | Specialty Modules | Complete | 23/23 |
+| 03 | Frontend MVP | Complete | 18/18 |
+| 04 | EHR Integrations | Complete | 14/14 |
+| 05 | Launch Prep | Complete | 17/17 |
+
+**Total**: 90/90 stories (100%)
+
+---
+
+## Documentation
+
+- [CLAUDE.md](CLAUDE.md) - Project intelligence for AI assistants
+- [OPERATOR_GUIDE.md](OPERATOR_GUIDE.md) - Detailed operator workflows
+- [AUTHENTICATION_GUIDE.md](AUTHENTICATION_GUIDE.md) - Auth setup
+- [GCP_DEPLOYMENT_GUIDE.md](GCP_DEPLOYMENT_GUIDE.md) - Production deployment
+- [ARCHITECTURE_PRODUCT_LINE.md](ARCHITECTURE_PRODUCT_LINE.md) - System architecture
 
 ---
 
@@ -135,4 +305,4 @@ This project is in active development. See [CHANGELOG.md](CHANGELOG.md) for rece
 
 ## License
 
-Proprietary — © 2026 Byteworthy. All rights reserved.
+Proprietary - 2026 Byteworthy. All rights reserved.
