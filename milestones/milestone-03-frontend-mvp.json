@@ -268,7 +268,7 @@
         "frontend/src/components/execution/Timeline.tsx",
         "frontend/src/components/execution/LogEntry.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 14,

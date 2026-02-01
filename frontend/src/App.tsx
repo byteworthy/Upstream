@@ -8,12 +8,9 @@ import { Alerts } from '@/pages/Alerts';
 import { AlertDetail } from '@/pages/AlertDetail';
 import { Authorizations } from '@/pages/Authorizations';
 import { ExecutionLog } from '@/pages/ExecutionLog';
+import { Settings } from '@/pages/Settings';
 
 // Placeholder pages - will be implemented in subsequent stories
-
-function SettingsPage() {
-  return <div className="text-foreground">Settings - Coming soon</div>;
-}
 
 function LoginPage() {
   return (
@@ -39,7 +36,7 @@ function App() {
         <Route path="/alerts/:id" element={<AlertDetail />} />
         <Route path="/authorizations" element={<Authorizations />} />
         <Route path="/execution-log" element={<ExecutionLog />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
