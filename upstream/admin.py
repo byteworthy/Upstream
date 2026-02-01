@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import Customer, Settings, Upload, ClaimRecord, ReportRun, DriftEvent, UserProfile, PayerMapping, CPTGroupMapping
 from upstream.core.models import ProductConfig
 from upstream.automation.models import ClaimScore, CustomerAutomationProfile, ShadowModeResult
+from upstream.products.dialysis.models import DialysisMABaseline
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -212,3 +213,11 @@ class ShadowModeResultAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(DialysisMABaseline)
+class DialysisMABaselineAdmin(admin.ModelAdmin):
+    list_display = ('id', 'cpt', 'average_payment', 'sample_size', 'last_updated')
+    list_filter = ('last_updated',)
+    search_fields = ('cpt',)
+    date_hierarchy = 'last_updated'
