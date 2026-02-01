@@ -680,6 +680,7 @@ class DriftEvent(models.Model):
         ("APPROVAL_RATE", "Approval Rate"),
         ("PROCESSING_DELAY", "Processing Delay"),
         ("AUTH_FAILURE_RATE", "Authorization Failure Rate"),
+        ("BEHAVIORAL_PREDICTION", "Behavioral Prediction"),
     ]
 
     customer = models.ForeignKey(
@@ -1157,6 +1158,96 @@ class ExecutionLog(models.Model):
         return f"{self.customer.name} - {self.action_taken} - {self.result}"
 
 
+class NetworkAlert(models.Model):
+    """
+    Platform-level alert aggregating cross-customer patterns.
+    Created when 3+ customers show the same drift pattern for a payer.
+    No customer FK - this is platform-level intelligence.
+    """
+
+    DRIFT_TYPE_CHOICES = [
+        ("DENIAL_RATE", "Denial Rate"),
+        ("DECISION_TIME", "Decision Time"),
+        ("PAYMENT_AMOUNT", "Payment Amount"),
+        ("APPROVAL_RATE", "Approval Rate"),
+        ("PROCESSING_DELAY", "Processing Delay"),
+        ("AUTH_FAILURE_RATE", "Authorization Failure Rate"),
+        ("BEHAVIORAL_PREDICTION", "Behavioral Prediction"),
+    ]
+
+    SEVERITY_CHOICES = [
+        ("LOW", "Low"),
+        ("MEDIUM", "Medium"),
+        ("HIGH", "High"),
+        ("CRITICAL", "Critical"),
+    ]
+
+    payer = models.CharField(max_length=255, db_index=True)
+    drift_type = models.CharField(
+        max_length=30, choices=DRIFT_TYPE_CHOICES, db_index=True
+    )
+    affected_customer_count = models.IntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Number of customers affected by this pattern",
+    )
+    summary_text = models.TextField(
+        help_text="Human-readable summary of the cross-customer pattern"
+    )
+    severity = models.CharField(
+        max_length=20, choices=SEVERITY_CHOICES, default="MEDIUM", db_index=True
+    )
+    details = models.JSONField(
+        default=dict,
+        help_text="Detailed pattern data: {customer_ids, avg_delta, date_range, etc.}",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    resolved_at = models.DateTimeField(
+        null=True, blank=True, help_text="When this network-wide issue was resolved"
+    )
+
+    class Meta:
+        db_table = "upstream_network_alert"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["payer", "drift_type"], name="network_alert_payer_type_idx"
+            ),
+            models.Index(
+                fields=["severity", "-created_at"], name="network_alert_sev_date_idx"
+            ),
+            models.Index(
+                fields=["drift_type", "-created_at"], name="network_alert_type_date_idx"
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(affected_customer_count__gte=1),
+                name="network_alert_count_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(severity__in=["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+                name="network_alert_severity_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"NetworkAlert: {self.payer} - {self.drift_type} "
+            f"({self.affected_customer_count} customers)"
+        )
+
+    @property
+    def is_resolved(self):
+        """Check if this network alert has been resolved."""
+        return self.resolved_at is not None
+
+    @property
+    def severity_level(self):
+        """Numeric severity level for comparison."""
+        levels = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+        return levels.get(self.severity, 0)
+
+
 class Authorization(models.Model):
     """
     Multi-vertical authorization tracking with expiration monitoring.
@@ -1317,6 +1408,10 @@ from upstream.products.aba.models import (  # noqa: F401, E402
 )
 from upstream.products.imaging.models import (  # noqa: F401, E402
     ImagingPARequirement,
+)
+from upstream.products.homehealth.models import (  # noqa: F401, E402
+    HomeHealthPDGMGroup,
+    HomeHealthEpisode,
 )
 from upstream.models_agents import (  # noqa: F401, E402
     AgentRun,
