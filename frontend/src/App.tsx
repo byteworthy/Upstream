@@ -1,10 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Dashboard } from '@/pages/Dashboard';
 
 // Placeholder pages - will be implemented in subsequent stories
-function DashboardPage() {
-  return <div className="text-foreground">Dashboard - Coming soon</div>;
-}
 
 function ClaimScoresPage() {
   return <div className="text-foreground">Claim Scores - Coming soon</div>;
@@ -54,7 +52,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<AppLayout />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/claim-scores" element={<ClaimScoresPage />} />
         <Route path="/claim-scores/:id" element={<ClaimScoreDetailPage />} />
         <Route path="/work-queue" element={<WorkQueuePage />} />
