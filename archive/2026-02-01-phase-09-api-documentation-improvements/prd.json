@@ -1,0 +1,93 @@
+{
+  "branchName": "milestone-05-marketing-site",
+  "context": {
+    "phase": "5a",
+    "phaseName": "Marketing Website (Parallel)",
+    "phaseGoal": "Build standalone marketing website with Next.js",
+    "dependsOn": [],
+    "successCriteria": [
+      "Next.js marketing site initialized",
+      "Landing page with hero section",
+      "Pricing page with tier comparison",
+      "Mobile responsive design"
+    ],
+    "qualityGates": [
+      "cd marketing && npm run lint",
+      "cd marketing && npm run build"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Initialize Next.js marketing site",
+      "description": "Create Next.js app for marketing website with Tailwind CSS. Run: npx create-next-app@latest marketing --typescript --tailwind --app",
+      "acceptanceCriteria": [
+        "marketing/ directory created with Next.js App Router",
+        "TypeScript configured",
+        "Tailwind CSS configured",
+        "npm run dev starts on port 3001",
+        "npm run build produces production build"
+      ],
+      "files": [
+        "marketing/package.json",
+        "marketing/next.config.js",
+        "marketing/tailwind.config.ts"
+      ],
+      "passes": true
+    },
+    {
+      "id": 2,
+      "title": "Build marketing landing page",
+      "description": "Create public landing page with hero section and key features.",
+      "acceptanceCriteria": [
+        "Landing page at / route",
+        "Hero section with value proposition: 'AI-Powered Prior Auth Intelligence'",
+        "Feature highlights section (3-4 key benefits)",
+        "CTA buttons: Start Free Trial, Schedule Demo",
+        "Mobile responsive",
+        "Professional healthcare SaaS styling"
+      ],
+      "files": [
+        "marketing/src/app/page.tsx",
+        "marketing/src/components/Hero.tsx",
+        "marketing/src/components/Features.tsx"
+      ],
+      "passes": true
+    },
+    {
+      "id": 3,
+      "title": "Create pricing page with tier comparison",
+      "description": "Build pricing page showing three subscription tiers.",
+      "acceptanceCriteria": [
+        "Pricing page at /pricing route",
+        "Three tier cards: Essentials ($299), Professional ($599), Enterprise ($999)",
+        "Feature comparison list per tier",
+        "Annual discount toggle (2 months free)",
+        "CTA buttons per tier",
+        "Most popular badge on Professional tier"
+      ],
+      "files": [
+        "marketing/src/app/pricing/page.tsx",
+        "marketing/src/components/PricingCard.tsx"
+      ],
+      "passes": true
+    },
+    {
+      "id": 4,
+      "title": "Create shared navigation and footer",
+      "description": "Build navigation header and footer for marketing site.",
+      "acceptanceCriteria": [
+        "Navigation with logo, links (Features, Pricing, About), and CTA button",
+        "Mobile hamburger menu",
+        "Footer with company info, links, and copyright",
+        "Consistent across all pages"
+      ],
+      "files": [
+        "marketing/src/components/Navbar.tsx",
+        "marketing/src/components/Footer.tsx",
+        "marketing/src/app/layout.tsx"
+      ],
+      "passes": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Ralph Progress Log
+Started: Sun Feb  1 02:00:13 UTC 2026
+---
+
+## Iteration 1 - Prior
+Story: #1 - Initialize Next.js marketing site
+Status: ✅ Complete (Next.js app already created with Tailwind)
+
