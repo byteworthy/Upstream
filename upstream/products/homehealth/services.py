@@ -538,8 +538,7 @@ class HomeHealthService:
             "type": "homehealth_noa_deadline",
             "has_noa": result.has_noa,
             "noa_submitted_date": (
-                str(result.noa_submitted_date)
-                if result.noa_submitted_date else None
+                str(result.noa_submitted_date) if result.noa_submitted_date else None
             ),
             "soc_date": str(result.soc_date) if result.soc_date else None,
             "deadline_date": (
@@ -702,3 +701,324 @@ class HomeHealthService:
                         results["alerts_created"] += 1
 
         return results
+
+    # =========================================================================
+    # Model-based methods for HomeHealthPDGMGroup and HomeHealthEpisode
+    # =========================================================================
+
+    def get_pdgm_group_from_db(
+        self,
+        timing: str,
+        clinical_group: str,
+        functional_level: str,
+        comorbidity: str,
+    ):
+        """
+        Look up PDGM group from database model.
+
+        Falls back to constants if not found in database.
+
+        Args:
+            timing: EARLY or LATE
+            clinical_group: One of CLINICAL_GROUPS keys
+            functional_level: LOW, MEDIUM, or HIGH
+            comorbidity: NONE, LOW, or HIGH
+
+        Returns:
+            HomeHealthPDGMGroup instance or dict from constants
+        """
+        from upstream.products.homehealth.models import HomeHealthPDGMGroup
+
+        try:
+            return HomeHealthPDGMGroup.objects.get(
+                timing=timing.upper(),
+                clinical_group=clinical_group.upper(),
+                functional_level=functional_level.upper(),
+                comorbidity=comorbidity.upper(),
+            )
+        except HomeHealthPDGMGroup.DoesNotExist:
+            return lookup_pdgm_group(
+                timing, clinical_group, functional_level, comorbidity
+            )
+
+    def sync_pdgm_groups_to_db(self) -> dict:
+        """
+        Synchronize PDGM groups from constants to database.
+
+        Creates or updates HomeHealthPDGMGroup records for all
+        combinations defined in PDGM_GROUPS constant.
+
+        Returns:
+            dict with counts: {created: int, updated: int, total: int}
+        """
+        from upstream.products.homehealth.models import HomeHealthPDGMGroup
+        from upstream.products.homehealth.constants import PDGM_GROUPS
+
+        created = 0
+        updated = 0
+
+        for key, value in PDGM_GROUPS.items():
+            timing, clinical_group, functional_level, comorbidity = key
+            hipps_code = value["hipps"]
+            payment_weight = value["weight"]
+
+            group, was_created = HomeHealthPDGMGroup.objects.update_or_create(
+                timing=timing,
+                clinical_group=clinical_group,
+                functional_level=functional_level,
+                comorbidity=comorbidity,
+                defaults={
+                    "hipps_code": hipps_code,
+                    "payment_weight": payment_weight,
+                },
+            )
+
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+
+        return {
+            "created": created,
+            "updated": updated,
+            "total": created + updated,
+        }
+
+    def create_episode(
+        self,
+        customer,
+        patient_identifier: str,
+        payer: str,
+        soc_date: date,
+        **kwargs,
+    ):
+        """
+        Create a new HomeHealthEpisode with validation.
+
+        Args:
+            customer: Customer instance
+            patient_identifier: Patient ID
+            payer: Payer name
+            soc_date: Start of Care date
+            **kwargs: Additional episode fields (f2f_date, timing, etc.)
+
+        Returns:
+            Created HomeHealthEpisode instance
+        """
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode(
+            customer=customer,
+            patient_identifier=patient_identifier,
+            payer=payer,
+            soc_date=soc_date,
+            **kwargs,
+        )
+
+        # Calculate NOA deadline
+        episode.calculate_noa_deadline()
+
+        # Validate F2F if provided
+        if kwargs.get("f2f_date"):
+            episode.validate_f2f_timing()
+
+        # Validate NOA if provided
+        if kwargs.get("noa_submitted_date"):
+            episode.validate_noa_timeliness()
+
+        # Look up PDGM group if classification provided
+        if all(
+            [
+                kwargs.get("timing"),
+                kwargs.get("clinical_group"),
+                kwargs.get("functional_level"),
+                kwargs.get("comorbidity"),
+            ]
+        ):
+            episode.lookup_pdgm_group()
+
+        episode.save()
+        return episode
+
+    def get_episodes_with_f2f_issues(self, customer):
+        """
+        Get episodes with F2F validation issues.
+
+        Returns episodes where f2f_is_valid is False.
+
+        Args:
+            customer: Customer instance
+
+        Returns:
+            QuerySet of HomeHealthEpisode instances
+        """
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        return HomeHealthEpisode.objects.filter(
+            customer=customer,
+            f2f_is_valid=False,
+            status="ACTIVE",
+        ).order_by("-soc_date")
+
+    def get_episodes_with_noa_issues(self, customer):
+        """
+        Get episodes with NOA deadline issues.
+
+        Returns episodes where noa_is_timely is False and no NOA submitted.
+
+        Args:
+            customer: Customer instance
+
+        Returns:
+            QuerySet of HomeHealthEpisode instances
+        """
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        return HomeHealthEpisode.objects.filter(
+            customer=customer,
+            noa_is_timely=False,
+            noa_submitted_date__isnull=True,
+            status="ACTIVE",
+        ).order_by("noa_deadline_date")
+
+    def get_expiring_episodes(self, customer, days_ahead: int = 7):
+        """
+        Get episodes expiring within specified days.
+
+        Args:
+            customer: Customer instance
+            days_ahead: Number of days to look ahead
+
+        Returns:
+            QuerySet of HomeHealthEpisode instances
+        """
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        cutoff_date = date.today() + timedelta(days=days_ahead)
+        return HomeHealthEpisode.objects.filter(
+            customer=customer,
+            status="ACTIVE",
+            episode_end_date__lte=cutoff_date,
+            episode_end_date__gte=date.today(),
+        ).order_by("episode_end_date")
+
+    def validate_episode(self, episode) -> dict:
+        """
+        Validate a HomeHealthEpisode for compliance issues.
+
+        Runs F2F timing, NOA deadline, and PDGM validation on the episode.
+
+        Args:
+            episode: HomeHealthEpisode instance
+
+        Returns:
+            dict with validation results
+        """
+        results = {
+            "episode_id": episode.id,
+            "f2f_valid": False,
+            "noa_valid": False,
+            "pdgm_valid": False,
+            "issues": [],
+        }
+
+        # Validate F2F timing
+        if episode.f2f_date and episode.soc_date:
+            episode.validate_f2f_timing()
+            results["f2f_valid"] = episode.f2f_is_valid
+            if not episode.f2f_is_valid:
+                days = episode.days_to_f2f
+                results["issues"].append(f"F2F timing invalid: {days} days from SOC")
+        else:
+            if not episode.f2f_date:
+                results["issues"].append("Missing F2F date")
+
+        # Validate NOA deadline
+        episode.calculate_noa_deadline()
+        episode.validate_noa_timeliness()
+        results["noa_valid"] = episode.noa_is_timely
+        if not episode.noa_is_timely:
+            if episode.noa_submitted_date:
+                results["issues"].append("NOA submitted late")
+            elif episode.noa_deadline_date:
+                days_remaining = episode.noa_days_remaining
+                if days_remaining is not None and days_remaining < 0:
+                    results["issues"].append(
+                        f"NOA overdue by {abs(days_remaining)} days"
+                    )
+                elif days_remaining is not None and days_remaining <= 2:
+                    results["issues"].append(f"NOA due in {days_remaining} days")
+
+        # Validate PDGM grouping
+        if all(
+            [
+                episode.timing,
+                episode.clinical_group,
+                episode.functional_level,
+                episode.comorbidity,
+            ]
+        ):
+            group = episode.lookup_pdgm_group()
+            results["pdgm_valid"] = group is not None
+            if group is None:
+                results["issues"].append(
+                    f"No PDGM group found for: {episode.timing}/"
+                    f"{episode.clinical_group}/{episode.functional_level}/"
+                    f"{episode.comorbidity}"
+                )
+        else:
+            missing = []
+            if not episode.timing:
+                missing.append("timing")
+            if not episode.clinical_group:
+                missing.append("clinical_group")
+            if not episode.functional_level:
+                missing.append("functional_level")
+            if not episode.comorbidity:
+                missing.append("comorbidity")
+            if missing:
+                results["issues"].append(f"Missing PDGM fields: {', '.join(missing)}")
+
+        # Save updated validation flags
+        episode.save(
+            update_fields=[
+                "f2f_is_valid",
+                "noa_is_timely",
+                "noa_deadline_date",
+                "pdgm_group",
+            ]
+        )
+
+        return results
+
+    def get_compliance_summary(self, customer) -> dict:
+        """
+        Get compliance summary for all active episodes.
+
+        Args:
+            customer: Customer instance
+
+        Returns:
+            dict with compliance metrics
+        """
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episodes = HomeHealthEpisode.objects.filter(
+            customer=customer,
+            status="ACTIVE",
+        )
+
+        total = episodes.count()
+        f2f_valid = episodes.filter(f2f_is_valid=True).count()
+        noa_timely = episodes.filter(noa_is_timely=True).count()
+        pdgm_assigned = episodes.filter(pdgm_group__isnull=False).count()
+
+        return {
+            "total_active_episodes": total,
+            "f2f_compliant": f2f_valid,
+            "f2f_compliance_rate": (f2f_valid / total * 100) if total else 0,
+            "noa_timely": noa_timely,
+            "noa_compliance_rate": (noa_timely / total * 100) if total else 0,
+            "pdgm_assigned": pdgm_assigned,
+            "pdgm_assignment_rate": (pdgm_assigned / total * 100) if total else 0,
+        }

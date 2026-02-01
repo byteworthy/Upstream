@@ -1680,6 +1680,7 @@ class DashboardView(APIView):
                 "total_claims": total_claims,
                 "total_uploads": total_uploads,
                 "active_drift_events": active_drift_events,
+                "behavioral_prediction_count": behavioral_prediction_count,
                 "last_report_date": (
                     latest_report.finished_at if latest_report else None
                 ),
