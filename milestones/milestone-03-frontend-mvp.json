@@ -194,7 +194,7 @@
         "frontend/src/components/alerts/AlertsTable.tsx",
         "frontend/src/components/alerts/SeverityBadge.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 10,
