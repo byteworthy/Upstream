@@ -248,7 +248,7 @@
         "upstream/products/imaging/models.py",
         "upstream/products/imaging/migrations/0001_initial.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 15,
