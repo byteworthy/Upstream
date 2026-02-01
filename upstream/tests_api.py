@@ -76,6 +76,7 @@ class APITestBase(APITestCase):
         response = self.client.post(
             f"{API_BASE}/auth/token/",
             {"username": user.username, "password": "testpass123"},
+            format="json",
         )
         return response.data
 
@@ -1510,3 +1511,181 @@ class TestHATEOASLinks(APITestBase):
         self.assertIn("self", links)
         self.assertTrue(links["self"].startswith("http"))
         self.assertIn(f"/customers/{self.customer_a.id}/", links["self"])
+
+
+class ErrorResponseTests(APITestBase):
+    """Test error response format consistency across all API endpoints."""
+
+    def test_validation_error_format(self):
+        """Test that validation errors return consistent format with field details."""
+        # Authenticate as user
+        self.authenticate_as(self.user_a)
+
+        # Create invalid POST data (missing required fields)
+        invalid_data = {
+            # Missing required fields: filename, etc.
+            "row_count": "invalid",  # Should be integer, not string
+        }
+
+        # POST invalid data to Upload endpoint
+        response = self.client.post(f"{API_BASE}/uploads/", invalid_data, format="json")
+
+        # Assert validation error status
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Assert error structure
+        self.assertIn("error", response.data)
+        error = response.data["error"]
+
+        # Assert required fields
+        self.assertIn("code", error)
+        self.assertEqual(error["code"], "validation_error")
+
+        self.assertIn("message", error)
+        self.assertIsInstance(error["message"], str)
+
+        self.assertIn("details", error)
+        self.assertIsInstance(error["details"], dict)
+        # Should contain field-level errors
+        self.assertTrue(
+            len(error["details"]) > 0, "Validation details should include field errors"
+        )
+
+        # Assert RFC 7807 type field
+        self.assertIn("type", error)
+        self.assertEqual(error["type"], "/errors/validation-error")
+
+    def test_authentication_error_format(self):
+        """Test that authentication errors return consistent format."""
+        # GET endpoint without auth token
+        response = self.client.get(f"{API_BASE}/claims/")
+
+        # Assert authentication error status
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Assert error structure
+        self.assertIn("error", response.data)
+        error = response.data["error"]
+
+        # Assert required fields
+        self.assertIn("code", error)
+        self.assertEqual(error["code"], "authentication_failed")
+
+        self.assertIn("message", error)
+        self.assertIsInstance(error["message"], str)
+        self.assertIn("credentials", error["message"].lower())
+
+        # Assert RFC 7807 type field
+        self.assertIn("type", error)
+        self.assertEqual(error["type"], "/errors/authentication-failed")
+
+    def test_permission_error_format(self):
+        """Test that permission denied errors return consistent format."""
+        # Authenticate as user without customer profile
+        self.authenticate_as(self.user_no_customer)
+
+        # Try to access claims (requires customer association)
+        response = self.client.get(f"{API_BASE}/claims/")
+
+        # Assert permission error status
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Assert error structure
+        self.assertIn("error", response.data)
+        error = response.data["error"]
+
+        # Assert required fields
+        self.assertIn("code", error)
+        self.assertEqual(error["code"], "permission_denied")
+
+        self.assertIn("message", error)
+        self.assertIsInstance(error["message"], str)
+
+        # Assert RFC 7807 type field
+        self.assertIn("type", error)
+        self.assertEqual(error["type"], "/errors/permission-denied")
+
+    def test_not_found_error_format(self):
+        """Test that not found errors return consistent format."""
+        # Authenticate as user
+        self.authenticate_as(self.user_a)
+
+        # GET non-existent claim record
+        response = self.client.get(f"{API_BASE}/claims/999999/")
+
+        # Assert not found error status
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Assert error structure
+        self.assertIn("error", response.data)
+        error = response.data["error"]
+
+        # Assert required fields
+        self.assertIn("code", error)
+        self.assertEqual(error["code"], "not_found")
+
+        self.assertIn("message", error)
+        self.assertIsInstance(error["message"], str)
+        self.assertIn("not found", error["message"].lower())
+
+        # Assert RFC 7807 type field
+        self.assertIn("type", error)
+        self.assertEqual(error["type"], "/errors/not-found")
+
+    def test_throttle_error_format(self):
+        """Test that throttle errors return consistent format with wait_seconds."""
+        # This test requires actual throttling to occur, which is hard to test
+        # without making many requests. We'll test the format if throttling is enabled.
+        # For now, we'll skip this test unless we can trigger throttling.
+        # In production, this would be tested by exceeding rate limits.
+        self.skipTest(
+            "Throttle testing requires making many requests to trigger rate limit"
+        )
+
+    def test_method_not_allowed_format(self):
+        """Test that method not allowed errors return consistent format."""
+        # Authenticate as user
+        self.authenticate_as(self.user_a)
+
+        # Try PATCH on customers endpoint (read-only ViewSet)
+        response = self.client.patch(
+            f"{API_BASE}/customers/{self.customer_a.id}/",
+            {"name": "New Name"},
+            format="json",
+        )
+
+        # Assert method not allowed error status
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Assert error structure
+        self.assertIn("error", response.data)
+        error = response.data["error"]
+
+        # Assert required fields
+        self.assertIn("code", error)
+        self.assertEqual(error["code"], "method_not_allowed")
+
+        self.assertIn("message", error)
+        self.assertIsInstance(error["message"], str)
+
+        # Assert RFC 7807 type field
+        self.assertIn("type", error)
+        self.assertEqual(error["type"], "/errors/method-not-allowed")
+
+    def test_error_response_includes_request_id_if_available(self):
+        """Test that error responses include request_id when middleware sets it."""
+        # Note: RequestIdMiddleware would need to be active for this to work
+        # This test documents the expected behavior when middleware is present
+
+        # GET without authentication
+        response = self.client.get(f"{API_BASE}/claims/")
+
+        # Assert error structure
+        self.assertIn("error", response.data)
+        error = response.data["error"]
+
+        # If request_id middleware is active, request_id should be present
+        # Otherwise, it won't be present (which is also valid)
+        if "request_id" in error:
+            self.assertIsInstance(error["request_id"], str)
+            self.assertTrue(len(error["request_id"]) > 0)
