@@ -82,9 +82,10 @@ ALERT_ATTACH_PDF = False
 # Minimal CORS for tests
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://testserver"]
 
-# Set field encryption key for tests
+# Set field encryption key for tests (must be valid Fernet key)
 if not FIELD_ENCRYPTION_KEY:  # noqa: F405
-    FIELD_ENCRYPTION_KEY = "test-encryption-key-32-bytes-long!!"  # noqa: F405
+    # Valid Fernet key for tests (NOT for production use)
+    FIELD_ENCRYPTION_KEY = "x-MJZzq3Q6Vi3-4tTZP9GHRGGJcPVzo54lBGQXxXRc0="  # noqa: F405  # pragma: allowlist secret
 
 # Portal URL for email template tests
 PORTAL_BASE_URL = "http://testserver"
@@ -102,8 +103,7 @@ MIDDLEWARE = [m for m in MIDDLEWARE if "BrowserReloadMiddleware" not in m]  # no
 MIDDLEWARE = [  # noqa: F405
     m
     for m in MIDDLEWARE  # noqa: F405
-    if "PrometheusBeforeMiddleware" not in m
-    and "PrometheusAfterMiddleware" not in m
+    if "PrometheusBeforeMiddleware" not in m and "PrometheusAfterMiddleware" not in m
 ]
 
 # Override throttle rates for tests - use simple formats that DRF can parse

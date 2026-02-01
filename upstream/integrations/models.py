@@ -1,7 +1,199 @@
 import secrets
 from django.db import models
 from django.utils import timezone
+from encrypted_model_fields.fields import EncryptedCharField
 from upstream.core.models import BaseModel
+
+
+class EHRConnection(BaseModel):
+    """
+    EHR connection credentials per customer with encrypted secrets.
+
+    Stores OAuth 2.0 credentials for Epic, Cerner, and athenahealth integrations.
+    Secrets are encrypted at rest using django-encrypted-model-fields.
+    """
+
+    EHR_TYPE_CHOICES = [
+        ("epic", "Epic FHIR R4"),
+        ("cerner", "Cerner/Oracle Health"),
+        ("athena", "athenahealth"),
+    ]
+
+    customer = models.ForeignKey(
+        "upstream.Customer",
+        on_delete=models.CASCADE,
+        related_name="ehr_connections",
+    )
+    ehr_type = models.CharField(
+        max_length=20,
+        choices=EHR_TYPE_CHOICES,
+        db_index=True,
+        help_text="EHR vendor type",
+    )
+    name = models.CharField(
+        max_length=100,
+        help_text="Friendly name for this connection (e.g., 'Main Hospital Epic')",
+    )
+    client_id = models.CharField(
+        max_length=255,
+        help_text="OAuth 2.0 client ID",
+    )
+    client_secret = EncryptedCharField(
+        max_length=500,
+        help_text="OAuth 2.0 client secret (encrypted at rest)",
+    )
+    oauth_endpoint = models.URLField(
+        help_text="OAuth 2.0 token endpoint URL",
+    )
+    fhir_endpoint = models.URLField(
+        help_text="FHIR API base URL",
+    )
+    enabled = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Whether this connection is active",
+    )
+    last_poll = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last successful poll timestamp",
+    )
+    last_error = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Last error message if connection failed",
+    )
+    health_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("healthy", "Healthy"),
+            ("degraded", "Degraded"),
+            ("unhealthy", "Unhealthy"),
+            ("unknown", "Unknown"),
+        ],
+        default="unknown",
+        db_index=True,
+        help_text="Current connection health status",
+    )
+    health_checked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last health check timestamp",
+    )
+
+    class Meta:
+        verbose_name = "EHR Connection"
+        verbose_name_plural = "EHR Connections"
+        unique_together = ("customer", "name")
+        indexes = [
+            models.Index(
+                fields=["customer", "ehr_type", "enabled"],
+                name="idx_ehrconnection_lookup",
+            ),
+            models.Index(
+                fields=["enabled", "ehr_type"],
+                name="idx_ehrconnection_polling",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_ehr_type_display()}) - {self.customer.name}"
+
+    @property
+    def masked_client_secret(self):
+        """Return masked version of client secret for display."""
+        if self.client_secret:
+            return f"{'*' * 8}...{'*' * 4}"
+        return None
+
+
+class EHRSyncLog(BaseModel):
+    """
+    Track EHR synchronization attempts, successes, and failures.
+
+    Provides audit trail for all EHR polling operations with 90-day retention.
+    """
+
+    STATUS_CHOICES = [
+        ("success", "Success"),
+        ("error", "Error"),
+        ("partial", "Partial Success"),
+    ]
+
+    connection = models.ForeignKey(
+        EHRConnection,
+        on_delete=models.CASCADE,
+        related_name="sync_logs",
+    )
+    started_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="success",
+        db_index=True,
+    )
+    records_fetched = models.IntegerField(
+        default=0,
+        help_text="Number of records fetched from EHR",
+    )
+    records_created = models.IntegerField(
+        default=0,
+        help_text="Number of ClaimRecords created",
+    )
+    records_updated = models.IntegerField(
+        default=0,
+        help_text="Number of ClaimRecords updated",
+    )
+    records_skipped = models.IntegerField(
+        default=0,
+        help_text="Number of records skipped (duplicates)",
+    )
+    error_message = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Error details if sync failed",
+    )
+    sync_metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional sync metadata (pagination info, etc.)",
+    )
+
+    class Meta:
+        verbose_name = "EHR Sync Log"
+        verbose_name_plural = "EHR Sync Logs"
+        ordering = ["-started_at"]
+        indexes = [
+            models.Index(
+                fields=["connection", "-started_at"],
+                name="idx_ehrsynclog_history",
+            ),
+            models.Index(
+                fields=["status", "-started_at"],
+                name="idx_ehrsynclog_status",
+            ),
+            models.Index(
+                fields=["-started_at"],
+                name="idx_ehrsynclog_retention",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Sync {self.connection.name} at {self.started_at} - {self.status}"
+
+    @property
+    def duration_seconds(self):
+        """Calculate sync duration in seconds."""
+        if self.completed_at and self.started_at:
+            return (self.completed_at - self.started_at).total_seconds()
+        return None
 
 
 class IntegrationProvider(BaseModel):
