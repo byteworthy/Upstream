@@ -1302,6 +1302,9 @@ from upstream.products.delayguard.models import (  # noqa: F401, E402
     PaymentDelayClaimSet,
     PaymentDelayEvidenceArtifact,
 )
+from upstream.products.dialysis.models import (  # noqa: F401, E402
+    DialysisMABaseline,
+)
 from upstream.models_agents import (  # noqa: F401, E402
     AgentRun,
     Finding,
