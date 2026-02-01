@@ -264,7 +264,7 @@
       "files": [
         "upstream/products/imaging/services.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 16,
@@ -279,7 +279,7 @@
       "files": [
         "upstream/products/imaging/services.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 17,
@@ -295,7 +295,7 @@
       "files": [
         "upstream/products/imaging/tests.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 18,
