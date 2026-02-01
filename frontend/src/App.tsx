@@ -1,57 +1,71 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+
+// Placeholder pages - will be implemented in subsequent stories
+function DashboardPage() {
+  return <div className="text-foreground">Dashboard - Coming soon</div>;
+}
+
+function ClaimScoresPage() {
+  return <div className="text-foreground">Claim Scores - Coming soon</div>;
+}
+
+function ClaimScoreDetailPage() {
+  return <div className="text-foreground">Claim Score Detail - Coming soon</div>;
+}
+
+function WorkQueuePage() {
+  return <div className="text-foreground">Work Queue - Coming soon</div>;
+}
+
+function AlertsPage() {
+  return <div className="text-foreground">Alerts - Coming soon</div>;
+}
+
+function AlertDetailPage() {
+  return <div className="text-foreground">Alert Detail - Coming soon</div>;
+}
+
+function AuthorizationsPage() {
+  return <div className="text-foreground">Authorizations - Coming soon</div>;
+}
+
+function ExecutionLogPage() {
+  return <div className="text-foreground">Execution Log - Coming soon</div>;
+}
+
+function SettingsPage() {
+  return <div className="text-foreground">Settings - Coming soon</div>;
+}
+
+function LoginPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-foreground">Login</h1>
+        <p className="mt-2 text-muted-foreground">Login page - Coming soon</p>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="mx-auto max-w-4xl space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-upstream-600 dark:text-upstream-400">
-            Upstream Healthcare
-          </h1>
-          <p className="mt-2 text-muted-foreground">Claims Intelligence Platform - Frontend MVP</p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-success-500">Total Claims</CardTitle>
-              <CardDescription>Last 30 days</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">12,847</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-warning-500">Denial Rate</CardTitle>
-              <CardDescription>Current month</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">4.2%</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-upstream-500">Avg Score</CardTitle>
-              <CardDescription>Confidence score</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">87.3</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="flex justify-center gap-4">
-          <Button>Primary Action</Button>
-          <Button variant="secondary">Secondary</Button>
-          <Button variant="outline">Outline</Button>
-          <Button variant="destructive">Destructive</Button>
-        </div>
-      </div>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<AppLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/claim-scores" element={<ClaimScoresPage />} />
+        <Route path="/claim-scores/:id" element={<ClaimScoreDetailPage />} />
+        <Route path="/work-queue" element={<WorkQueuePage />} />
+        <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/alerts/:id" element={<AlertDetailPage />} />
+        <Route path="/authorizations" element={<AuthorizationsPage />} />
+        <Route path="/execution-log" element={<ExecutionLogPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Route>
+    </Routes>
   );
 }
 
