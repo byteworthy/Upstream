@@ -570,3 +570,408 @@ class HomeHealthServiceAnalyzeClaimsTest(TestCase):
         )
 
         self.assertEqual(results["f2f_invalid"], 1)
+
+
+# ============================================================================
+# HomeHealth Model Tests (Story #13)
+# ============================================================================
+
+
+class HomeHealthPDGMGroupModelTest(TestCase):
+    """Tests for HomeHealthPDGMGroup model."""
+
+    def test_create_pdgm_group(self):
+        """Test creating a PDGM group."""
+        from upstream.products.homehealth.models import HomeHealthPDGMGroup
+
+        group = HomeHealthPDGMGroup.objects.create(
+            timing="EARLY",
+            clinical_group="MMTA",
+            functional_level="LOW",
+            comorbidity="NONE",
+            hipps_code="1AAAA",
+            payment_weight=0.8234,
+        )
+
+        self.assertEqual(group.timing, "EARLY")
+        self.assertEqual(group.clinical_group, "MMTA")
+        self.assertEqual(group.functional_level, "LOW")
+        self.assertEqual(group.comorbidity, "NONE")
+        self.assertEqual(group.hipps_code, "1AAAA")
+        self.assertAlmostEqual(group.payment_weight, 0.8234, places=4)
+
+    def test_pdgm_group_str(self):
+        """Test string representation of PDGM group."""
+        from upstream.products.homehealth.models import HomeHealthPDGMGroup
+
+        group = HomeHealthPDGMGroup.objects.create(
+            timing="LATE",
+            clinical_group="WOUND",
+            functional_level="HIGH",
+            comorbidity="LOW",
+            hipps_code="2ABCB",
+            payment_weight=1.4456,
+        )
+
+        expected = "2ABCB: LATE/WOUND/HIGH/LOW"
+        self.assertEqual(str(group), expected)
+
+    def test_pdgm_group_unique_hipps_code(self):
+        """Test that HIPPS code must be unique."""
+        from django.db import IntegrityError
+        from upstream.products.homehealth.models import HomeHealthPDGMGroup
+
+        HomeHealthPDGMGroup.objects.create(
+            timing="EARLY",
+            clinical_group="MMTA",
+            functional_level="LOW",
+            comorbidity="NONE",
+            hipps_code="UNIQUE1",
+            payment_weight=1.0,
+        )
+
+        with self.assertRaises(IntegrityError):
+            HomeHealthPDGMGroup.objects.create(
+                timing="LATE",
+                clinical_group="WOUND",
+                functional_level="HIGH",
+                comorbidity="HIGH",
+                hipps_code="UNIQUE1",  # Duplicate
+                payment_weight=1.5,
+            )
+
+    def test_pdgm_group_unique_combination(self):
+        """Test timing/clinical/functional/comorbidity combination must be unique."""
+        from django.db import IntegrityError
+        from upstream.products.homehealth.models import HomeHealthPDGMGroup
+
+        HomeHealthPDGMGroup.objects.create(
+            timing="EARLY",
+            clinical_group="MMTA",
+            functional_level="LOW",
+            comorbidity="NONE",
+            hipps_code="CODE1",
+            payment_weight=1.0,
+        )
+
+        with self.assertRaises(IntegrityError):
+            HomeHealthPDGMGroup.objects.create(
+                timing="EARLY",
+                clinical_group="MMTA",
+                functional_level="LOW",
+                comorbidity="NONE",  # Same combination
+                hipps_code="CODE2",
+                payment_weight=1.5,
+            )
+
+    def test_pdgm_group_payment_weight_nonnegative(self):
+        """Test that payment weight must be non-negative."""
+        from django.core.exceptions import ValidationError
+        from upstream.products.homehealth.models import HomeHealthPDGMGroup
+
+        group = HomeHealthPDGMGroup(
+            timing="EARLY",
+            clinical_group="MMTA",
+            functional_level="LOW",
+            comorbidity="NONE",
+            hipps_code="NEGATIVE",
+            payment_weight=-1.0,
+        )
+
+        with self.assertRaises(ValidationError):
+            group.full_clean()
+
+
+class HomeHealthEpisodeModelTest(TestCase):
+    """Tests for HomeHealthEpisode model."""
+
+    @classmethod
+    def setUpTestData(cls):
+        """Set up test data for all tests."""
+        from upstream.models import Customer
+
+        cls.customer = Customer.objects.create(name="Test HomeHealth Provider")
+
+    def test_create_episode(self):
+        """Test creating a HomeHealth episode."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT12345",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+        )
+
+        self.assertEqual(episode.patient_identifier, "PT12345")
+        self.assertEqual(episode.payer, "Medicare")
+        self.assertEqual(episode.soc_date, date(2025, 6, 1))
+        self.assertEqual(episode.status, "ACTIVE")
+
+    def test_episode_str(self):
+        """Test string representation of episode."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT67890",
+            payer="Medicare",
+            soc_date=date(2025, 6, 15),
+        )
+
+        str_repr = str(episode)
+        self.assertIn("PT67890", str_repr)
+        self.assertIn("ACTIVE", str_repr)
+
+    def test_episode_f2f_validation_valid(self):
+        """Test F2F validation when timing is within requirements."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        # F2F 45 days before SOC (within 90 day limit)
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_F2F_VALID",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            f2f_date=date(2025, 4, 17),  # 45 days before SOC
+        )
+
+        result = episode.validate_f2f_timing()
+        self.assertTrue(result)
+        self.assertTrue(episode.f2f_is_valid)
+
+    def test_episode_f2f_validation_too_early(self):
+        """Test F2F validation when F2F is too early."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        # F2F 120 days before SOC (exceeds 90 day limit)
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_F2F_EARLY",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            f2f_date=date(2025, 2, 1),  # ~120 days before SOC
+        )
+
+        result = episode.validate_f2f_timing()
+        self.assertFalse(result)
+        self.assertFalse(episode.f2f_is_valid)
+
+    def test_episode_f2f_validation_too_late(self):
+        """Test F2F validation when F2F is too late."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        # F2F 45 days after SOC (exceeds 30 day limit)
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_F2F_LATE",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            f2f_date=date(2025, 7, 16),  # 45 days after SOC
+        )
+
+        result = episode.validate_f2f_timing()
+        self.assertFalse(result)
+        self.assertFalse(episode.f2f_is_valid)
+
+    def test_episode_f2f_validation_missing_dates(self):
+        """Test F2F validation with missing dates."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_F2F_MISSING",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            # No f2f_date
+        )
+
+        result = episode.validate_f2f_timing()
+        self.assertFalse(result)
+        self.assertFalse(episode.f2f_is_valid)
+
+    def test_episode_days_to_f2f_property(self):
+        """Test days_to_f2f property calculation."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_DAYS",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            f2f_date=date(2025, 5, 15),  # 17 days before SOC
+        )
+
+        self.assertEqual(episode.days_to_f2f, -17)
+
+    def test_episode_noa_deadline_calculation(self):
+        """Test NOA deadline calculation."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_NOA_CALC",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+        )
+
+        deadline = episode.calculate_noa_deadline()
+        self.assertEqual(deadline, date(2025, 6, 6))  # SOC + 5 days
+        self.assertEqual(episode.noa_deadline_date, date(2025, 6, 6))
+
+    def test_episode_noa_validation_on_time(self):
+        """Test NOA validation when submitted on time."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_NOA_ONTIME",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            noa_submitted_date=date(2025, 6, 3),  # 2 days after SOC
+        )
+        episode.calculate_noa_deadline()
+
+        result = episode.validate_noa_timeliness()
+        self.assertTrue(result)
+        self.assertTrue(episode.noa_is_timely)
+
+    def test_episode_noa_validation_late(self):
+        """Test NOA validation when submitted late."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_NOA_LATE",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            noa_submitted_date=date(2025, 6, 10),  # 9 days after SOC
+        )
+        episode.calculate_noa_deadline()
+
+        result = episode.validate_noa_timeliness()
+        self.assertFalse(result)
+        self.assertFalse(episode.noa_is_timely)
+
+    def test_episode_pdgm_group_lookup(self):
+        """Test PDGM group lookup on episode."""
+        from upstream.products.homehealth.models import (
+            HomeHealthEpisode,
+            HomeHealthPDGMGroup,
+        )
+
+        # Create a PDGM group
+        pdgm = HomeHealthPDGMGroup.objects.create(
+            timing="EARLY",
+            clinical_group="MMTA",
+            functional_level="LOW",
+            comorbidity="NONE",
+            hipps_code="LOOKUP1",
+            payment_weight=0.8234,
+        )
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_LOOKUP",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            timing="EARLY",
+            clinical_group="MMTA",
+            functional_level="LOW",
+            comorbidity="NONE",
+        )
+
+        result = episode.lookup_pdgm_group()
+        self.assertEqual(result, pdgm)
+        self.assertEqual(episode.pdgm_group, pdgm)
+
+    def test_episode_pdgm_group_lookup_not_found(self):
+        """Test PDGM group lookup when no match."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_NO_MATCH",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            timing="EARLY",
+            clinical_group="BEHAVIORAL",  # Not in DB
+            functional_level="HIGH",
+            comorbidity="HIGH",
+        )
+
+        result = episode.lookup_pdgm_group()
+        self.assertIsNone(result)
+
+    def test_episode_pdgm_group_lookup_missing_fields(self):
+        """Test PDGM group lookup with missing fields returns None."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_MISSING_FIELDS",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            timing="EARLY",
+            # Missing other PDGM fields
+        )
+
+        result = episode.lookup_pdgm_group()
+        self.assertIsNone(result)
+
+    def test_episode_oasis_score_constraint(self):
+        """Test OASIS score constraint (0-30)."""
+        from django.core.exceptions import ValidationError
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        # Valid score should work
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_OASIS_VALID",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            oasis_functional_score=15,
+        )
+        self.assertEqual(episode.oasis_functional_score, 15)
+
+        # Out of range score should fail validation
+        episode_invalid = HomeHealthEpisode(
+            customer=self.customer,
+            patient_identifier="PT_OASIS_INVALID",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+            oasis_functional_score=35,  # Invalid - exceeds 30
+        )
+
+        with self.assertRaises(ValidationError):
+            episode_invalid.full_clean()
+
+    def test_episode_status_choices(self):
+        """Test valid status choices."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        valid_statuses = ["ACTIVE", "COMPLETED", "DISCHARGED", "TRANSFERRED"]
+
+        for i, status in enumerate(valid_statuses):
+            episode = HomeHealthEpisode.objects.create(
+                customer=self.customer,
+                patient_identifier=f"PT_STATUS_{i}",
+                payer="Medicare",
+                soc_date=date(2025, 6, 1),
+                status=status,
+            )
+            self.assertEqual(episode.status, status)
+
+    def test_episode_customer_relationship(self):
+        """Test episode belongs to customer."""
+        from upstream.products.homehealth.models import HomeHealthEpisode
+
+        episode = HomeHealthEpisode.objects.create(
+            customer=self.customer,
+            patient_identifier="PT_CUSTOMER",
+            payer="Medicare",
+            soc_date=date(2025, 6, 1),
+        )
+
+        self.assertEqual(episode.customer, self.customer)
+        self.assertIn(episode, self.customer.homehealth_episodes.all())
