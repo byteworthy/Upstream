@@ -6,6 +6,13 @@ from upstream.core.tenant import CustomerScopedManager
 
 class Customer(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    stripe_customer_id = models.CharField(
+        max_length=255,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text="Stripe customer ID (cus_xxxxx)",
+    )
 
     def __str__(self):
         return self.name
