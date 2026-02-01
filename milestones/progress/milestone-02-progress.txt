@@ -75,3 +75,66 @@ Stories: #2, #3, #4 - DialysisMAService implementation
 ### Status
 ⚠️ Files staged but commit failed due to environment issues
 Files ready: services.py, constants.py, tests.py (updated)
+
+## [Agent 3] Iteration - 2026-02-01 07:15 UTC
+Stories: #20, #21 - Home Health F2F/NOA Tracking and Tests
+
+### Verification
+Both stories were already implemented by previous iterations:
+- Story #20: F2F and NOA deadline tracking in services.py
+  - validate_f2f_timing() checks 90 days prior / 30 days after SOC
+  - check_noa_deadline() alerts when NOA due in <2 days
+  - Severity escalates: info -> high -> critical
+- Story #21: Comprehensive tests in tests.py
+  - 39 tests covering PDGM, F2F, NOA validation
+  - All tests passing
+
+### Quality Gates Passed
+- pytest upstream/products/homehealth/tests.py: 39 passed
+- python manage.py check: 0 issues
+
+### Key Learnings
+- HomeHealthService follows CMS PDGM requirements (90 days prior/30 days after for F2F)
+- NOA deadline is 5 calendar days from SOC per CMS requirements
+- Alert severity escalation: info (>2 days) -> high (<= 2 days) -> critical (overdue)
+- Good test coverage with MockClaim/MockCustomer patterns
+
+### Status
+✅ Stories #20, #21 verified complete and marked passes: true
+✅ Committed: b010cc07
+✅ Pushed to origin/main
+
+## [Agent2] Iteration - 2026-02-01 UTC
+Stories: #18, #19 - PDGM_GROUPS constant and HomeHealthService PDGM validation
+
+### Verification
+Both stories were already fully implemented:
+
+#### Story #18: PDGM_GROUPS constant (upstream/products/homehealth/constants.py)
+- PDGM_GROUPS dictionary with 50+ entries mapping (timing, clinical_group, functional_level, comorbidity) to HIPPS code and payment weight
+- All 12 clinical groups defined: MMTA, WOUND, NEURO_REHAB, MS_REHAB, CARDIAC, etc.
+- TIMING_CATEGORIES: EARLY (within 30 days of facility discharge), LATE (community/31+ days)
+- FUNCTIONAL_LEVELS: LOW, MEDIUM, HIGH based on OASIS scores
+- COMORBIDITY_LEVELS: NONE, LOW, HIGH
+- lookup_pdgm_group() function for group determination with case-insensitive matching
+- CMS PDGM Final Rule documentation reference
+
+#### Story #19: HomeHealthService PDGM validation (upstream/products/homehealth/services.py)
+- HomeHealthService class created
+- validate_pdgm_grouping(claim) extracts timing/clinical/functional/comorbidity from specialty_metadata
+- Compares billed HIPPS code vs expected from PDGM_GROUPS lookup
+- Creates HIGH severity alerts on mismatch
+- Handles missing OASIS data gracefully (missing_fields list, appropriate severity)
+- PDGMValidationResult dataclass with structured validation output
+
+### Quality Gates Passed
+- pytest upstream/products/homehealth/tests.py: 39 tests passed
+  - PDGMConstantsTest: 7 tests for constant definitions
+  - PDGMLookupTest: 6 tests for lookup functions
+  - HomeHealthServicePDGMTest: 7 tests for PDGM validation
+  - HomeHealthServiceF2FTest: 8 tests for F2F timing
+  - HomeHealthServiceNOATest: 6 tests for NOA deadlines
+  - HomeHealthServiceAnalyzeClaimsTest: 5 tests for batch analysis
+
+### Status
+✅ Stories #18, #19 verified complete and marked passes: true

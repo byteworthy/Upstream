@@ -28,9 +28,9 @@ mkdir -p "$LOCK_DIR" "$LOG_DIR"
 
 # Define story assignments for each agent
 # These MUST NOT overlap
-AGENT1_STORIES="13,22,23"  # PT/OT tests + Integration
-AGENT2_STORIES="14,15,16,17"  # Imaging track
-AGENT3_STORIES="18,19,20,21"  # Home Health track
+AGENT1_STORIES="22,23"  # Integration track
+AGENT2_STORIES="18,19"  # Home Health constants + service
+AGENT3_STORIES="20,21"  # Home Health F2F + tests
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║     Ralph Parallel Runner - 3 Agent Configuration          ║${NC}"
