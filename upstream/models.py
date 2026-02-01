@@ -1302,3 +1302,11 @@ from upstream.products.delayguard.models import (  # noqa: F401, E402
     PaymentDelayClaimSet,
     PaymentDelayEvidenceArtifact,
 )
+from upstream.models_agents import (  # noqa: F401, E402
+    AgentRun,
+    Finding,
+    CodeQualityMetric,
+    DatabaseQueryAnalysis,
+    TestCoverageReport,
+    MigrationAnalysis,
+)
