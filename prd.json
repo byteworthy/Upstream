@@ -1,101 +1,138 @@
 {
-  "branchName": "ralph/phase-10-service-layer-extraction",
+  "branchName": "milestone-06-hipaa-remediation",
   "context": {
-    "phase": "10",
-    "phaseName": "Architecture - Extract Service Layer",
-    "phaseGoal": "Move business logic from views to dedicated service classes, addressing ARCH medium priority issues",
-    "requirements": [
-      "ARCH-05",
-      "ARCH-06"
-    ],
-    "dependsOn": "None (foundational refactoring)",
+    "phase": "6",
+    "phaseName": "HIPAA Technical Safeguards Remediation",
+    "phaseGoal": "Address critical HIPAA compliance gaps identified in security audit",
+    "dependsOn": [],
     "successCriteria": [
-      "Service classes exist for data quality, report generation, and alert processing",
-      "Each service has clear single responsibility",
-      "Services are testable in isolation (no view dependencies)",
-      "Service layer has 25+ comprehensive unit tests",
-      "All tests pass including existing integration tests"
+      "MFA implemented for all user authentication",
+      "Encryption key rotation policy established",
+      "All PHI fields use EncryptedTextField",
+      "Redis connections use TLS",
+      "Audit log access controls implemented",
+      "Automatic session timeout on inactivity"
     ],
     "qualityGates": [
       "python manage.py check",
-      "python manage.py test upstream.services -v 2",
-      "python manage.py test upstream.tests_api -v 2"
+      "python manage.py test upstream -v 2 --keepdb"
     ]
   },
   "userStories": [
     {
       "id": 1,
-      "title": "Create DataQualityService for validation logic",
-      "description": "Extract data quality validation logic from views into upstream/services/data_quality.py. Create DataQualityService class with methods: validate_upload_format(file) -> dict, validate_claim_data(claims_df) -> list[str], compute_data_quality_score(upload) -> float, flag_suspicious_patterns(claims) -> list[dict]. Service should be stateless and framework-agnostic (no Django request/response dependencies). Returns structured validation results that views can format into API responses.",
+      "title": "Implement MFA with django-otp",
+      "description": "Add Multi-Factor Authentication using django-otp with TOTP support. Required for HIPAA §164.312(d) Person/Entity Authentication.",
       "acceptanceCriteria": [
-        "DataQualityService class exists with 4+ validation methods",
-        "Service is stateless (no instance variables storing request state)",
-        "Methods accept domain objects (Upload, ClaimRecord), not HTTP requests",
-        "Returns structured dicts/lists that views format into JSON",
-        "No Django request/response imports in service file",
-        "Comprehensive docstrings with parameter/return type documentation",
-        "Tests pass"
+        "django-otp and django-otp-totp installed",
+        "TOTPDevice model for user MFA enrollment",
+        "MFA setup view with QR code generation",
+        "MFA verification middleware for protected views",
+        "Backup codes for account recovery",
+        "MFA can be required per-customer via CustomerAutomationProfile"
       ],
       "files": [
-        "upstream/services/__init__.py",
-        "upstream/services/data_quality.py"
+        "upstream/authentication/mfa.py",
+        "upstream/authentication/views_mfa.py",
+        "upstream/templates/authentication/mfa_setup.html",
+        "upstream/templates/authentication/mfa_verify.html"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 2,
-      "title": "Create ReportGenerationService for report logic",
-      "description": "Extract report generation logic into upstream/services/report_generation.py. Create ReportGenerationService class with methods: generate_payer_summary(customer, date_range) -> dict, generate_drift_report(customer, filters) -> dict, generate_recovery_stats(customer) -> dict, format_report_for_export(report_data, format='pdf'|'xlsx') -> bytes. Handles business logic for aggregating data, computing metrics, and formatting reports. Views remain thin - they call service methods and return HTTP responses.",
+      "title": "Establish encryption key rotation policy",
+      "description": "Implement key management with rotation for Fernet encryption keys. Required for HIPAA §164.312(a)(2)(iv) Encryption.",
       "acceptanceCriteria": [
-        "ReportGenerationService class with 4+ report generation methods",
-        "Methods accept domain parameters (customer_id, date ranges, filters)",
-        "Returns structured report data (dicts with metrics, summaries)",
-        "No HTTP response formatting in service (views handle that)",
-        "Format export method supports both PDF and Excel",
-        "Service methods are pure functions (deterministic, testable)",
-        "Tests pass"
+        "FIELD_ENCRYPTION_KEY supports key rotation (list of keys)",
+        "Primary key for encryption, all keys for decryption",
+        "Management command to rotate keys: rotate_encryption_keys",
+        "Key rotation re-encrypts data with new primary key",
+        "Key age tracking in settings or database",
+        "Documentation for key rotation procedure"
       ],
       "files": [
-        "upstream/services/report_generation.py"
+        "upstream/management/commands/rotate_encryption_keys.py",
+        "upstream/encryption/key_manager.py",
+        "docs/security/key_rotation.md"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 3,
-      "title": "Create AlertProcessingService for alert logic",
-      "description": "Extract alert processing logic into upstream/services/alert_processing.py. Create AlertProcessingService class with methods: evaluate_alert_rules(drift_events) -> list[Alert], process_alert_delivery(alert, channels) -> list[Delivery], compute_alert_priority(alert_data) -> int, should_suppress_alert(alert, history) -> bool. Centralizes alert evaluation and delivery logic currently scattered across views and tasks. Enables easier testing of alert business rules without HTTP layer.",
+      "title": "Encrypt all PHI fields in models",
+      "description": "Apply EncryptedTextField to all fields containing PHI. Required for HIPAA §164.312(a)(2)(iv) Encryption.",
       "acceptanceCriteria": [
-        "AlertProcessingService class with 4+ alert methods",
-        "Rule evaluation logic extracted from views",
-        "Alert suppression logic centralized (currently DB queries in hot path)",
-        "Priority computation uses clear business rules",
-        "Service methods accept domain objects (Alert, AlertRule, DriftEvent)",
-        "Returns structured results (Alert objects, delivery status dicts)",
-        "Tests pass"
+        "Audit all models for PHI fields",
+        "ClaimRecord: patient_name, patient_dob, diagnosis_codes encrypted",
+        "ValidationRule patterns stored encrypted if containing PHI",
+        "Migration to convert existing data to encrypted format",
+        "Test that encrypted fields are searchable (or document limitation)"
       ],
       "files": [
-        "upstream/services/alert_processing.py"
+        "upstream/models.py",
+        "upstream/migrations/0027_encrypt_phi_fields.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 4,
-      "title": "Add comprehensive service layer tests",
-      "description": "Create upstream/tests_services.py with 25+ tests covering all service methods. Test categories: (1) DataQualityService validation tests (valid/invalid formats, edge cases), (2) ReportGenerationService tests (aggregations, date ranges, empty data), (3) AlertProcessingService tests (rule evaluation, suppression logic, priority computation). Use pytest fixtures to create test data. Mock external dependencies (DB queries, file I/O) to test services in isolation. Verify services return expected data structures.",
+      "title": "Configure Redis TLS encryption",
+      "description": "Enable TLS for Redis connections to protect cached data in transit. Required for HIPAA §164.312(e)(1) Transmission Security.",
       "acceptanceCriteria": [
-        "tests_services.py created with 25+ test functions",
-        "Each service class has 8+ tests covering happy/sad paths",
-        "Tests use fixtures for test data creation",
-        "External dependencies mocked (Django ORM, file system)",
-        "Tests verify return types and data structures",
-        "Edge cases tested (empty inputs, invalid parameters, None values)",
-        "All tests pass",
-        "Test coverage > 90% for service layer"
+        "CACHES setting uses rediss:// (TLS) URL scheme",
+        "Celery broker uses TLS connection",
+        "Redis session store uses TLS",
+        "SSL certificate verification enabled",
+        "Environment variable REDIS_TLS_URL for configuration",
+        "Fallback to non-TLS for local development only"
       ],
       "files": [
-        "upstream/tests_services.py"
+        "upstream/settings/base.py",
+        "upstream/settings/production.py",
+        "docs/deployment/redis_tls.md"
       ],
-      "passes": true
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Add audit log access controls",
+      "description": "Implement access controls for audit logs with SIEM export capability. Required for HIPAA §164.312(b) Audit Controls.",
+      "acceptanceCriteria": [
+        "AuditLogAccessPermission restricts log viewing to admins",
+        "Log export endpoint with authentication",
+        "Syslog forwarding configuration for SIEM",
+        "Log integrity verification (checksums or signatures)",
+        "Tamper detection for modified log entries",
+        "Retention policy enforcement (7 years for HIPAA)"
+      ],
+      "files": [
+        "upstream/audit/permissions.py",
+        "upstream/audit/views.py",
+        "upstream/audit/siem_export.py",
+        "upstream/management/commands/enforce_log_retention.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 6,
+      "title": "Implement activity-based automatic logoff",
+      "description": "Add session timeout after period of inactivity. Required for HIPAA §164.312(a)(2)(iii) Automatic Logoff.",
+      "acceptanceCriteria": [
+        "Session timeout after 15 minutes of inactivity (configurable)",
+        "Frontend activity tracking (mouse, keyboard, scroll)",
+        "Warning modal 2 minutes before timeout",
+        "Extend session on user activity",
+        "JWT token expiry aligned with session timeout",
+        "Logout clears all session data"
+      ],
+      "files": [
+        "upstream/authentication/middleware.py",
+        "upstream/settings/base.py",
+        "frontend/src/hooks/useSessionTimeout.ts",
+        "frontend/src/components/SessionTimeoutWarning.tsx"
+      ],
+      "passes": false
     }
   ]
 }
