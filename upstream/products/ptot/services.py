@@ -153,7 +153,7 @@ class PTOTService:
                 billed_units=billed_units,
                 unit_difference=0,
                 cpt_code=cpt_code,
-                message=f"Correct: {billed_units} units for {total_minutes}min",
+                message=f"Valid: {billed_units} units for {total_minutes} min",
             )
 
         # Determine severity based on unit difference
