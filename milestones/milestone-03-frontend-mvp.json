@@ -214,7 +214,7 @@
         "frontend/src/components/alerts/EvidenceViewer.tsx",
         "frontend/src/components/alerts/ResolutionForm.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 11,
