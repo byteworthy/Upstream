@@ -183,7 +183,9 @@ export function CaseStudyTemplate({ data = SAMPLE_CASE_STUDY }: CaseStudyTemplat
             {/* Quote */}
             <Card className="my-12 bg-primary/5 border-primary/20">
               <CardContent className="p-8">
-                <blockquote className="text-lg italic mb-4">&ldquo;{data.quote.text}&rdquo;</blockquote>
+                <blockquote className="text-lg italic mb-4">
+                  &ldquo;{data.quote.text}&rdquo;
+                </blockquote>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                     <span className="text-lg font-semibold">
@@ -274,7 +276,10 @@ export function CaseStudyTemplate({ data = SAMPLE_CASE_STUDY }: CaseStudyTemplat
                 industry: 'Specialty Practice',
               },
             ].map((study) => (
-              <Card key={study.company} className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card
+                key={study.company}
+                className="hover:shadow-md transition-shadow cursor-pointer"
+              >
                 <CardContent className="p-6">
                   <p className="font-semibold mb-1">{study.company}</p>
                   <p className="text-sm text-muted-foreground mb-4">{study.industry}</p>

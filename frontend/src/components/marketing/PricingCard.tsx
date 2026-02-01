@@ -29,8 +29,8 @@ export function PricingCard({
   const monthlyEquivalent = isAnnual && annualPrice ? Math.round(annualPrice / 12) : price;
 
   return (
-    <Card className={`relative ${popular ? 'border-primary border-2 shadow-lg' : ''}`}>
-      {popular && (
+    <Card className={`relative ${isPopular ? 'border-primary border-2 shadow-lg' : ''}`}>
+      {isPopular && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2">
           <span className="bg-primary text-primary-foreground text-sm font-medium px-4 py-1 rounded-full">
             Most Popular
@@ -43,9 +43,15 @@ export function PricingCard({
       </CardHeader>
       <CardContent className="text-center">
         <div className="mt-4">
-          <span className="text-4xl font-bold">${monthlyEquivalent}</span>
-          <span className="text-muted-foreground">/month</span>
-          {isAnnual && (
+          {monthlyEquivalent !== null ? (
+            <>
+              <span className="text-4xl font-bold">${monthlyEquivalent}</span>
+              <span className="text-muted-foreground">/month</span>
+            </>
+          ) : (
+            <span className="text-4xl font-bold">Custom</span>
+          )}
+          {isAnnual && displayPrice !== null && (
             <p className="text-sm text-muted-foreground mt-1">
               Billed annually (${displayPrice}/year)
             </p>
@@ -59,7 +65,7 @@ export function PricingCard({
             </li>
           ))}
         </ul>
-        <Button className="w-full mt-8" variant={popular ? 'default' : 'outline'}>
+        <Button className="w-full mt-8" variant={isPopular ? 'default' : 'outline'}>
           {ctaText}
         </Button>
       </CardContent>
