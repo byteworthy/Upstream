@@ -118,7 +118,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 06-01-PLAN.md — Add indexes to UserProfile, AlertRule, NotificationChannel, WebhookDelivery, IntegrationLog models
+- [ ] 06-01-PLAN.md — Add composite (customer, role) index to UserProfile and partial (customer, -routing_priority) index to AlertRule
 
 ## Progress
 
