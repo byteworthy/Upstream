@@ -98,7 +98,7 @@
       "id": 14,
       "title": "Add Celery task for behavioral prediction",
       "description": "Add run_daily_behavioral_prediction to upstream/tasks.py.",
-      "passes": false
+      "passes": true
     },
     {
       "id": 15,
