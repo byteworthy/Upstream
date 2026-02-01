@@ -321,7 +321,7 @@
         "frontend/src/components/layout/MobileNav.tsx",
         "frontend/src/components/common/ResponsiveTable.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 17,
@@ -338,7 +338,7 @@
       "files": [
         "frontend/src/components/**/*.test.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 18,
@@ -358,7 +358,7 @@
         "frontend/e2e/dashboard.spec.ts",
         "frontend/e2e/work-queue.spec.ts"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
