@@ -141,3 +141,71 @@ class Subscription(models.Model):
     def needs_payment(self):
         """Check if subscription requires payment attention."""
         return self.status in ("past_due", "unpaid", "incomplete")
+
+
+class UsageRecord(models.Model):
+    """
+    Tracks claim processing volume for usage-based billing.
+
+    Records monthly usage per customer for potential overage charges
+    or usage-based pricing tiers.
+    """
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="usage_records",
+        help_text="Customer this usage belongs to",
+    )
+    period_start = models.DateField(
+        db_index=True,
+        help_text="Start of usage period (first day of month)",
+    )
+    period_end = models.DateField(
+        db_index=True,
+        help_text="End of usage period (last day of month)",
+    )
+    claims_processed = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Number of claims ingested/processed",
+    )
+    claims_scored = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Number of claims scored by AI",
+    )
+    api_calls = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Number of API calls made",
+    )
+    storage_bytes = models.BigIntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Storage used in bytes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = CustomerScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        db_table = "upstream_usage_record"
+        unique_together = [["customer", "period_start"]]
+        indexes = [
+            models.Index(
+                fields=["customer", "period_start"],
+                name="usage_customer_period_idx",
+            ),
+        ]
+        ordering = ["-period_start"]
+
+    def __str__(self):
+        return f"{self.customer.name} - {self.period_start} to {self.period_end}"
+
+    @property
+    def total_claims(self):
+        """Total claims (processed + scored)."""
+        return self.claims_processed + self.claims_scored
