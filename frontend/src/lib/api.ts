@@ -21,6 +21,8 @@ import type {
   DashboardMetrics,
   Authorization,
   PaginatedResponse,
+  WorkQueueItem,
+  WorkQueueListParams,
 } from '@/types/api';
 
 // Create axios instance with base configuration
@@ -313,17 +315,15 @@ export const authorizationsApi = {
 
 // Work Queue API (Tier 2 claims)
 export const workQueueApi = {
-  list: async (params?: {
-    page?: number;
-    page_size?: number;
-    ordering?: string;
-  }): Promise<PaginatedResponse<ClaimScore>> => {
-    const response = await apiClient.get<PaginatedResponse<ClaimScore>>('/work-queue/', { params });
+  list: async (params?: WorkQueueListParams): Promise<PaginatedResponse<WorkQueueItem>> => {
+    const response = await apiClient.get<PaginatedResponse<WorkQueueItem>>('/work-queue/', {
+      params,
+    });
     return response.data;
   },
 
-  approve: async (id: number): Promise<ExecutionLog> => {
-    const response = await apiClient.post<ExecutionLog>(`/work-queue/${id}/approve/`);
+  approve: async (id: number, notes?: string): Promise<ExecutionLog> => {
+    const response = await apiClient.post<ExecutionLog>(`/work-queue/${id}/approve/`, { notes });
     return response.data;
   },
 
@@ -344,6 +344,14 @@ export const workQueueApi = {
 
   bulkReject: async (ids: number[], reason?: string): Promise<ExecutionLog[]> => {
     const response = await apiClient.post<ExecutionLog[]>('/work-queue/bulk-reject/', {
+      ids,
+      reason,
+    });
+    return response.data;
+  },
+
+  bulkEscalate: async (ids: number[], reason?: string): Promise<ExecutionLog[]> => {
+    const response = await apiClient.post<ExecutionLog[]>('/work-queue/bulk-escalate/', {
       ids,
       reason,
     });

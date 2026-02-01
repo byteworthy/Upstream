@@ -3,12 +3,9 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Dashboard } from '@/pages/Dashboard';
 import { ClaimScores } from '@/pages/ClaimScores';
 import { ClaimScoreDetail } from '@/pages/ClaimScoreDetail';
+import { WorkQueue } from '@/pages/WorkQueue';
 
 // Placeholder pages - will be implemented in subsequent stories
-
-function WorkQueuePage() {
-  return <div className="text-foreground">Work Queue - Coming soon</div>;
-}
 
 function AlertsPage() {
   return <div className="text-foreground">Alerts - Coming soon</div>;
@@ -49,7 +46,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/claim-scores" element={<ClaimScores />} />
         <Route path="/claim-scores/:id" element={<ClaimScoreDetail />} />
-        <Route path="/work-queue" element={<WorkQueuePage />} />
+        <Route path="/work-queue" element={<WorkQueue />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/alerts/:id" element={<AlertDetailPage />} />
         <Route path="/authorizations" element={<AuthorizationsPage />} />

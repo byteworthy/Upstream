@@ -45,3 +45,6 @@ htmlcov/
 
 # Added by ggshield
 .cache_ggshield
+
+# Node modules
+node_modules/

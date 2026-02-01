@@ -205,3 +205,34 @@ export interface Authorization {
   remaining_units: number;
   status: 'active' | 'expired' | 'exhausted' | 'pending';
 }
+
+// Work Queue types
+export interface WorkQueueItem {
+  id: number;
+  claim_id: string;
+  claim_score_id: number;
+  confidence: number;
+  amount: number;
+  priority: 'high' | 'medium' | 'low';
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkQueueListParams {
+  page?: number;
+  page_size?: number;
+  ordering?: string;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+export interface WorkQueueActionRequest {
+  action: 'approve' | 'reject' | 'escalate';
+  notes?: string;
+}
+
+export interface WorkQueueBulkActionRequest {
+  ids: number[];
+  action: 'approve' | 'reject' | 'escalate';
+  notes?: string;
+}

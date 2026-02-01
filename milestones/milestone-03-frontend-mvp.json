@@ -45,7 +45,7 @@
         "frontend/vite.config.ts",
         "frontend/tsconfig.json"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 2,
@@ -63,7 +63,7 @@
         "frontend/src/index.css",
         "frontend/components.json"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 3,
@@ -81,7 +81,7 @@
         "frontend/src/lib/auth.ts",
         "frontend/src/types/api.d.ts"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 4,
@@ -99,7 +99,7 @@
         "frontend/src/components/layout/Sidebar.tsx",
         "frontend/src/components/layout/Header.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 5,
@@ -118,7 +118,7 @@
         "frontend/src/components/dashboard/MetricCard.tsx",
         "frontend/src/components/dashboard/ScoreDistribution.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 6,
@@ -137,7 +137,7 @@
         "frontend/src/components/scores/ClaimScoreTable.tsx",
         "frontend/src/components/scores/ScoreFilters.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 7,
@@ -156,7 +156,7 @@
         "frontend/src/components/scores/ScoreBreakdown.tsx",
         "frontend/src/components/scores/FeatureImportance.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 8,
