@@ -1,310 +1,395 @@
 {
-  "branchName": "milestone-01-core-scoring-engine",
+  "branchName": "milestone-02-specialty-modules",
   "context": {
-    "milestone": "01",
-    "milestoneName": "Core Scoring Engine",
-    "milestoneGoal": "Integrate ClaimScore, CustomerAutomationProfile, and ShadowModeResult models. Establish risk baselines, implement three-tier routing logic, and expose pre-submission risk scoring API.",
+    "milestone": "02",
+    "milestoneName": "Specialty Modules",
+    "milestoneGoal": "Build specialty-specific intelligence modules for Dialysis (MA variance), ABA (unit tracking), PT/OT (8-minute rule), Imaging (PA requirements), and Home Health (PDGM validation).",
     "dependsOn": [
-      "Month 1 Foundation (complete)",
-      "upstream/automation/models.py (exists, not migrated)"
+      "Milestone 1: Core Scoring Engine",
+      "Authorization model with specialty_metadata (from Month 1)"
     ],
     "priorArtifacts": [
-      "upstream/automation/models.py - ClaimScore, CustomerAutomationProfile, ShadowModeResult models exist but have no migrations",
-      "upstream/models.py - RiskBaseline model exists and is migrated",
-      "upstream/automation/rules_engine.py - RulesEngine class for rule evaluation"
+      "upstream/models.py - Authorization with SERVICE_TYPE_CHOICES (ABA, PT, OT, IMAGING, HOME_HEALTH, DIALYSIS)",
+      "upstream/models.py - RiskBaseline for historical denial tracking",
+      "upstream/services/scoring.py - RiskScoringService from Milestone 1"
     ],
     "successCriteria": [
-      "ClaimScore, CustomerAutomationProfile, ShadowModeResult tables exist in database",
-      "Three-tier routing (auto-execute, queue-review, escalate) correctly classifies claims",
-      "Pre-submission API (POST /api/v1/claims/score/) returns risk scores within 200ms",
-      "95%+ test coverage on scoring logic",
-      "OpenAPI documentation includes all new endpoints"
+      "Dialysis MA variance alerts trigger when payment < 85% of traditional Medicare",
+      "ABA authorization unit tracking with exhaustion projection",
+      "PT/OT 8-minute rule validation catches billing errors",
+      "Imaging PA requirements database integrated",
+      "Home Health PDGM grouper validates billing accuracy",
+      "All specialty modules integrated into ClaimScore calculation"
     ],
     "qualityGates": [
       "python manage.py check",
-      "python manage.py makemigrations --check --dry-run",
       "python manage.py test upstream -v 2",
-      "python manage.py spectacular --validate"
+      "python manage.py test upstream.tests_specialty -v 2"
     ]
   },
   "userStories": [
     {
       "id": 1,
-      "title": "Add upstream.automation to INSTALLED_APPS",
-      "description": "Register the automation app in Django settings so models can be migrated. The app exists at upstream/automation/ with models.py containing ClaimScore, CustomerAutomationProfile, and ShadowModeResult.",
+      "title": "Create DialysisMABaseline model for Medicare baselines",
+      "description": "Create model to store traditional Medicare payment baselines for dialysis CPT codes. Used to compare MA payer payments.",
       "acceptanceCriteria": [
-        "upstream.automation added to INSTALLED_APPS in upstream/settings/base.py",
-        "python manage.py check passes without errors",
-        "App is recognized: python -c \"from upstream.automation.models import ClaimScore; print('OK')\" works"
+        "DialysisMABaseline model created with: cpt, average_payment, sample_size, last_updated",
+        "Migration created and applied",
+        "Composite index on cpt for fast lookups",
+        "Admin interface registered"
       ],
       "files": [
-        "upstream/settings/base.py"
+        "upstream/products/dialysis/models.py",
+        "upstream/products/dialysis/migrations/0001_initial.py",
+        "upstream/admin.py"
       ],
       "passes": true
     },
     {
       "id": 2,
-      "title": "Create migration for automation models",
-      "description": "Generate Django migration for ClaimScore, CustomerAutomationProfile, and ShadowModeResult models. These models exist in upstream/automation/models.py but have no migrations.",
+      "title": "Create DialysisMAService for variance detection",
+      "description": "Create service that detects when MA payer payments are significantly below traditional Medicare baseline.",
       "acceptanceCriteria": [
-        "Migration file created in upstream/automation/migrations/",
-        "Migration includes all three models with correct fields and indexes",
-        "python manage.py migrate runs cleanly",
-        "All three tables exist in database"
+        "DialysisMAService class created",
+        "detect_variance(claim) method compares paid_amount to baseline",
+        "Creates AlertEvent when ratio < 0.85",
+        "Calculates projected annual revenue loss",
+        "Handles missing baseline gracefully"
       ],
       "files": [
-        "upstream/automation/migrations/0001_initial.py"
+        "upstream/products/dialysis/services.py"
       ],
       "passes": true
     },
     {
       "id": 3,
-      "title": "Create ClaimScoreSerializer with all fields",
-      "description": "Create DRF serializer for ClaimScore model following the HATEOASMixin pattern from upstream/api/serializers.py. Include all confidence fields, risk scores, and automation tier.",
+      "title": "Create MA payer list and variance thresholds",
+      "description": "Create configuration for known Medicare Advantage payers and variance alert thresholds.",
       "acceptanceCriteria": [
-        "ClaimScoreSerializer created in upstream/api/serializers.py or new file",
-        "All ClaimScore fields serialized correctly",
-        "read_only fields: id, created_at, updated_at, claim (nested)",
-        "Includes HATEOAS links following existing pattern"
+        "MA_PAYER_LIST constant with major MA payers",
+        "VARIANCE_THRESHOLD setting (default 0.85)",
+        "HIGH_VARIANCE_THRESHOLD for critical alerts (0.70)",
+        "Configuration loadable from settings or database"
       ],
       "files": [
-        "upstream/api/serializers.py"
+        "upstream/products/dialysis/constants.py"
       ],
       "passes": true
     },
     {
       "id": 4,
-      "title": "Create CustomerAutomationProfileSerializer",
-      "description": "Create DRF serializer for CustomerAutomationProfile model. Include all threshold fields, automation stage, and shadow mode configuration.",
+      "title": "Write tests for DialysisMAService",
+      "description": "Create comprehensive tests for dialysis MA variance detection.",
       "acceptanceCriteria": [
-        "CustomerAutomationProfileSerializer created",
-        "All threshold fields serialized (auto_execute_confidence, queue_review_min_confidence, etc.)",
-        "automation_stage choices properly handled",
-        "compliance_officer serialized as nested user or ID"
+        "Test variance detection at various payment ratios",
+        "Test alert creation with correct severity",
+        "Test revenue loss calculation",
+        "Test handling of missing baselines",
+        "Coverage > 90%"
       ],
       "files": [
-        "upstream/api/serializers.py"
+        "upstream/products/dialysis/tests.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 5,
-      "title": "Create ShadowModeResultSerializer",
-      "description": "Create DRF serializer for ShadowModeResult model. Include AI prediction, human decision, and comparison fields.",
+      "title": "Create ABAAuthorizationTracker model",
+      "description": "Create model to track ABA authorization unit consumption and exhaustion projections.",
       "acceptanceCriteria": [
-        "ShadowModeResultSerializer created",
-        "ai_recommended_action and human_action_taken serialized",
-        "actions_match and outcome fields included",
-        "Nested claim_score serializer for context"
+        "ABAAuthorizationTracker model with: authorization FK, units_used, units_remaining, weekly_usage_rate, projected_exhaustion_date",
+        "Migration created and applied",
+        "Unique constraint on authorization",
+        "Methods for updating usage"
       ],
       "files": [
-        "upstream/api/serializers.py"
+        "upstream/products/aba/models.py",
+        "upstream/products/aba/migrations/0001_initial.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 6,
-      "title": "Create ClaimScoreViewSet with CRUD operations",
-      "description": "Create DRF ViewSet for ClaimScore following the tenant-isolated pattern from CustomerViewSet. Include list, retrieve, and create actions.",
+      "title": "Create ABAAuthorizationService for unit tracking",
+      "description": "Create service that tracks ABA unit consumption from claims and projects authorization exhaustion.",
       "acceptanceCriteria": [
-        "ClaimScoreViewSet created with CustomerAccessMixin",
-        "list action filters by customer with pagination",
-        "retrieve action returns single score with claim details",
-        "create action validates claim ownership before scoring",
-        "OpenAPI @extend_schema decorators added"
+        "ABAAuthorizationService class created",
+        "track_units(claim) updates units_used from claim procedure_count",
+        "project_exhaustion() calculates date based on weekly usage rate",
+        "Triggers alert at 90% utilization",
+        "Handles multiple active authorizations"
       ],
       "files": [
-        "upstream/api/views.py"
+        "upstream/products/aba/services.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 7,
-      "title": "Create CustomerAutomationProfileViewSet",
-      "description": "Create DRF ViewSet for CustomerAutomationProfile. Each customer has exactly one profile (OneToOneField), so use retrieve/update pattern.",
+      "title": "Create ABA re-auth deadline alerts",
+      "description": "Implement alert system for ABA authorization expiration: 30-day, 14-day, and 3-day notices.",
       "acceptanceCriteria": [
-        "CustomerAutomationProfileViewSet created",
-        "get_object returns profile for authenticated customer",
-        "update action allows modifying thresholds",
-        "Prevents creating duplicate profiles",
-        "OpenAPI documentation complete"
+        "check_auth_expiration() method in ABAAuthorizationService",
+        "Alert at 30 days: severity=MEDIUM",
+        "Alert at 14 days: severity=HIGH",
+        "Alert at 3 days: severity=CRITICAL",
+        "Tracks last_alert_sent to prevent duplicates"
       ],
       "files": [
-        "upstream/api/views.py"
+        "upstream/products/aba/services.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 8,
-      "title": "Create ShadowModeResultViewSet (read-only)",
-      "description": "Create read-only DRF ViewSet for ShadowModeResult. Used to review AI vs human decision comparisons.",
+      "title": "Create BCBA credential expiration tracking",
+      "description": "Track supervising clinician credentials in Authorization.specialty_metadata and alert before expiration.",
       "acceptanceCriteria": [
-        "ShadowModeResultViewSet with list and retrieve only",
-        "Filtered by customer",
-        "Includes filtering by actions_match, outcome, date range",
-        "Aggregation endpoint for accuracy rate"
+        "specialty_metadata schema includes: bcba_required, credential_expiration, credential_type",
+        "check_credential_expiration() alerts at 60/30/14 days",
+        "Severity escalates as deadline approaches",
+        "Integration with ABAAuthorizationService"
       ],
       "files": [
-        "upstream/api/views.py"
+        "upstream/products/aba/services.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 9,
-      "title": "Register automation ViewSets in urls.py",
-      "description": "Add URL routes for ClaimScoreViewSet, CustomerAutomationProfileViewSet, and ShadowModeResultViewSet using DRF router.",
+      "title": "Write tests for ABAAuthorizationService",
+      "description": "Create comprehensive tests for ABA authorization tracking.",
       "acceptanceCriteria": [
-        "/api/v1/claim-scores/ routes to ClaimScoreViewSet",
-        "/api/v1/automation-profile/ routes to CustomerAutomationProfileViewSet",
-        "/api/v1/shadow-results/ routes to ShadowModeResultViewSet",
-        "All endpoints accessible with valid JWT token"
+        "Test unit consumption tracking",
+        "Test exhaustion projection accuracy",
+        "Test re-auth alert thresholds",
+        "Test credential expiration alerts",
+        "Test duplicate alert prevention"
       ],
       "files": [
-        "upstream/api/urls.py"
+        "upstream/products/aba/tests.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 10,
-      "title": "Create RiskScoringService with scoring algorithm",
-      "description": "Create service class that calculates ClaimScore for a given claim. Implements the confidence scoring algorithm combining coding, eligibility, documentation, and denial risk factors.",
+      "title": "Create TIME_BASED_CPTS constant for PT/OT",
+      "description": "Define time-based CPT codes with their standard minute values for 8-minute rule validation.",
       "acceptanceCriteria": [
-        "RiskScoringService class created in upstream/services/scoring.py",
-        "calculate_score(claim) method returns ClaimScore instance",
-        "Combines: coding_confidence, eligibility_confidence, medical_necessity_confidence, documentation_completeness",
-        "Calculates denial_risk_score from RiskBaseline lookup",
-        "Returns overall_confidence as weighted average"
+        "TIME_BASED_CPTS dictionary: {'97110': 15, '97112': 15, '97140': 15, ...}",
+        "30+ common PT/OT CPT codes included",
+        "Comments documenting code descriptions",
+        "Loadable from settings for customization"
       ],
       "files": [
-        "upstream/services/__init__.py",
-        "upstream/services/scoring.py"
+        "upstream/products/ptot/constants.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 11,
-      "title": "Integrate RiskBaseline lookup into scoring",
-      "description": "Enhance RiskScoringService to look up historical denial rates from RiskBaseline model and factor into denial_risk_score.",
+      "title": "Create PTOTService with 8-minute rule validation",
+      "description": "Create service that validates PT/OT claims against the 8-minute rule for time-based billing.",
       "acceptanceCriteria": [
-        "Scoring service queries RiskBaseline for claim's payer+cpt combination",
-        "If baseline exists, use historical denial_rate",
-        "If no baseline, use conservative default (0.5)",
-        "Recent denial streak detection: 3+ denials in 7 days increases risk by 50%"
+        "PTOTService class created",
+        "validate_8_minute_rule(claim) calculates expected units from total minutes",
+        "8-minute rule: 8-22min=1 unit, 23-37min=2 units, etc.",
+        "Creates alert when billed_units != expected_units",
+        "Handles non-time-based CPTs correctly"
       ],
       "files": [
-        "upstream/services/scoring.py"
+        "upstream/products/ptot/services.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
       "id": 12,
-      "title": "Implement three-tier routing logic",
-      "description": "Add routing logic to RiskScoringService that determines automation_tier and recommended_action based on CustomerAutomationProfile thresholds.",
+      "title": "Create KX threshold monitoring for therapy cap",
+      "description": "Detect when patients exceed the therapy cap ($2,410 for 2025) and require KX modifier.",
       "acceptanceCriteria": [
-        "Tier 1 (auto_execute): confidence >= profile.auto_execute_confidence AND amount <= profile.auto_execute_max_amount",
-        "Tier 2 (queue_review): confidence >= profile.queue_review_min_confidence",
-        "Tier 3 (escalate): confidence below threshold OR amount above threshold OR red-line action",
-        "Red-line detection: fraud_risk > 0.7, compliance_risk > 0.7, requires_human_review flag"
+        "THERAPY_CAP_THRESHOLD setting (configurable annually)",
+        "check_kx_threshold() calculates patient YTD charges",
+        "Creates alert if cap exceeded and KX modifier missing",
+        "Severity=CRITICAL for missing KX",
+        "Handles calendar year boundary"
+      ],
+      "files": [
+        "upstream/products/ptot/services.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 13,
+      "title": "Write tests for PTOTService",
+      "description": "Create comprehensive tests for PT/OT billing validation.",
+      "acceptanceCriteria": [
+        "Test 8-minute rule calculations at various minute values",
+        "Test alert creation for over/under billing",
+        "Test KX threshold detection",
+        "Test YTD charge calculation",
+        "Coverage > 90%"
+      ],
+      "files": [
+        "upstream/products/ptot/tests.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 14,
+      "title": "Create ImagingPARequirement model",
+      "description": "Create model to store prior authorization requirements by payer and CPT code for imaging procedures.",
+      "acceptanceCriteria": [
+        "ImagingPARequirement model: payer, cpt, pa_required, rbm_provider (eviCore/AIM), effective_date",
+        "Migration created and applied",
+        "Composite index on (payer, cpt)",
+        "Bulk import capability for PA requirements CSV"
+      ],
+      "files": [
+        "upstream/products/imaging/models.py",
+        "upstream/products/imaging/migrations/0001_initial.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 15,
+      "title": "Create ImagingPAService for PA requirement checking",
+      "description": "Create service that validates imaging claims have required prior authorization.",
+      "acceptanceCriteria": [
+        "ImagingPAService class created",
+        "check_pa_required(claim) looks up requirement by payer+cpt",
+        "Verifies active Authorization exists for claim",
+        "Creates CRITICAL alert if PA required but not obtained",
+        "Includes RBM provider in alert for context"
+      ],
+      "files": [
+        "upstream/products/imaging/services.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 16,
+      "title": "Create imaging medical necessity documentation validation",
+      "description": "Validate that imaging claims have required medical necessity documentation in specialty_metadata.",
+      "acceptanceCriteria": [
+        "specialty_metadata schema: has_medical_necessity_docs, clinical_justification, icd10_codes",
+        "validate_documentation(claim) checks required fields",
+        "Creates alert if documentation incomplete for PA-required claims",
+        "Integrates with red-line detection in scoring"
+      ],
+      "files": [
+        "upstream/products/imaging/services.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 17,
+      "title": "Write tests for ImagingPAService",
+      "description": "Create comprehensive tests for imaging PA validation.",
+      "acceptanceCriteria": [
+        "Test PA requirement lookup",
+        "Test authorization verification",
+        "Test alert creation for missing PA",
+        "Test documentation validation",
+        "Test bulk import functionality"
+      ],
+      "files": [
+        "upstream/products/imaging/tests.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 18,
+      "title": "Create PDGM_GROUPS constant for home health",
+      "description": "Define PDGM grouper mapping for 50 most common clinical/functional/timing combinations.",
+      "acceptanceCriteria": [
+        "PDGM_GROUPS dictionary mapping (timing, clinical, functional, comorbidity) to group code",
+        "50+ common combinations covered",
+        "Comments documenting CMS source",
+        "Lookup function for group determination"
+      ],
+      "files": [
+        "upstream/products/homehealth/constants.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 19,
+      "title": "Create HomeHealthService for PDGM validation",
+      "description": "Create service that validates home health claims against PDGM grouper logic.",
+      "acceptanceCriteria": [
+        "HomeHealthService class created",
+        "validate_pdgm_grouping(claim) extracts timing/clinical/functional/comorbidity from specialty_metadata",
+        "Compares expected vs billed PDGM group",
+        "Creates HIGH alert on mismatch",
+        "Handles missing OASIS data gracefully"
+      ],
+      "files": [
+        "upstream/products/homehealth/services.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 20,
+      "title": "Create Face-to-Face and NOA deadline tracking",
+      "description": "Validate F2F assessment timing and NOA submission deadlines for home health.",
+      "acceptanceCriteria": [
+        "specialty_metadata includes: f2f_completed, f2f_date, start_of_care_date, noa_submitted_date",
+        "validate_f2f_timing() checks F2F within 5 days of SOC",
+        "check_noa_deadline() alerts when NOA due in <2 days",
+        "Severity escalates as deadlines approach"
+      ],
+      "files": [
+        "upstream/products/homehealth/services.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 21,
+      "title": "Write tests for HomeHealthService",
+      "description": "Create comprehensive tests for home health PDGM validation.",
+      "acceptanceCriteria": [
+        "Test PDGM group lookup",
+        "Test mismatch detection",
+        "Test F2F timing validation",
+        "Test NOA deadline alerts",
+        "Coverage > 90%"
+      ],
+      "files": [
+        "upstream/products/homehealth/tests.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 22,
+      "title": "Integrate specialty modules into ClaimScore calculation",
+      "description": "Enhance RiskScoringService to include specialty-specific risk factors based on claim service_type.",
+      "acceptanceCriteria": [
+        "RiskScoringService routes to appropriate specialty service based on claim service_type",
+        "Specialty risk factors affect overall_confidence",
+        "Specialty violations trigger requires_human_review flag",
+        "All specialty alerts integrate with main alert system"
       ],
       "files": [
         "upstream/services/scoring.py"
       ],
-      "passes": true
+      "passes": false
     },
     {
-      "id": 13,
-      "title": "Create pre-submission risk API endpoint",
-      "description": "Add custom action to ClaimScoreViewSet for pre-submission scoring: POST /api/v1/claim-scores/score/ that accepts claim_id and returns calculated score.",
+      "id": 23,
+      "title": "Create specialty module API endpoints",
+      "description": "Add API endpoints for specialty-specific data and validation results.",
       "acceptanceCriteria": [
-        "POST /api/v1/claim-scores/score/ endpoint created",
-        "Accepts: {\"claim_id\": 123} in request body",
-        "Returns: ClaimScore with all fields including recommended_action",
-        "Response time < 200ms for single claim",
-        "Rate limited: 100 requests/minute per customer"
+        "GET /api/v1/specialty/dialysis/baselines/ - list MA baselines",
+        "GET /api/v1/specialty/aba/authorizations/ - list ABA auth tracking",
+        "GET /api/v1/specialty/imaging/pa-requirements/ - list PA requirements",
+        "POST /api/v1/specialty/validate/ - run specialty validation for claim",
+        "OpenAPI documentation complete"
       ],
       "files": [
-        "upstream/api/views.py"
+        "upstream/api/views.py",
+        "upstream/api/urls.py"
       ],
-      "passes": true
-    },
-    {
-      "id": 14,
-      "title": "Add OpenAPI documentation for scoring endpoints",
-      "description": "Add comprehensive @extend_schema decorators to all automation ViewSets with examples, descriptions, and proper tagging.",
-      "acceptanceCriteria": [
-        "@extend_schema added to all automation ViewSet actions",
-        "Request/response examples included",
-        "Proper tags: 'Automation', 'Scoring', 'Shadow Mode'",
-        "python manage.py spectacular --validate passes"
-      ],
-      "files": [
-        "upstream/api/views.py"
-      ],
-      "passes": true
-    },
-    {
-      "id": 15,
-      "title": "Write scoring service unit tests",
-      "description": "Create comprehensive test suite for RiskScoringService covering all scoring scenarios, tier routing, and edge cases.",
-      "acceptanceCriteria": [
-        "Test file created: upstream/tests_scoring.py",
-        "Tests for calculate_score with various claim scenarios",
-        "Tests for three-tier routing logic",
-        "Tests for red-line detection",
-        "Tests for RiskBaseline lookup fallback",
-        "Coverage > 90% for scoring.py"
-      ],
-      "files": [
-        "upstream/tests_scoring.py"
-      ],
-      "passes": true
-    },
-    {
-      "id": 16,
-      "title": "Write API integration tests for scoring endpoints",
-      "description": "Create API tests for all automation endpoints using Django test client.",
-      "acceptanceCriteria": [
-        "Tests for ClaimScoreViewSet CRUD operations",
-        "Tests for CustomerAutomationProfileViewSet retrieve/update",
-        "Tests for ShadowModeResultViewSet list/retrieve",
-        "Tests for pre-submission scoring endpoint",
-        "Tests verify tenant isolation (customer A can't see customer B scores)"
-      ],
-      "files": [
-        "upstream/tests_api.py"
-      ],
-      "passes": true
-    },
-    {
-      "id": 17,
-      "title": "Create test fixtures for automation models",
-      "description": "Create factory fixtures for ClaimScore, CustomerAutomationProfile, and ShadowModeResult using existing factory pattern.",
-      "acceptanceCriteria": [
-        "ClaimScoreFactory created with realistic default values",
-        "CustomerAutomationProfileFactory with configurable thresholds",
-        "ShadowModeResultFactory for testing accuracy calculations",
-        "Fixtures integrated with existing test setup"
-      ],
-      "files": [
-        "upstream/tests_fixtures.py"
-      ],
-      "passes": true
-    },
-    {
-      "id": 18,
-      "title": "Add admin interface for automation models",
-      "description": "Register ClaimScore, CustomerAutomationProfile, and ShadowModeResult with Django admin for operational visibility.",
-      "acceptanceCriteria": [
-        "All three models registered in upstream/admin.py",
-        "ClaimScoreAdmin with list_display showing key fields",
-        "CustomerAutomationProfileAdmin with inline thresholds",
-        "ShadowModeResultAdmin with filtering by outcome",
-        "Admin accessible at /admin/"
-      ],
-      "files": [
-        "upstream/admin.py"
-      ],
-      "passes": true
+      "passes": false
     }
   ]
 }
