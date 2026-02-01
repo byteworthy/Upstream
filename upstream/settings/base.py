@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "upstream.apps.UpstreamConfig",
     "upstream.automation.apps.AutomationConfig",
     "upstream.billing.apps.BillingConfig",
+    "upstream.feature_flags.apps.FeatureFlagsConfig",
 ]
 
 MIDDLEWARE = [
