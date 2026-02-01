@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: OpenAPI Documentation & Error Standardization** - API developer experience
 - [x] **Phase 4: Webhook & RBAC Testing** - Integration test coverage
 - [x] **Phase 5: Performance Testing & Rollback Fix** - Production reliability validation
-- [ ] **Phase 6: Database Indexes** - Query performance optimization
+- [x] **Phase 6: Database Indexes** - Query performance optimization
 
 ## Phase Details
 
@@ -118,7 +118,9 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 06-01-PLAN.md — Add composite (customer, role) index to UserProfile and partial (customer, -routing_priority) index to AlertRule
+- [x] 06-01-PLAN.md — Add composite (customer, role) index to UserProfile and partial (customer, -routing_priority) index to AlertRule
+
+**Completed:** 2026-02-01
 
 ## Progress
 
@@ -132,4 +134,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. OpenAPI Documentation & Error Standardization | 2/2 | Complete | 2026-02-01 |
 | 4. Webhook & RBAC Testing | 2/2 | Complete | 2026-01-26 |
 | 5. Performance Testing & Rollback Fix | 2/2 | Complete | 2026-01-26 |
-| 6. Database Indexes | 0/1 | Ready | - |
+| 6. Database Indexes | 1/1 | Complete | 2026-02-01 |
