@@ -232,7 +232,7 @@
         "frontend/src/components/authorizations/AuthorizationCalendar.tsx",
         "frontend/src/components/authorizations/ExpirationCard.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 12,
