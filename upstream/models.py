@@ -906,6 +906,14 @@ class UserProfile(models.Model):
         """Check if user can manage team members."""
         return self.role in ("owner", "admin")
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["customer", "role"],
+                name="userprofile_customer_role_idx",
+            ),
+        ]
+
     @property
     def can_manage_alerts(self):
         """Check if user can manage alert rules and routing."""
@@ -971,7 +979,8 @@ class CPTGroupMapping(models.Model):
 class RiskBaseline(models.Model):
     """
     Historical denial rate baselines for risk scoring.
-    Stores aggregated historical denial rates for each (customer, payer, CPT) combination.
+    Stores aggregated historical denial rates for each
+    (customer, payer, CPT) combination.
     Updated nightly by build_risk_baselines Celery task.
     """
 
