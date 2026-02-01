@@ -1,129 +1,39 @@
 # Ralph Progress Log
-Started: Tue Jan 27 15:31:15 UTC 2026
+Started: Sun Feb  1 02:03:29 UTC 2026
 ---
 
-## Iteration 1 - 2026-01-27 15:32 UTC
-Story: #1 - Create DataQualityService for validation logic
+
+## Iteration 5 - 2026-02-01 01:53 UTC
+Story: #1 - Generate HIPAA BAA document template (Milestone 05)
 
 ### Implementation
-- Found DataQualityService already implemented in upstream/services/data_quality.py
-- Service contains 4 core methods:
-  1. validate_upload_format() - validates file size/extension
-  2. validate_claim_data() - validates claim fields, PHI detection
-  3. compute_data_quality_score() - calculates acceptance rate
-  4. flag_suspicious_patterns() - detects data anomalies
-- All methods are static (stateless service)
-- No Django dependencies (framework-agnostic)
-- Returns structured dicts/lists for views to format
+- Created docs/legal/ directory structure
+- Created comprehensive HIPAA Business Associate Agreement template
+- Template location: docs/legal/baa_template.md (387 lines)
+- Document structure:
+  - Article 1: Definitions (HIPAA terms + AI/ML-specific)
+  - Article 2: Obligations of Business Associate (permitted uses, prohibited uses, safeguards)
+  - Article 3: Data Use Limitations (retention, geographic, segregation)
+  - Article 4: AI/ML-Specific Provisions (model training, explainability, bias monitoring)
+  - Article 5: Breach Notification (30-day BA notice, 60-day HIPAA compliance)
+  - Article 6: Subcontractors
+  - Article 7: Term and Termination
+  - Article 8: Miscellaneous
+  - Exhibits A-C: Services, Uses, Security Specifications
 
 ### Key Decisions
-- Service was already implemented (likely by previous iteration)
-- Verified all acceptance criteria met
-- Tests exist in upstream/core/tests_data_quality.py (42 tests pass)
+- Included AI-specific clauses for modern healthcare AI platform needs
+- Model training restrictions require explicit written authorization
+- Explainability requirements for clinical decision support systems
+- Bias monitoring requirements for AI/ML outputs
+- 30-day BA notification enables Covered Entity's 60-day HIPAA deadline
 
 ### Learnings
-- Service layer already in place at upstream/services/
-- DataQualityService follows stateless pattern with static methods
-- PHI detection implemented using common name dictionary
-- Comprehensive docstrings with examples included
+- HIPAA BAA must include standard clauses from 45 CFR 164.504(e)
+- AI/ML provisions are increasingly important for healthcare SaaS
+- Template includes placeholder fields for customization
+- Legal review disclaimer added to template footer
 
 ### Status
-✅ Story #1 verified complete and marked as passing in prd.json
-
-## Iteration 2 - 2026-01-27 15:36 UTC
-Story: #2 - Create ReportGenerationService for report logic
-
-### Implementation
-- Created ReportGenerationService in upstream/services/report_generation.py
-- Service contains 4 core methods:
-  1. generate_payer_summary() - aggregates claim metrics by payer (approval/denial rates, decision times)
-  2. generate_drift_report() - summarizes drift events with severity analysis and filtering
-  3. generate_recovery_stats() - calculates payment recovery metrics (billed vs paid, underpayments)
-  4. format_report_for_export() - prepares report data for PDF/Excel export
-- All methods are static (stateless service)
-- Accepts domain parameters (customer_id, date ranges, filters, claim/event dicts)
-- Returns structured dicts that views/tasks can format into responses
-
-### Key Decisions
-- Implemented as pure business logic layer - no Django ORM calls in service
-- Methods accept pre-fetched data lists (claims, events) rather than queryset objects
-- This allows views to control query optimization while service handles aggregation logic
-- Format export method validates format and returns structured section data
-
-### Learnings
-- Existing reporting logic in upstream/reporting/services.py is tightly coupled to Django and file I/O
-- New service layer separates concerns: queries in views/tasks, business logic in service, I/O elsewhere
-- Service methods are pure functions - deterministic and easily testable with mock data
-
-### Status
-✅ Story #2 complete and committed
-✅ Story marked as passing in prd.json
-
-## Iteration 3 - 2026-01-27 15:39 UTC
-Story: #3 - Create AlertProcessingService for alert logic
-
-### Implementation
-- Created AlertProcessingService in upstream/services/alert_processing.py
-- Service contains 4 core methods:
-  1. evaluate_alert_rules() - evaluates drift events against rules (checks enabled, drift type, severity threshold)
-  2. process_alert_delivery() - prepares deliveries for notification channels (skips disabled, formats content)
-  3. compute_alert_priority() - calculates priority score 0-10 (based on severity, delta %, consecutive periods)
-  4. should_suppress_alert() - determines suppression based on cooldown (4 hrs) and noise patterns
-- All methods are static (stateless service)
-- Accepts domain parameters (alert/event dicts, rule lists, channel configs, history)
-- Returns structured results for routing and delivery decisions
-
-### Key Decisions
-- Suppression logic extracted from upstream/alerts/services.py
-- Service uses configurable suppression parameters (cooldown_hours, noise_threshold)
-- Priority computation considers severity, magnitude of change, persistence, and drift type criticality
-- Alert delivery formatting handles both email and Slack channel types
-
-### Learnings
-- Existing alert logic in upstream/alerts/services.py tightly coupled to Django ORM
-- New service layer accepts pre-fetched alert history as list of dicts
-- Cooldown check uses notification_sent_at timestamp comparison
-- Noise pattern check counts operator "noise" judgments within window
-
-### Status
-✅ Story #3 complete and committed
-✅ Story marked as passing in prd.json
-
-## Iteration 4 - 2026-01-27 15:42 UTC
-Story: #4 - Add comprehensive service layer tests
-
-### Implementation
-- Created upstream/tests_services.py with 38 comprehensive tests
-- Test breakdown:
-  - DataQualityService: 14 tests (format validation, claim validation, scoring, pattern detection)
-  - ReportGenerationService: 12 tests (payer summary, drift reports, recovery stats, export formatting)
-  - AlertProcessingService: 12 tests (rule evaluation, delivery processing, priority, suppression)
-- All tests use mock data - no database dependencies
-- Tests cover both happy paths and edge cases (empty inputs, invalid values, None handling)
-- Test Results: 38/38 passed, 100% service layer coverage
-
-### Key Decisions
-- Used pytest framework with unittest.mock for service isolation
-- Mock file objects for upload validation (no actual file I/O)
-- Test data constructed as dicts matching service interfaces
-- Each service class has 8+ tests as required
-
-### Learnings
-- Service layer testability confirmed - pure functions easy to test
-- Mock data approach allows fast test execution (8.77s for 38 tests)
-- Edge case coverage: zero rows, empty lists, invalid formats, None values
-- pytest fixtures work well with static service methods
-
-### Status
-✅ All 4 user stories complete!
-✅ Phase 10 complete - Service layer extraction accomplished
-✅ All tests pass (38/38 service tests + existing tests)
-✅ Quality gates passed (manage.py check, imports verified)
-
-## Phase Summary
-Successfully extracted service layer from views:
-- 3 new service classes created (DataQuality, ReportGeneration, AlertProcessing)
-- 12 core service methods implemented
-- 38 comprehensive tests added (100% service coverage)
-- All services stateless, framework-agnostic, easily testable
-- Zero breaking changes - services ready for adoption in views
+✅ Story #1 complete and committed
+✅ Quality gate passed (test -f docs/legal/baa_template.md)
