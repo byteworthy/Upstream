@@ -154,3 +154,204 @@ class DialysisMABaselineQueryTest(TestCase):
         baselines = list(DialysisMABaseline.objects.all())
         cpts = [b.cpt for b in baselines]
         self.assertEqual(cpts, sorted(cpts))
+
+
+# =============================================================================
+# Story #4: DialysisMAService Tests
+# =============================================================================
+
+
+class MockClaim:
+    """Mock claim object for testing DialysisMAService."""
+
+    def __init__(self, cpt, paid_amount, customer=None, id=1):
+        self.cpt = cpt
+        self.paid_amount = paid_amount
+        self.customer = customer
+        self.id = id
+
+
+class DialysisMAServiceVarianceTest(TestCase):
+    """Test DialysisMAService variance detection."""
+
+    def setUp(self):
+        """Set up test baselines."""
+        from upstream.products.dialysis.services import DialysisMAService
+
+        self.baseline = DialysisMABaseline.objects.create(
+            cpt="90935",
+            average_payment=Decimal("250.00"),
+            sample_size=1000,
+            last_updated=date(2025, 1, 15),
+        )
+        self.service = DialysisMAService()
+
+    def test_no_variance_at_full_payment(self):
+        """Test no variance when payment equals baseline."""
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("250.00"))
+        result = self.service.detect_variance(claim)
+
+        self.assertFalse(result.has_variance)
+        self.assertEqual(result.ratio, Decimal("1"))
+        self.assertEqual(result.severity, "none")
+
+    def test_no_variance_above_threshold(self):
+        """Test no variance when payment is above 85% threshold."""
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("225.00"))  # 90%
+        result = self.service.detect_variance(claim)
+
+        self.assertFalse(result.has_variance)
+        self.assertEqual(result.ratio, Decimal("0.9"))
+
+    def test_variance_at_84_percent(self):
+        """Test variance detected when payment is at 84%."""
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("210.00"))  # 84%
+        result = self.service.detect_variance(claim)
+
+        self.assertTrue(result.has_variance)
+        self.assertEqual(result.ratio, Decimal("0.84"))
+        self.assertEqual(result.severity, "warning")
+
+    def test_critical_variance_at_69_percent(self):
+        """Test critical severity when payment is below 70%."""
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("172.50"))  # 69%
+        result = self.service.detect_variance(claim)
+
+        self.assertTrue(result.has_variance)
+        self.assertEqual(result.ratio, Decimal("0.69"))
+        self.assertEqual(result.severity, "critical")
+
+    def test_variance_at_exactly_85_percent(self):
+        """Test edge case at exactly 85% threshold."""
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("212.50"))  # 85%
+        result = self.service.detect_variance(claim)
+
+        self.assertFalse(result.has_variance)
+        self.assertEqual(result.ratio, Decimal("0.85"))
+
+    def test_variance_just_below_85_percent(self):
+        """Test detection just below 85% threshold."""
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("212.00"))  # 84.8%
+        result = self.service.detect_variance(claim)
+
+        self.assertTrue(result.has_variance)
+        self.assertEqual(result.severity, "warning")
+
+
+class DialysisMAServiceMissingBaselineTest(TestCase):
+    """Test DialysisMAService handling of missing baselines."""
+
+    def setUp(self):
+        """Set up service."""
+        from upstream.products.dialysis.services import DialysisMAService
+
+        self.service = DialysisMAService()
+
+    def test_missing_cpt_baseline(self):
+        """Test graceful handling when no baseline exists for CPT."""
+        claim = MockClaim(cpt="99999", paid_amount=Decimal("100.00"))
+        result = self.service.detect_variance(claim)
+
+        self.assertFalse(result.has_variance)
+        self.assertIn("No baseline found", result.message)
+
+    def test_missing_cpt_on_claim(self):
+        """Test handling when claim has no CPT."""
+        claim = MockClaim(cpt=None, paid_amount=Decimal("100.00"))
+        result = self.service.detect_variance(claim)
+
+        self.assertFalse(result.has_variance)
+        self.assertIn("missing CPT", result.message)
+
+    def test_missing_paid_amount(self):
+        """Test handling when claim has no paid amount."""
+        claim = MockClaim(cpt="90935", paid_amount=None)
+        result = self.service.detect_variance(claim)
+
+        self.assertFalse(result.has_variance)
+        self.assertIn("missing paid amount", result.message)
+
+
+class DialysisMAServiceRevenueLossTest(TestCase):
+    """Test DialysisMAService projected annual revenue loss calculation."""
+
+    def setUp(self):
+        """Set up test baselines."""
+        from upstream.products.dialysis.services import DialysisMAService
+
+        self.baseline = DialysisMABaseline.objects.create(
+            cpt="90935",
+            average_payment=Decimal("250.00"),
+            sample_size=1000,
+            last_updated=date(2025, 1, 15),
+        )
+        self.service = DialysisMAService()
+
+    def test_revenue_loss_calculation(self):
+        """Test projected annual revenue loss calculation."""
+        # Claim at 80% = $200, variance = $50
+        # Annual: 156 treatments * $50 = $7,800
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("200.00"))
+        result = self.service.detect_variance(claim)
+
+        self.assertTrue(result.has_variance)
+        self.assertEqual(result.variance_amount, Decimal("50.00"))
+        self.assertEqual(result.projected_annual_loss, Decimal("7800.00"))
+
+    def test_no_revenue_loss_without_variance(self):
+        """Test no revenue loss calculated when no variance."""
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("250.00"))
+        result = self.service.detect_variance(claim)
+
+        self.assertFalse(result.has_variance)
+        self.assertIsNone(result.projected_annual_loss)
+
+    def test_revenue_loss_at_critical_level(self):
+        """Test revenue loss at critical variance level."""
+        # Claim at 60% = $150, variance = $100
+        # Annual: 156 * $100 = $15,600
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("150.00"))
+        result = self.service.detect_variance(claim)
+
+        self.assertTrue(result.has_variance)
+        self.assertEqual(result.severity, "critical")
+        self.assertEqual(result.variance_amount, Decimal("100.00"))
+        self.assertEqual(result.projected_annual_loss, Decimal("15600.00"))
+
+
+class DialysisMAServiceCustomThresholdTest(TestCase):
+    """Test DialysisMAService with custom thresholds."""
+
+    def setUp(self):
+        """Set up test baselines."""
+        self.baseline = DialysisMABaseline.objects.create(
+            cpt="90935",
+            average_payment=Decimal("250.00"),
+            sample_size=1000,
+            last_updated=date(2025, 1, 15),
+        )
+
+    def test_custom_variance_threshold(self):
+        """Test using a custom variance threshold."""
+        from upstream.products.dialysis.services import DialysisMAService
+
+        # Use 90% threshold instead of 85%
+        service = DialysisMAService(variance_threshold=Decimal("0.90"))
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("220.00"))  # 88%
+
+        result = service.detect_variance(claim)
+
+        self.assertTrue(result.has_variance)  # 88% < 90%
+
+    def test_custom_high_variance_threshold(self):
+        """Test using a custom high variance threshold."""
+        from upstream.products.dialysis.services import DialysisMAService
+
+        # Use 75% high threshold instead of 70%
+        service = DialysisMAService(high_variance_threshold=Decimal("0.75"))
+        claim = MockClaim(cpt="90935", paid_amount=Decimal("180.00"))  # 72%
+
+        result = service.detect_variance(claim)
+
+        self.assertTrue(result.has_variance)
+        self.assertEqual(result.severity, "critical")  # 72% < 75%

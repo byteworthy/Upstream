@@ -12,12 +12,11 @@ from django.utils import timezone
 
 from upstream.alerts.models import AlertEvent, AlertRule
 from upstream.products.dialysis.models import DialysisMABaseline
-
-
-# Default variance threshold (85% of Medicare baseline)
-DEFAULT_VARIANCE_THRESHOLD = Decimal("0.85")
-# High variance threshold for critical alerts (70% of Medicare baseline)
-HIGH_VARIANCE_THRESHOLD = Decimal("0.70")
+from upstream.products.dialysis.constants import (
+    VARIANCE_THRESHOLD as DEFAULT_VARIANCE_THRESHOLD,
+    HIGH_VARIANCE_THRESHOLD,
+    ANNUAL_DIALYSIS_TREATMENTS,
+)
 
 
 @dataclass
@@ -51,8 +50,8 @@ class DialysisMAService:
         Initialize the service with configurable thresholds.
 
         Args:
-            variance_threshold: Ratio below which to flag variance (default 0.85)
-            high_variance_threshold: Ratio below which to flag critical (default 0.70)
+            variance_threshold: Ratio triggering variance (default 0.85)
+            high_variance_threshold: Ratio for critical alerts (default 0.70)
         """
         self.variance_threshold = variance_threshold
         self.high_variance_threshold = high_variance_threshold
@@ -120,9 +119,8 @@ class DialysisMAService:
             severity = "warning"
 
         # Calculate projected annual loss
-        # Assume weekly dialysis (3x/week = 156 treatments/year)
-        annual_treatments = 156
-        projected_annual_loss = variance_amount * annual_treatments
+        # Standard dialysis: 3x/week = 156 treatments/year
+        projected_annual_loss = variance_amount * ANNUAL_DIALYSIS_TREATMENTS
 
         return VarianceResult(
             has_variance=True,
@@ -132,7 +130,10 @@ class DialysisMAService:
             variance_amount=variance_amount,
             projected_annual_loss=projected_annual_loss,
             severity=severity,
-            message=f"Payment {ratio:.1%} of Medicare baseline (threshold: {self.variance_threshold:.0%})",
+            message=(
+                f"Payment {ratio:.1%} of Medicare baseline "
+                f"(threshold: {self.variance_threshold:.0%})"
+            ),
         )
 
     def create_alert_event(
@@ -147,7 +148,7 @@ class DialysisMAService:
         Args:
             claim: ClaimRecord that triggered the variance
             variance_result: Result from detect_variance
-            alert_rule: Optional AlertRule to associate (will try to find one if not provided)
+            alert_rule: AlertRule to use (auto-finds if not provided)
 
         Returns:
             Created AlertEvent or None if no variance
@@ -185,12 +186,12 @@ class DialysisMAService:
         return alert_event
 
     def _get_or_create_alert_rule(self, customer) -> AlertRule:
-        """Get or create the default dialysis MA variance alert rule."""
+        """Get or create default dialysis MA variance alert rule."""
         rule, _ = AlertRule.objects.get_or_create(
             customer=customer,
             name="Dialysis MA Variance Alert",
             defaults={
-                "description": "Alert when MA payer payments fall below Medicare baseline",
+                "description": "Alert when MA payments fall below baseline",
                 "metric": "severity",
                 "threshold_type": "gte",
                 "threshold_value": 0.0,
@@ -236,8 +237,12 @@ class DialysisMAService:
 
             if variance_result.has_variance:
                 results["variance_claims"] += 1
-                results["total_variance_amount"] += variance_result.variance_amount or Decimal("0")
-                results["total_projected_annual_loss"] += variance_result.projected_annual_loss or Decimal("0")
+                results[
+                    "total_variance_amount"
+                ] += variance_result.variance_amount or Decimal("0")
+                results[
+                    "total_projected_annual_loss"
+                ] += variance_result.projected_annual_loss or Decimal("0")
 
                 if variance_result.severity == "critical":
                     results["critical_claims"] += 1
