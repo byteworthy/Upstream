@@ -42,7 +42,7 @@
         "upstream/billing/models.py",
         "upstream/billing/migrations/0001_initial.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 2,
@@ -59,7 +59,7 @@
         "upstream/billing/stripe_service.py",
         "upstream/billing/signals.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 3,
@@ -75,7 +75,7 @@
       "files": [
         "upstream/billing/stripe_service.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 4,
@@ -92,7 +92,7 @@
         "upstream/billing/views.py",
         "upstream/billing/webhooks.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 5,
@@ -110,7 +110,7 @@
         "frontend/src/components/billing/SubscriptionCard.tsx",
         "frontend/src/components/billing/InvoiceHistory.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 6,
@@ -129,7 +129,7 @@
         "frontend/src/components/signup/AccountForm.tsx",
         "frontend/src/components/signup/TierSelector.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 7,
@@ -146,7 +146,7 @@
         "upstream/billing/models.py",
         "upstream/billing/usage.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 8,
@@ -162,7 +162,7 @@
       "files": [
         "frontend/src/pages/Invoices.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 9,
@@ -179,7 +179,7 @@
       "files": [
         "docs/legal/baa_template.md"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 10,
@@ -197,7 +197,7 @@
         "docs/security/security_whitepaper.md",
         "docs/security/vendor_questionnaire.md"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 11,
@@ -216,7 +216,7 @@
         "marketing/src/components/Hero.tsx",
         "marketing/src/components/Features.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 12,
@@ -235,7 +235,7 @@
         "marketing/src/components/PricingCard.tsx",
         "marketing/src/components/FeatureComparison.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 13,
@@ -253,7 +253,7 @@
         "marketing/src/pages/case-studies/[slug].tsx",
         "marketing/src/components/CaseStudyTemplate.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 14,
@@ -273,7 +273,7 @@
         "frontend/src/components/onboarding/OnboardingWizard.tsx",
         "frontend/src/components/onboarding/WizardStep.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 15,
@@ -291,7 +291,7 @@
         "upstream/features/flags.py",
         "frontend/src/contexts/FeatureContext.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 16,
@@ -308,7 +308,7 @@
         "frontend/src/lib/analytics.ts",
         "upstream/analytics.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 17,
@@ -327,7 +327,7 @@
       "files": [
         "docs/deployment/production_checklist.md"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 18,
@@ -341,9 +341,10 @@
         "CI integration for load tests"
       ],
       "files": [
-        "upstream/tests_performance_signup.py"
+        "tests/load/locustfile.py",
+        "tests/load/README.md"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
