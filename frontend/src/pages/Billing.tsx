@@ -114,9 +114,7 @@ export function BillingPage() {
                 <div
                   key={tier}
                   className={`rounded-lg border p-4 ${
-                    tier === mockSubscription.tier
-                      ? 'border-primary bg-primary/5'
-                      : 'border-muted'
+                    tier === mockSubscription.tier ? 'border-primary bg-primary/5' : 'border-muted'
                   }`}
                 >
                   <h3 className="font-semibold capitalize">{tier}</h3>
@@ -140,8 +138,8 @@ export function BillingPage() {
                     {tier === mockSubscription.tier
                       ? 'Current Plan'
                       : tier === 'enterprise'
-                      ? 'Contact Sales'
-                      : 'Switch Plan'}
+                        ? 'Contact Sales'
+                        : 'Switch Plan'}
                   </Button>
                 </div>
               ))}

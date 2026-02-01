@@ -51,9 +51,7 @@ export function InvoiceHistory({ invoices, onLoadMore, hasMore }: InvoiceHistory
       </CardHeader>
       <CardContent>
         {invoices.length === 0 ? (
-          <p className="text-center text-muted-foreground py-4">
-            No invoices yet
-          </p>
+          <p className="text-center text-muted-foreground py-4">No invoices yet</p>
         ) : (
           <div className="space-y-2">
             <div className="grid grid-cols-4 gap-4 text-sm font-medium text-muted-foreground border-b pb-2">

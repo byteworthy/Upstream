@@ -58,15 +58,14 @@ export function AccountForm({ onSubmit, loading }: AccountFormProps) {
     }
   };
 
-  const handleChange = (field: keyof AccountFormData) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  };
+  const handleChange =
+    (field: keyof AccountFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+      // Clear error when user starts typing
+      if (errors[field]) {
+        setErrors((prev) => ({ ...prev, [field]: undefined }));
+      }
+    };
 
   return (
     <Card>
@@ -101,9 +100,7 @@ export function AccountForm({ onSubmit, loading }: AccountFormProps) {
               onChange={handleChange('email')}
               className={errors.email ? 'border-red-500' : ''}
             />
-            {errors.email && (
-              <p className="text-sm text-red-500 mt-1">{errors.email}</p>
-            )}
+            {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
           </div>
 
           <div>
@@ -115,9 +112,7 @@ export function AccountForm({ onSubmit, loading }: AccountFormProps) {
               onChange={handleChange('password')}
               className={errors.password ? 'border-red-500' : ''}
             />
-            {errors.password && (
-              <p className="text-sm text-red-500 mt-1">{errors.password}</p>
-            )}
+            {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password}</p>}
           </div>
 
           <div>

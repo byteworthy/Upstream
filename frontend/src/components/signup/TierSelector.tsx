@@ -54,12 +54,7 @@ const TIERS = [
   },
 ];
 
-export function TierSelector({
-  selectedTier,
-  onSelect,
-  onContinue,
-  loading,
-}: TierSelectorProps) {
+export function TierSelector({ selectedTier, onSelect, onContinue, loading }: TierSelectorProps) {
   return (
     <Card>
       <CardHeader>
@@ -107,11 +102,7 @@ export function TierSelector({
             </div>
           ))}
         </div>
-        <Button
-          className="w-full"
-          disabled={!selectedTier || loading}
-          onClick={onContinue}
-        >
+        <Button className="w-full" disabled={!selectedTier || loading} onClick={onContinue}>
           {loading ? 'Processing...' : 'Continue to Payment'}
         </Button>
       </CardContent>

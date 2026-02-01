@@ -62,9 +62,7 @@ export function SubscriptionCard({
           <div>
             <CardTitle>{TIER_NAMES[tier]} Plan</CardTitle>
             <CardDescription>
-              <span className={STATUS_COLORS[status]}>
-                {STATUS_LABELS[status]}
-              </span>
+              <span className={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</span>
               {cancelAtPeriodEnd && (
                 <span className="ml-2 text-yellow-500">(Canceling at period end)</span>
               )}
