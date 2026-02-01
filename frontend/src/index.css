@@ -93,3 +93,22 @@ html {
     background-color 0.3s ease,
     color 0.3s ease;
 }
+
+/* Smooth theme transition for all elements */
+*,
+*::before,
+*::after {
+  transition:
+    background-color 0.2s ease-in-out,
+    border-color 0.2s ease-in-out,
+    color 0.2s ease-in-out;
+}
+
+/* Disable transitions for reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}

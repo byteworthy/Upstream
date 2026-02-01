@@ -287,7 +287,7 @@
         "frontend/src/components/settings/ThresholdSlider.tsx",
         "frontend/src/components/settings/ActionToggle.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 15,

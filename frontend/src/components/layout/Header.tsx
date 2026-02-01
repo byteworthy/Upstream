@@ -1,5 +1,6 @@
 import { Menu, LogOut, User, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import type { User as UserType } from '@/types/api';
 
 interface HeaderProps {
@@ -22,6 +23,9 @@ export function Header({ user, onMenuClick, onLogout }: HeaderProps) {
 
       {/* Right side - User menu */}
       <div className="flex items-center gap-2">
+        {/* Theme Toggle */}
+        <ThemeToggle />
+
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
