@@ -135,6 +135,19 @@ Implements user story #<id> from prd.json
 - Reference the story ID from prd.json
 - Add Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 
+### 7b. Push to GitHub
+
+After committing, always push changes to GitHub:
+
+```bash
+git push origin main
+```
+
+**If push fails**:
+- If there are remote changes, pull and rebase first: `git pull --rebase origin main`
+- Then push again: `git push origin main`
+- Document any merge conflicts in progress.txt
+
 ### 8. Update Progress
 
 ```bash
