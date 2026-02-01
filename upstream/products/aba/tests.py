@@ -41,7 +41,8 @@ class ABAAuthorizationTrackerModelTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151", "97153"],
             auth_start_date=date.today() - timedelta(days=30),
-            auth_end_date=date.today() + timedelta(days=60),
+            auth_expiration_date=date.today() + timedelta(days=60),
+            units_authorized=100,
             specialty_metadata={
                 "authorized_units": 100,
                 "bcba_required": True,
@@ -143,7 +144,7 @@ class ABAAuthorizationServiceUnitTrackingTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=30),
-            auth_end_date=date.today() + timedelta(days=60),
+            auth_expiration_date=date.today() + timedelta(days=60),
             specialty_metadata={"authorized_units": 100},
         )
         self.service = ABAAuthorizationService()
@@ -247,7 +248,7 @@ class ABAAuthorizationServiceProjectionTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=30),
-            auth_end_date=date.today() + timedelta(days=60),
+            auth_expiration_date=date.today() + timedelta(days=60),
             specialty_metadata={"authorized_units": 100},
         )
         self.service = ABAAuthorizationService()
@@ -308,7 +309,8 @@ class ABAAuthorizationServiceReauthAlertTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=60),
-            auth_end_date=date.today() + timedelta(days=25),
+            auth_expiration_date=date.today() + timedelta(days=25),
+            units_authorized=100,
             specialty_metadata={},
         )
 
@@ -327,7 +329,8 @@ class ABAAuthorizationServiceReauthAlertTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=60),
-            auth_end_date=date.today() + timedelta(days=10),
+            auth_expiration_date=date.today() + timedelta(days=10),
+            units_authorized=100,
             specialty_metadata={},
         )
 
@@ -346,7 +349,8 @@ class ABAAuthorizationServiceReauthAlertTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=60),
-            auth_end_date=date.today() + timedelta(days=2),
+            auth_expiration_date=date.today() + timedelta(days=2),
+            units_authorized=100,
             specialty_metadata={},
         )
 
@@ -365,7 +369,8 @@ class ABAAuthorizationServiceReauthAlertTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=30),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={},
         )
 
@@ -383,7 +388,8 @@ class ABAAuthorizationServiceReauthAlertTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=60),
-            auth_end_date=date.today() + timedelta(days=25),
+            auth_expiration_date=date.today() + timedelta(days=25),
+            units_authorized=100,
             specialty_metadata={},
         )
 
@@ -418,7 +424,8 @@ class ABAAuthorizationServiceCredentialTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today(),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={"bcba_required": False},
         )
 
@@ -437,7 +444,8 @@ class ABAAuthorizationServiceCredentialTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today(),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={"bcba_required": True},
         )
 
@@ -457,7 +465,8 @@ class ABAAuthorizationServiceCredentialTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today(),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={
                 "bcba_required": True,
                 "credential_expiration": str(date.today() + timedelta(days=50)),
@@ -481,7 +490,8 @@ class ABAAuthorizationServiceCredentialTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today(),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={
                 "bcba_required": True,
                 "credential_expiration": str(date.today() + timedelta(days=10)),
@@ -505,7 +515,8 @@ class ABAAuthorizationServiceCredentialTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today(),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={
                 "bcba_required": True,
                 "credential_expiration": str(date.today() + timedelta(days=120)),
@@ -539,7 +550,8 @@ class ABAAuthorizationServiceAnalyzeTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=30),
-            auth_end_date=date.today() + timedelta(days=10),  # Expiring soon
+            auth_expiration_date=date.today() + timedelta(days=10),  # Expiring soon
+            units_authorized=100,
             specialty_metadata={},
         )
 
@@ -551,7 +563,8 @@ class ABAAuthorizationServiceAnalyzeTest(TestCase):
             service_type="ABA",
             cpt_codes=["97151"],
             auth_start_date=date.today() - timedelta(days=30),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={},
         )
 
@@ -571,7 +584,8 @@ class ABAAuthorizationServiceAnalyzeTest(TestCase):
             service_type="PT",  # Not ABA
             cpt_codes=["97110"],
             auth_start_date=date.today(),
-            auth_end_date=date.today() + timedelta(days=90),
+            auth_expiration_date=date.today() + timedelta(days=90),
+            units_authorized=100,
             specialty_metadata={},
         )
 
