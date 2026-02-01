@@ -1,0 +1,41 @@
+{
+  "branchName": "milestone-05-load-tests",
+  "context": {
+    "phase": "5c",
+    "phaseName": "Performance Testing Scripts",
+    "phaseGoal": "Create Locust load testing scripts for critical API paths",
+    "dependsOn": [],
+    "successCriteria": ["Locust test files created", "Signup flow tested", "API endpoints tested"],
+    "qualityGates": ["python -m py_compile upstream/tests_performance_signup.py", "python -m py_compile upstream/tests_performance_api.py"]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create Locust configuration and base classes",
+      "description": "Set up Locust load testing framework with base user class, authentication helpers, and configuration. Location: upstream/tests_performance_base.py",
+      "files": ["upstream/tests_performance_base.py", "locustfile.py"],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Write signup flow load tests",
+      "description": "Create Locust tests for signup flow: account creation, tier selection, checkout redirect. Target: 50 concurrent signups, <500ms response. Location: upstream/tests_performance_signup.py",
+      "files": ["upstream/tests_performance_signup.py"],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Write API endpoint load tests",
+      "description": "Create Locust tests for core API endpoints: claim scoring, alerts list, dashboard metrics. Location: upstream/tests_performance_api.py",
+      "files": ["upstream/tests_performance_api.py"],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Create load test CI configuration",
+      "description": "Add GitHub Actions workflow for running load tests on staging. Location: .github/workflows/load-tests.yml",
+      "files": [".github/workflows/load-tests.yml"],
+      "passes": false
+    }
+  ]
+}
