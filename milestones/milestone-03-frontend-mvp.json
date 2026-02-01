@@ -304,7 +304,7 @@
         "frontend/src/hooks/useDarkMode.ts",
         "frontend/src/components/layout/ThemeToggle.tsx"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 16,
