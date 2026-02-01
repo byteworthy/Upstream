@@ -1,0 +1,364 @@
+{
+  "branchName": "milestone-03-frontend-mvp",
+  "context": {
+    "milestone": "03",
+    "milestoneName": "Frontend MVP",
+    "milestoneGoal": "Build React frontend with dashboards, work queues, alerts UI, and real-time monitoring for billing managers and operations staff.",
+    "dependsOn": [
+      "Milestone 1: Core Scoring Engine (API endpoints)",
+      "Milestone 2: Specialty Modules (specialty data)"
+    ],
+    "priorArtifacts": [
+      "upstream/api/ - All REST API endpoints from Milestones 1-2",
+      "OpenAPI schema at /api/schema/",
+      "JWT authentication system"
+    ],
+    "successCriteria": [
+      "React app builds and deploys without errors",
+      "Dashboard shows key metrics (claim volume, denial rate, scores)",
+      "Work queue enables review of Tier 2 claims",
+      "Alert list with filtering and actions",
+      "Mobile-responsive design",
+      "E2E tests pass"
+    ],
+    "qualityGates": [
+      "cd frontend && npm run lint",
+      "cd frontend && npm run test",
+      "cd frontend && npm run build",
+      "python manage.py check"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create React app with Vite and TypeScript",
+      "description": "Initialize React frontend with Vite, TypeScript, and modern tooling.",
+      "acceptanceCriteria": [
+        "npm create vite@latest frontend -- --template react-ts",
+        "ESLint and Prettier configured",
+        "tsconfig.json with strict mode",
+        "npm run dev starts development server",
+        "npm run build produces production bundle"
+      ],
+      "files": [
+        "frontend/package.json",
+        "frontend/vite.config.ts",
+        "frontend/tsconfig.json"
+      ],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Set up Tailwind CSS and shadcn/ui",
+      "description": "Configure Tailwind CSS with shadcn/ui component library for consistent design.",
+      "acceptanceCriteria": [
+        "Tailwind CSS installed and configured",
+        "shadcn/ui components available",
+        "Custom theme with Upstream brand colors",
+        "Dark mode toggle support",
+        "Typography and spacing scales defined"
+      ],
+      "files": [
+        "frontend/tailwind.config.js",
+        "frontend/src/index.css",
+        "frontend/components.json"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Create API client with authentication",
+      "description": "Create typed API client using axios with JWT token handling and refresh logic.",
+      "acceptanceCriteria": [
+        "apiClient instance with baseURL from environment",
+        "Request interceptor adds Authorization header",
+        "Response interceptor handles 401 with token refresh",
+        "TypeScript types generated from OpenAPI schema",
+        "Error handling with toast notifications"
+      ],
+      "files": [
+        "frontend/src/lib/api.ts",
+        "frontend/src/lib/auth.ts",
+        "frontend/src/types/api.d.ts"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Build AppLayout with navigation",
+      "description": "Create main application layout with sidebar navigation and header.",
+      "acceptanceCriteria": [
+        "Sidebar with navigation links",
+        "Header with user menu and logout",
+        "Responsive: collapses to hamburger on mobile",
+        "Active route highlighting",
+        "Customer name/logo display"
+      ],
+      "files": [
+        "frontend/src/components/layout/AppLayout.tsx",
+        "frontend/src/components/layout/Sidebar.tsx",
+        "frontend/src/components/layout/Header.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Create Dashboard page with key metrics",
+      "description": "Build main dashboard showing claim volume, denial rates, scores distribution, and alerts summary.",
+      "acceptanceCriteria": [
+        "Dashboard page at /dashboard route",
+        "Metrics cards: total claims, denial rate, average score",
+        "Score distribution chart (pie chart by tier)",
+        "Recent alerts list (top 5)",
+        "Date range selector",
+        "Auto-refresh every 5 minutes"
+      ],
+      "files": [
+        "frontend/src/pages/Dashboard.tsx",
+        "frontend/src/components/dashboard/MetricCard.tsx",
+        "frontend/src/components/dashboard/ScoreDistribution.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 6,
+      "title": "Build ClaimScore list view",
+      "description": "Create list view for claim scores with filtering, sorting, and pagination.",
+      "acceptanceCriteria": [
+        "ClaimScores page at /claim-scores route",
+        "Table with: claim ID, confidence, tier, recommended action, date",
+        "Filters: tier, date range, confidence threshold",
+        "Sorting by any column",
+        "Pagination (25/50/100 per page)",
+        "Click row to view details"
+      ],
+      "files": [
+        "frontend/src/pages/ClaimScores.tsx",
+        "frontend/src/components/scores/ClaimScoreTable.tsx",
+        "frontend/src/components/scores/ScoreFilters.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 7,
+      "title": "Build ClaimScore detail view",
+      "description": "Create detail view showing full score breakdown, feature importance, and audit history.",
+      "acceptanceCriteria": [
+        "ClaimScoreDetail page at /claim-scores/:id route",
+        "Score breakdown: coding, eligibility, necessity, documentation confidence",
+        "Risk scores: denial, fraud, compliance",
+        "Feature importance visualization (bar chart)",
+        "Recommended action with reasoning",
+        "Link to original claim"
+      ],
+      "files": [
+        "frontend/src/pages/ClaimScoreDetail.tsx",
+        "frontend/src/components/scores/ScoreBreakdown.tsx",
+        "frontend/src/components/scores/FeatureImportance.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 8,
+      "title": "Create WorkQueue component for Tier 2 review",
+      "description": "Build work queue for reviewing claims that need human decision.",
+      "acceptanceCriteria": [
+        "WorkQueue page at /work-queue route",
+        "Lists claims with automation_tier=2 (queue_review)",
+        "Priority sorting (highest first)",
+        "Action buttons: Approve, Reject, Escalate",
+        "Bulk actions for multiple items",
+        "SLA indicator (time in queue)"
+      ],
+      "files": [
+        "frontend/src/pages/WorkQueue.tsx",
+        "frontend/src/components/queue/QueueItem.tsx",
+        "frontend/src/components/queue/BulkActions.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 9,
+      "title": "Build AlertsList component",
+      "description": "Create list view for all alerts with filtering by severity, type, and status.",
+      "acceptanceCriteria": [
+        "Alerts page at /alerts route",
+        "Table with: title, severity, type, created, status",
+        "Severity badges with color coding",
+        "Filters: severity, alert_type, resolved/unresolved",
+        "Quick actions: acknowledge, resolve",
+        "Link to related claim"
+      ],
+      "files": [
+        "frontend/src/pages/Alerts.tsx",
+        "frontend/src/components/alerts/AlertsTable.tsx",
+        "frontend/src/components/alerts/SeverityBadge.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 10,
+      "title": "Create AlertDetail component with actions",
+      "description": "Build detail view for individual alert with full context and resolution actions.",
+      "acceptanceCriteria": [
+        "AlertDetail page at /alerts/:id route",
+        "Alert metadata: title, severity, type, created",
+        "Evidence payload displayed (JSON viewer)",
+        "Related claim link",
+        "Actions: acknowledge, resolve, mark as noise",
+        "Resolution notes input",
+        "Activity timeline"
+      ],
+      "files": [
+        "frontend/src/pages/AlertDetail.tsx",
+        "frontend/src/components/alerts/EvidenceViewer.tsx",
+        "frontend/src/components/alerts/ResolutionForm.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 11,
+      "title": "Build AuthorizationCalendar component",
+      "description": "Create calendar view showing authorization expiration dates.",
+      "acceptanceCriteria": [
+        "AuthorizationCalendar component",
+        "Monthly calendar view",
+        "Color-coded by days until expiration",
+        "Click date to see authorizations expiring",
+        "Legend for color coding",
+        "Export to CSV"
+      ],
+      "files": [
+        "frontend/src/components/authorizations/AuthorizationCalendar.tsx",
+        "frontend/src/components/authorizations/ExpirationCard.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 12,
+      "title": "Create RiskScoreCard visualization",
+      "description": "Build reusable component for displaying risk score with visual indicator.",
+      "acceptanceCriteria": [
+        "RiskScoreCard component",
+        "Circular progress indicator for score",
+        "Color gradient: green (high) to red (low)",
+        "Label showing tier classification",
+        "Tooltip with score details",
+        "Responsive sizing"
+      ],
+      "files": [
+        "frontend/src/components/common/RiskScoreCard.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 13,
+      "title": "Build ExecutionLog timeline view",
+      "description": "Create timeline component showing automation execution history.",
+      "acceptanceCriteria": [
+        "ExecutionLog component at /execution-log route",
+        "Timeline visualization with entries",
+        "Entry shows: action, result, timestamp, user",
+        "Filter by action type, date range",
+        "Expandable for full details",
+        "Export functionality"
+      ],
+      "files": [
+        "frontend/src/pages/ExecutionLog.tsx",
+        "frontend/src/components/execution/Timeline.tsx",
+        "frontend/src/components/execution/LogEntry.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 14,
+      "title": "Create Settings page for automation profile",
+      "description": "Build settings page for configuring automation thresholds.",
+      "acceptanceCriteria": [
+        "Settings page at /settings route",
+        "Automation stage selector",
+        "Threshold sliders: auto_execute_confidence, queue_review_min_confidence",
+        "Amount inputs: auto_execute_max_amount, escalate_min_amount",
+        "Toggle switches for action types",
+        "Save button with confirmation"
+      ],
+      "files": [
+        "frontend/src/pages/Settings.tsx",
+        "frontend/src/components/settings/ThresholdSlider.tsx",
+        "frontend/src/components/settings/ActionToggle.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 15,
+      "title": "Add dark mode toggle and theming",
+      "description": "Implement dark mode with system preference detection and manual toggle.",
+      "acceptanceCriteria": [
+        "Dark mode toggle in header",
+        "System preference detection on load",
+        "Preference persisted in localStorage",
+        "All components support dark mode",
+        "Smooth transition animation"
+      ],
+      "files": [
+        "frontend/src/hooks/useDarkMode.ts",
+        "frontend/src/components/layout/ThemeToggle.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 16,
+      "title": "Create responsive mobile layout",
+      "description": "Ensure all pages work well on mobile devices.",
+      "acceptanceCriteria": [
+        "Sidebar collapses to hamburger menu",
+        "Tables become cards on mobile",
+        "Touch-friendly button sizes",
+        "No horizontal scroll on mobile",
+        "Test on 320px, 375px, 768px widths"
+      ],
+      "files": [
+        "frontend/src/components/layout/MobileNav.tsx",
+        "frontend/src/components/common/ResponsiveTable.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 17,
+      "title": "Write component unit tests",
+      "description": "Add unit tests for key components using React Testing Library.",
+      "acceptanceCriteria": [
+        "Test files for all major components",
+        "MetricCard, RiskScoreCard tests",
+        "ClaimScoreTable tests with mock data",
+        "AlertsTable tests",
+        "Settings form tests",
+        "Coverage > 70%"
+      ],
+      "files": [
+        "frontend/src/components/**/*.test.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 18,
+      "title": "Set up E2E testing with Playwright",
+      "description": "Configure Playwright and write E2E tests for critical flows.",
+      "acceptanceCriteria": [
+        "Playwright installed and configured",
+        "E2E test: login flow",
+        "E2E test: view dashboard",
+        "E2E test: navigate to work queue and take action",
+        "E2E test: update settings",
+        "CI integration for E2E tests"
+      ],
+      "files": [
+        "frontend/playwright.config.ts",
+        "frontend/e2e/login.spec.ts",
+        "frontend/e2e/dashboard.spec.ts",
+        "frontend/e2e/work-queue.spec.ts"
+      ],
+      "passes": false
+    }
+  ]
+}

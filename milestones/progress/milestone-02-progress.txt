@@ -1,0 +1,77 @@
+# Ralph Progress Log
+Started: Sun Feb  1 05:04:29 UTC 2026
+---
+## Iteration 1 - 2026-02-01 05:51 UTC
+Story: #1 - Create DialysisMABaseline model for Medicare baselines
+
+### Implementation
+- Created upstream/products/dialysis/ module with:
+  - models.py - DialysisMABaseline model
+  - admin.py - Admin registration
+  - apps.py - Django app configuration
+  - tests.py - Model tests
+- Created migrations:
+  - upstream/migrations/0027_dialysis_ma_baseline.py - Creates table
+  - upstream/migrations/0028_move_dialysismabaseline.py - Transfers ownership
+  - upstream/products/dialysis/migrations/0001_initial.py - Registers model in dialysis app
+- Added dialysis app to INSTALLED_APPS in settings/base.py
+- Imported DialysisMABaseline in upstream/models.py for convenience
+
+### Key Decisions
+- Used SeparateDatabaseAndState migrations to handle model ownership transfer
+- Set db_table="upstream_dialysismabaseline" to use existing table
+- Placed admin registration in dialysis submodule to avoid circular imports
+- Added composite index on cpt for fast lookups
+
+### Learnings
+- Django migration ownership transfer requires careful coordination
+- Pre-commit hooks can interfere with file creation during staging
+- db_table meta option needed when moving models between apps
+
+### Status
+✅ Story #1 completed and committed: 6e7af285
+
+### Follow-up Fix (6c875cdb)
+Simplified model registration to follow codebase patterns:
+- Removed dialysis app from INSTALLED_APPS (not needed for model import)
+- Removed apps.py from dialysis module
+- Removed dialysis/migrations/0001_initial.py (use upstream migration)
+- Removed 0028_move_dialysismabaseline.py (no longer needed)
+- Model imported in upstream/models.py following denialscope pattern
+
+## Iteration 2 - 2026-02-01 06:07 UTC
+Stories: #2, #3, #4 - DialysisMAService implementation
+
+### Implementation
+- Created upstream/products/dialysis/services.py:
+  - DialysisMAService class for MA variance detection
+  - detect_variance(claim) method comparing paid_amount to baseline
+  - create_alert_event() for AlertEvent creation when ratio < 0.85
+  - analyze_claims() for batch processing
+  - VarianceResult dataclass for structured results
+- Created upstream/products/dialysis/constants.py:
+  - MA_PAYER_LIST with major Medicare Advantage payers
+  - VARIANCE_THRESHOLD (0.85) and HIGH_VARIANCE_THRESHOLD (0.70)
+  - DIALYSIS_CPT_CODES reference data
+  - Configuration loadable from Django settings
+  - Helper functions: is_ma_payer(), get_variance_threshold()
+- Added comprehensive tests to tests.py:
+  - DialysisMAServiceVarianceTest - various payment ratios
+  - DialysisMAServiceMissingBaselineTest - graceful handling
+  - DialysisMAServiceRevenueLossTest - annual loss projection
+  - DialysisMAServiceCustomThresholdTest - configurable thresholds
+
+### Key Decisions
+- Used 156 annual treatments for dialysis (3x/week) in loss calculation
+- Warning severity for 70-85%, critical for <70%
+- AlertEvents stored with full payload for audit trail
+- Graceful handling returns VarianceResult with error message
+
+### Learnings
+- Services should import constants rather than hardcode values
+- MockClaim objects useful for testing without full model setup
+- Codespace can become overloaded - limit parallel processes
+
+### Status
+⚠️ Files staged but commit failed due to environment issues
+Files ready: services.py, constants.py, tests.py (updated)

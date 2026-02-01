@@ -1,0 +1,349 @@
+{
+  "branchName": "milestone-05-launch-prep",
+  "context": {
+    "milestone": "05",
+    "milestoneName": "Launch Prep",
+    "milestoneGoal": "Build self-service billing with Stripe, customer signup flow, HIPAA documentation, and marketing website for production launch.",
+    "dependsOn": [
+      "Milestones 1-4: Complete product functionality"
+    ],
+    "priorArtifacts": [
+      "Frontend MVP from Milestone 3",
+      "All API endpoints from Milestones 1-2",
+      "User authentication system"
+    ],
+    "successCriteria": [
+      "Stripe subscription billing works end-to-end",
+      "Self-service signup creates customer and subscription",
+      "HIPAA BAA template ready for customers",
+      "Marketing website deployed",
+      "Case studies published",
+      "Production deployment checklist complete"
+    ],
+    "qualityGates": [
+      "python manage.py check",
+      "python manage.py test upstream -v 2",
+      "cd frontend && npm run build",
+      "stripe listen --forward-to localhost:8000/webhooks/stripe/ works"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create Subscription model for billing",
+      "description": "Create model to track customer subscriptions and billing status.",
+      "acceptanceCriteria": [
+        "Subscription model: customer FK, stripe_subscription_id, tier (essentials/professional/enterprise), status, current_period_start, current_period_end, trial_end",
+        "Migration created and applied",
+        "Tier pricing: $299/$599/$999 monthly",
+        "Admin interface registered"
+      ],
+      "files": [
+        "upstream/billing/models.py",
+        "upstream/billing/migrations/0001_initial.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Integrate Stripe Customer creation",
+      "description": "Create Stripe customers when new Customer records are created.",
+      "acceptanceCriteria": [
+        "create_stripe_customer(customer) function",
+        "Stripe customer created with email, name, metadata",
+        "stripe_customer_id stored on Customer model",
+        "Signal handler on Customer post_save",
+        "Error handling for Stripe API failures"
+      ],
+      "files": [
+        "upstream/billing/stripe_service.py",
+        "upstream/billing/signals.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Implement Stripe Checkout session",
+      "description": "Create Stripe Checkout sessions for subscription signup.",
+      "acceptanceCriteria": [
+        "create_checkout_session(customer, tier) function",
+        "Returns checkout_url for redirect",
+        "Price IDs configured per tier",
+        "Success and cancel URLs configured",
+        "30-day trial period included"
+      ],
+      "files": [
+        "upstream/billing/stripe_service.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Create billing webhook handler",
+      "description": "Handle Stripe webhook events for subscription lifecycle.",
+      "acceptanceCriteria": [
+        "POST /webhooks/stripe/ endpoint",
+        "Validates Stripe signature",
+        "Handles: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.payment_succeeded, invoice.payment_failed",
+        "Updates Subscription model accordingly",
+        "Sends email notifications for key events"
+      ],
+      "files": [
+        "upstream/billing/views.py",
+        "upstream/billing/webhooks.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Build subscription management UI",
+      "description": "Create frontend page for viewing and managing subscription.",
+      "acceptanceCriteria": [
+        "Billing page at /settings/billing route",
+        "Shows current plan, next billing date, payment method",
+        "Upgrade/downgrade tier buttons",
+        "Cancel subscription with confirmation",
+        "Invoice history list"
+      ],
+      "files": [
+        "frontend/src/pages/Billing.tsx",
+        "frontend/src/components/billing/SubscriptionCard.tsx",
+        "frontend/src/components/billing/InvoiceHistory.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 6,
+      "title": "Create self-service signup flow",
+      "description": "Build complete signup flow from landing page to dashboard.",
+      "acceptanceCriteria": [
+        "Signup page at /signup route",
+        "Step 1: Create account (email, password, company name)",
+        "Step 2: Select tier",
+        "Step 3: Stripe checkout redirect",
+        "Step 4: Redirect to dashboard after success",
+        "Form validation with helpful errors"
+      ],
+      "files": [
+        "frontend/src/pages/Signup.tsx",
+        "frontend/src/components/signup/AccountForm.tsx",
+        "frontend/src/components/signup/TierSelector.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 7,
+      "title": "Implement usage-based billing tracking",
+      "description": "Track claim volume for potential usage-based billing.",
+      "acceptanceCriteria": [
+        "UsageRecord model: customer FK, period_start, period_end, claims_processed, claims_scored",
+        "Record usage on claim processing",
+        "Monthly rollup task",
+        "Admin view for usage reports",
+        "API endpoint for customer to view usage"
+      ],
+      "files": [
+        "upstream/billing/models.py",
+        "upstream/billing/usage.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 8,
+      "title": "Create invoice history view",
+      "description": "Build page showing past invoices with download links.",
+      "acceptanceCriteria": [
+        "Fetch invoices from Stripe API",
+        "Display: date, amount, status, PDF link",
+        "Pagination for long history",
+        "Download PDF button",
+        "Filter by date range"
+      ],
+      "files": [
+        "frontend/src/pages/Invoices.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 9,
+      "title": "Generate HIPAA BAA document template",
+      "description": "Create Business Associate Agreement template for customers.",
+      "acceptanceCriteria": [
+        "BAA template in docs/legal/baa_template.md",
+        "Standard HIPAA required clauses",
+        "AI-specific clauses: model training restrictions, explainability",
+        "Data use limitations",
+        "Incident notification requirements",
+        "Reviewed by legal counsel"
+      ],
+      "files": [
+        "docs/legal/baa_template.md"
+      ],
+      "passes": false
+    },
+    {
+      "id": 10,
+      "title": "Create Security Whitepaper content",
+      "description": "Write security documentation for enterprise customers.",
+      "acceptanceCriteria": [
+        "Security whitepaper in docs/security/",
+        "Covers: encryption at rest/transit, access control, audit logging",
+        "HIPAA compliance section",
+        "SOC 2 readiness statement",
+        "Incident response process",
+        "Vendor security assessment questionnaire answers"
+      ],
+      "files": [
+        "docs/security/security_whitepaper.md",
+        "docs/security/vendor_questionnaire.md"
+      ],
+      "passes": false
+    },
+    {
+      "id": 11,
+      "title": "Build marketing landing page",
+      "description": "Create public landing page for the marketing website.",
+      "acceptanceCriteria": [
+        "Landing page at / route (or separate Next.js app)",
+        "Hero section with value proposition",
+        "Feature highlights (3-4 key benefits)",
+        "Social proof section (logos, testimonials)",
+        "CTA buttons: Start Free Trial, Schedule Demo",
+        "Mobile responsive"
+      ],
+      "files": [
+        "marketing/src/pages/index.tsx",
+        "marketing/src/components/Hero.tsx",
+        "marketing/src/components/Features.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 12,
+      "title": "Create pricing comparison component",
+      "description": "Build pricing page with tier comparison table.",
+      "acceptanceCriteria": [
+        "Pricing page at /pricing route",
+        "Three tier cards: Essentials, Professional, Enterprise",
+        "Feature comparison table",
+        "Annual discount toggle (2 months free)",
+        "FAQ section",
+        "CTA: Get Started buttons per tier"
+      ],
+      "files": [
+        "marketing/src/pages/pricing.tsx",
+        "marketing/src/components/PricingCard.tsx",
+        "marketing/src/components/FeatureComparison.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 13,
+      "title": "Build case study template page",
+      "description": "Create template for customer case studies.",
+      "acceptanceCriteria": [
+        "Case study page at /case-studies/:slug route",
+        "Template: company info, challenge, solution, results",
+        "Metrics callouts (denials prevented, $ saved)",
+        "Customer quote block",
+        "Related case studies section",
+        "Download PDF button"
+      ],
+      "files": [
+        "marketing/src/pages/case-studies/[slug].tsx",
+        "marketing/src/components/CaseStudyTemplate.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 14,
+      "title": "Create onboarding wizard flow",
+      "description": "Build guided onboarding for new customers after signup.",
+      "acceptanceCriteria": [
+        "Onboarding wizard at /onboarding route",
+        "Step 1: Welcome + quick tour",
+        "Step 2: Upload first CSV or connect EHR",
+        "Step 3: Configure automation thresholds",
+        "Step 4: Invite team members",
+        "Progress indicator",
+        "Skip option"
+      ],
+      "files": [
+        "frontend/src/pages/Onboarding.tsx",
+        "frontend/src/components/onboarding/OnboardingWizard.tsx",
+        "frontend/src/components/onboarding/WizardStep.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 15,
+      "title": "Implement feature flags for gradual rollout",
+      "description": "Add feature flag system for controlling feature availability.",
+      "acceptanceCriteria": [
+        "FeatureFlag model: name, enabled, customer_ids (allowlist), percentage_rollout",
+        "is_feature_enabled(customer, feature_name) function",
+        "Admin interface for managing flags",
+        "Frontend context for feature checks",
+        "Flags: new_scoring_algo, specialty_modules, dark_mode"
+      ],
+      "files": [
+        "upstream/features/models.py",
+        "upstream/features/flags.py",
+        "frontend/src/contexts/FeatureContext.tsx"
+      ],
+      "passes": false
+    },
+    {
+      "id": 16,
+      "title": "Add analytics tracking",
+      "description": "Integrate Segment or Mixpanel for product analytics.",
+      "acceptanceCriteria": [
+        "Analytics SDK initialized",
+        "Track: page views, feature usage, signup funnel",
+        "Identify users with customer properties",
+        "Server-side tracking for key events",
+        "Privacy-compliant (no PHI in analytics)"
+      ],
+      "files": [
+        "frontend/src/lib/analytics.ts",
+        "upstream/analytics.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 17,
+      "title": "Create production deployment checklist",
+      "description": "Document all steps required for production deployment.",
+      "acceptanceCriteria": [
+        "Checklist in docs/deployment/production_checklist.md",
+        "Environment variables required",
+        "Database migrations",
+        "Static asset deployment",
+        "DNS configuration",
+        "SSL certificates",
+        "Monitoring setup",
+        "Backup verification"
+      ],
+      "files": [
+        "docs/deployment/production_checklist.md"
+      ],
+      "passes": false
+    },
+    {
+      "id": 18,
+      "title": "Write load tests for signup flow",
+      "description": "Create performance tests for critical paths.",
+      "acceptanceCriteria": [
+        "Locust test file for signup flow",
+        "Test: account creation, checkout redirect, webhook processing",
+        "Target: 50 concurrent signups",
+        "Response time < 500ms for API calls",
+        "CI integration for load tests"
+      ],
+      "files": [
+        "upstream/tests_performance_signup.py"
+      ],
+      "passes": false
+    }
+  ]
+}

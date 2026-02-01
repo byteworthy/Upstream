@@ -1,0 +1,310 @@
+{
+  "branchName": "milestone-01-core-scoring-engine",
+  "context": {
+    "milestone": "01",
+    "milestoneName": "Core Scoring Engine",
+    "milestoneGoal": "Integrate ClaimScore, CustomerAutomationProfile, and ShadowModeResult models. Establish risk baselines, implement three-tier routing logic, and expose pre-submission risk scoring API.",
+    "dependsOn": [
+      "Month 1 Foundation (complete)",
+      "upstream/automation/models.py (exists, not migrated)"
+    ],
+    "priorArtifacts": [
+      "upstream/automation/models.py - ClaimScore, CustomerAutomationProfile, ShadowModeResult models exist but have no migrations",
+      "upstream/models.py - RiskBaseline model exists and is migrated",
+      "upstream/automation/rules_engine.py - RulesEngine class for rule evaluation"
+    ],
+    "successCriteria": [
+      "ClaimScore, CustomerAutomationProfile, ShadowModeResult tables exist in database",
+      "Three-tier routing (auto-execute, queue-review, escalate) correctly classifies claims",
+      "Pre-submission API (POST /api/v1/claims/score/) returns risk scores within 200ms",
+      "95%+ test coverage on scoring logic",
+      "OpenAPI documentation includes all new endpoints"
+    ],
+    "qualityGates": [
+      "python manage.py check",
+      "python manage.py makemigrations --check --dry-run",
+      "python manage.py test upstream -v 2",
+      "python manage.py spectacular --validate"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Add upstream.automation to INSTALLED_APPS",
+      "description": "Register the automation app in Django settings so models can be migrated. The app exists at upstream/automation/ with models.py containing ClaimScore, CustomerAutomationProfile, and ShadowModeResult.",
+      "acceptanceCriteria": [
+        "upstream.automation added to INSTALLED_APPS in upstream/settings/base.py",
+        "python manage.py check passes without errors",
+        "App is recognized: python -c \"from upstream.automation.models import ClaimScore; print('OK')\" works"
+      ],
+      "files": [
+        "upstream/settings/base.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 2,
+      "title": "Create migration for automation models",
+      "description": "Generate Django migration for ClaimScore, CustomerAutomationProfile, and ShadowModeResult models. These models exist in upstream/automation/models.py but have no migrations.",
+      "acceptanceCriteria": [
+        "Migration file created in upstream/automation/migrations/",
+        "Migration includes all three models with correct fields and indexes",
+        "python manage.py migrate runs cleanly",
+        "All three tables exist in database"
+      ],
+      "files": [
+        "upstream/automation/migrations/0001_initial.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 3,
+      "title": "Create ClaimScoreSerializer with all fields",
+      "description": "Create DRF serializer for ClaimScore model following the HATEOASMixin pattern from upstream/api/serializers.py. Include all confidence fields, risk scores, and automation tier.",
+      "acceptanceCriteria": [
+        "ClaimScoreSerializer created in upstream/api/serializers.py or new file",
+        "All ClaimScore fields serialized correctly",
+        "read_only fields: id, created_at, updated_at, claim (nested)",
+        "Includes HATEOAS links following existing pattern"
+      ],
+      "files": [
+        "upstream/api/serializers.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 4,
+      "title": "Create CustomerAutomationProfileSerializer",
+      "description": "Create DRF serializer for CustomerAutomationProfile model. Include all threshold fields, automation stage, and shadow mode configuration.",
+      "acceptanceCriteria": [
+        "CustomerAutomationProfileSerializer created",
+        "All threshold fields serialized (auto_execute_confidence, queue_review_min_confidence, etc.)",
+        "automation_stage choices properly handled",
+        "compliance_officer serialized as nested user or ID"
+      ],
+      "files": [
+        "upstream/api/serializers.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 5,
+      "title": "Create ShadowModeResultSerializer",
+      "description": "Create DRF serializer for ShadowModeResult model. Include AI prediction, human decision, and comparison fields.",
+      "acceptanceCriteria": [
+        "ShadowModeResultSerializer created",
+        "ai_recommended_action and human_action_taken serialized",
+        "actions_match and outcome fields included",
+        "Nested claim_score serializer for context"
+      ],
+      "files": [
+        "upstream/api/serializers.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 6,
+      "title": "Create ClaimScoreViewSet with CRUD operations",
+      "description": "Create DRF ViewSet for ClaimScore following the tenant-isolated pattern from CustomerViewSet. Include list, retrieve, and create actions.",
+      "acceptanceCriteria": [
+        "ClaimScoreViewSet created with CustomerAccessMixin",
+        "list action filters by customer with pagination",
+        "retrieve action returns single score with claim details",
+        "create action validates claim ownership before scoring",
+        "OpenAPI @extend_schema decorators added"
+      ],
+      "files": [
+        "upstream/api/views.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 7,
+      "title": "Create CustomerAutomationProfileViewSet",
+      "description": "Create DRF ViewSet for CustomerAutomationProfile. Each customer has exactly one profile (OneToOneField), so use retrieve/update pattern.",
+      "acceptanceCriteria": [
+        "CustomerAutomationProfileViewSet created",
+        "get_object returns profile for authenticated customer",
+        "update action allows modifying thresholds",
+        "Prevents creating duplicate profiles",
+        "OpenAPI documentation complete"
+      ],
+      "files": [
+        "upstream/api/views.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 8,
+      "title": "Create ShadowModeResultViewSet (read-only)",
+      "description": "Create read-only DRF ViewSet for ShadowModeResult. Used to review AI vs human decision comparisons.",
+      "acceptanceCriteria": [
+        "ShadowModeResultViewSet with list and retrieve only",
+        "Filtered by customer",
+        "Includes filtering by actions_match, outcome, date range",
+        "Aggregation endpoint for accuracy rate"
+      ],
+      "files": [
+        "upstream/api/views.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 9,
+      "title": "Register automation ViewSets in urls.py",
+      "description": "Add URL routes for ClaimScoreViewSet, CustomerAutomationProfileViewSet, and ShadowModeResultViewSet using DRF router.",
+      "acceptanceCriteria": [
+        "/api/v1/claim-scores/ routes to ClaimScoreViewSet",
+        "/api/v1/automation-profile/ routes to CustomerAutomationProfileViewSet",
+        "/api/v1/shadow-results/ routes to ShadowModeResultViewSet",
+        "All endpoints accessible with valid JWT token"
+      ],
+      "files": [
+        "upstream/api/urls.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 10,
+      "title": "Create RiskScoringService with scoring algorithm",
+      "description": "Create service class that calculates ClaimScore for a given claim. Implements the confidence scoring algorithm combining coding, eligibility, documentation, and denial risk factors.",
+      "acceptanceCriteria": [
+        "RiskScoringService class created in upstream/services/scoring.py",
+        "calculate_score(claim) method returns ClaimScore instance",
+        "Combines: coding_confidence, eligibility_confidence, medical_necessity_confidence, documentation_completeness",
+        "Calculates denial_risk_score from RiskBaseline lookup",
+        "Returns overall_confidence as weighted average"
+      ],
+      "files": [
+        "upstream/services/__init__.py",
+        "upstream/services/scoring.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 11,
+      "title": "Integrate RiskBaseline lookup into scoring",
+      "description": "Enhance RiskScoringService to look up historical denial rates from RiskBaseline model and factor into denial_risk_score.",
+      "acceptanceCriteria": [
+        "Scoring service queries RiskBaseline for claim's payer+cpt combination",
+        "If baseline exists, use historical denial_rate",
+        "If no baseline, use conservative default (0.5)",
+        "Recent denial streak detection: 3+ denials in 7 days increases risk by 50%"
+      ],
+      "files": [
+        "upstream/services/scoring.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 12,
+      "title": "Implement three-tier routing logic",
+      "description": "Add routing logic to RiskScoringService that determines automation_tier and recommended_action based on CustomerAutomationProfile thresholds.",
+      "acceptanceCriteria": [
+        "Tier 1 (auto_execute): confidence >= profile.auto_execute_confidence AND amount <= profile.auto_execute_max_amount",
+        "Tier 2 (queue_review): confidence >= profile.queue_review_min_confidence",
+        "Tier 3 (escalate): confidence below threshold OR amount above threshold OR red-line action",
+        "Red-line detection: fraud_risk > 0.7, compliance_risk > 0.7, requires_human_review flag"
+      ],
+      "files": [
+        "upstream/services/scoring.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 13,
+      "title": "Create pre-submission risk API endpoint",
+      "description": "Add custom action to ClaimScoreViewSet for pre-submission scoring: POST /api/v1/claim-scores/score/ that accepts claim_id and returns calculated score.",
+      "acceptanceCriteria": [
+        "POST /api/v1/claim-scores/score/ endpoint created",
+        "Accepts: {\"claim_id\": 123} in request body",
+        "Returns: ClaimScore with all fields including recommended_action",
+        "Response time < 200ms for single claim",
+        "Rate limited: 100 requests/minute per customer"
+      ],
+      "files": [
+        "upstream/api/views.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 14,
+      "title": "Add OpenAPI documentation for scoring endpoints",
+      "description": "Add comprehensive @extend_schema decorators to all automation ViewSets with examples, descriptions, and proper tagging.",
+      "acceptanceCriteria": [
+        "@extend_schema added to all automation ViewSet actions",
+        "Request/response examples included",
+        "Proper tags: 'Automation', 'Scoring', 'Shadow Mode'",
+        "python manage.py spectacular --validate passes"
+      ],
+      "files": [
+        "upstream/api/views.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 15,
+      "title": "Write scoring service unit tests",
+      "description": "Create comprehensive test suite for RiskScoringService covering all scoring scenarios, tier routing, and edge cases.",
+      "acceptanceCriteria": [
+        "Test file created: upstream/tests_scoring.py",
+        "Tests for calculate_score with various claim scenarios",
+        "Tests for three-tier routing logic",
+        "Tests for red-line detection",
+        "Tests for RiskBaseline lookup fallback",
+        "Coverage > 90% for scoring.py"
+      ],
+      "files": [
+        "upstream/tests_scoring.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 16,
+      "title": "Write API integration tests for scoring endpoints",
+      "description": "Create API tests for all automation endpoints using Django test client.",
+      "acceptanceCriteria": [
+        "Tests for ClaimScoreViewSet CRUD operations",
+        "Tests for CustomerAutomationProfileViewSet retrieve/update",
+        "Tests for ShadowModeResultViewSet list/retrieve",
+        "Tests for pre-submission scoring endpoint",
+        "Tests verify tenant isolation (customer A can't see customer B scores)"
+      ],
+      "files": [
+        "upstream/tests_api.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 17,
+      "title": "Create test fixtures for automation models",
+      "description": "Create factory fixtures for ClaimScore, CustomerAutomationProfile, and ShadowModeResult using existing factory pattern.",
+      "acceptanceCriteria": [
+        "ClaimScoreFactory created with realistic default values",
+        "CustomerAutomationProfileFactory with configurable thresholds",
+        "ShadowModeResultFactory for testing accuracy calculations",
+        "Fixtures integrated with existing test setup"
+      ],
+      "files": [
+        "upstream/tests_fixtures.py"
+      ],
+      "passes": true
+    },
+    {
+      "id": 18,
+      "title": "Add admin interface for automation models",
+      "description": "Register ClaimScore, CustomerAutomationProfile, and ShadowModeResult with Django admin for operational visibility.",
+      "acceptanceCriteria": [
+        "All three models registered in upstream/admin.py",
+        "ClaimScoreAdmin with list_display showing key fields",
+        "CustomerAutomationProfileAdmin with inline thresholds",
+        "ShadowModeResultAdmin with filtering by outcome",
+        "Admin accessible at /admin/"
+      ],
+      "files": [
+        "upstream/admin.py"
+      ],
+      "passes": true
+    }
+  ]
+}

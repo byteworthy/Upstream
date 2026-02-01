@@ -1,0 +1,244 @@
+{
+  "branchName": "milestone-04-ehr-integrations",
+  "context": {
+    "milestone": "04",
+    "milestoneName": "EHR Integrations",
+    "milestoneGoal": "Build EHR integration layer with Epic FHIR R4 polling, Cerner connector, and athenahealth production credentials.",
+    "dependsOn": [
+      "Milestone 1: Core Scoring Engine",
+      "Month 1: EHR webhook foundation"
+    ],
+    "priorArtifacts": [
+      "upstream/api/views.py - EHRWebhookView for receiving webhooks",
+      "upstream/tasks.py - process_claim_with_automation task",
+      "upstream/models.py - IntegrationConnection, IntegrationLog"
+    ],
+    "successCriteria": [
+      "Epic FHIR R4 polling retrieves claims every 15 minutes",
+      "OAuth 2.0 token refresh works automatically",
+      "Cerner connector polls for claims",
+      "athenahealth production integration live",
+      "All EHR data creates ClaimRecords correctly",
+      "Circuit breakers prevent cascade failures"
+    ],
+    "qualityGates": [
+      "python manage.py check",
+      "python manage.py test upstream.tests_ehr_webhooks -v 2",
+      "python manage.py test upstream.integrations -v 2"
+    ]
+  },
+  "userStories": [
+    {
+      "id": 1,
+      "title": "Create EHRConnection model for credentials",
+      "description": "Create model to store EHR connection credentials per customer with encrypted secrets.",
+      "acceptanceCriteria": [
+        "EHRConnection model: customer FK, ehr_type (epic/cerner/athena), client_id, client_secret (encrypted), oauth_endpoint, fhir_endpoint, enabled",
+        "Migration created and applied",
+        "Secrets encrypted using django-fernet-fields or similar",
+        "Admin interface with secret masking"
+      ],
+      "files": [
+        "upstream/integrations/models.py",
+        "upstream/integrations/migrations/0001_initial.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 2,
+      "title": "Create EpicFHIRClient class",
+      "description": "Create client class for Epic FHIR R4 API with token management and resource fetching.",
+      "acceptanceCriteria": [
+        "EpicFHIRClient class in upstream/integrations/epic.py",
+        "Constructor accepts EHRConnection",
+        "get_token() method for OAuth 2.0 client credentials flow",
+        "fetch_eobs(since) fetches ExplanationOfBenefit resources",
+        "Handles pagination for large result sets"
+      ],
+      "files": [
+        "upstream/integrations/epic.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 3,
+      "title": "Implement OAuth 2.0 token refresh for Epic",
+      "description": "Add automatic token refresh logic with caching and expiration handling.",
+      "acceptanceCriteria": [
+        "Tokens cached in Redis with expiration",
+        "Refresh triggered 1 minute before expiration",
+        "Retry with exponential backoff on failure",
+        "Token refresh logged for audit",
+        "Thread-safe token access"
+      ],
+      "files": [
+        "upstream/integrations/epic.py",
+        "upstream/integrations/token_manager.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 4,
+      "title": "Create FHIR EOB resource parser",
+      "description": "Parse FHIR ExplanationOfBenefit resources into ClaimRecord format.",
+      "acceptanceCriteria": [
+        "parse_eob(eob) function extracts claim data",
+        "Extracts: patient MRN, claim amount, dates, payer, CPT codes, modifiers",
+        "Handles multiple diagnoses and procedures",
+        "De-identifies patient MRN using hash",
+        "Validates required fields present"
+      ],
+      "files": [
+        "upstream/integrations/fhir_parser.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 5,
+      "title": "Implement Epic polling scheduler",
+      "description": "Create Celery task that polls Epic for new claims at regular intervals.",
+      "acceptanceCriteria": [
+        "poll_epic_claims Celery task runs every 15 minutes",
+        "For each customer with epic_enabled=True: fetch EOBs since last_poll",
+        "Create ClaimRecord for each new EOB",
+        "Update customer.last_epic_poll timestamp",
+        "Log sync results to IntegrationLog"
+      ],
+      "files": [
+        "upstream/tasks.py",
+        "upstream/integrations/epic.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 6,
+      "title": "Create EHRSyncLog model for audit",
+      "description": "Create model to track EHR synchronization attempts, successes, and failures.",
+      "acceptanceCriteria": [
+        "EHRSyncLog model: connection FK, started_at, completed_at, status (success/error), records_fetched, records_created, error_message",
+        "Migration created and applied",
+        "Retention policy: 90 days",
+        "Dashboard metrics for sync health"
+      ],
+      "files": [
+        "upstream/integrations/models.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 7,
+      "title": "Build webhook receiver for real-time updates",
+      "description": "Enhance EHR webhook endpoint to handle Epic real-time notifications.",
+      "acceptanceCriteria": [
+        "POST /api/v1/webhooks/ehr/epic/ handles Epic notifications",
+        "Validates Epic signature header",
+        "Parses FHIR resource from payload",
+        "Creates/updates ClaimRecord",
+        "Idempotency using resource ID"
+      ],
+      "files": [
+        "upstream/api/views.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 8,
+      "title": "Create CernerFHIRClient class",
+      "description": "Create client class for Cerner/Oracle Health FHIR API.",
+      "acceptanceCriteria": [
+        "CernerFHIRClient class in upstream/integrations/cerner.py",
+        "OAuth 2.0 authentication",
+        "fetch_claims() method for Claim resources",
+        "Handles Cerner-specific FHIR extensions",
+        "Rate limiting to respect API limits"
+      ],
+      "files": [
+        "upstream/integrations/cerner.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 9,
+      "title": "Create AthenaHealthClient class",
+      "description": "Create client class for athenahealth API using their REST endpoints.",
+      "acceptanceCriteria": [
+        "AthenaHealthClient class in upstream/integrations/athena.py",
+        "OAuth 2.0 authentication with athena endpoint",
+        "fetch_claims() using /claims endpoint",
+        "Handles athena-specific data format",
+        "Maps to standard ClaimRecord fields"
+      ],
+      "files": [
+        "upstream/integrations/athena.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 10,
+      "title": "Implement connection health monitoring",
+      "description": "Add health checks for EHR connections with alerting on failures.",
+      "acceptanceCriteria": [
+        "check_ehr_health Celery task runs hourly",
+        "Tests token refresh for each connection",
+        "Tests basic API connectivity",
+        "Creates alert if connection unhealthy",
+        "Health status shown in admin"
+      ],
+      "files": [
+        "upstream/integrations/health.py",
+        "upstream/tasks.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 11,
+      "title": "Create EHR admin configuration UI",
+      "description": "Build admin interface for managing EHR connections.",
+      "acceptanceCriteria": [
+        "EHRConnectionAdmin with all fields",
+        "Secret fields masked in display",
+        "Test connection button",
+        "Sync history inline",
+        "Enable/disable toggle"
+      ],
+      "files": [
+        "upstream/admin.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 12,
+      "title": "Write integration tests with mocked FHIR",
+      "description": "Create tests for EHR clients using mocked FHIR responses.",
+      "acceptanceCriteria": [
+        "Mock FHIR server responses",
+        "Test Epic client token flow",
+        "Test EOB parsing with various payloads",
+        "Test polling task end-to-end",
+        "Test error handling and retries"
+      ],
+      "files": [
+        "upstream/integrations/tests.py"
+      ],
+      "passes": false
+    },
+    {
+      "id": 13,
+      "title": "Add retry logic and circuit breakers",
+      "description": "Implement resilience patterns for EHR API calls.",
+      "acceptanceCriteria": [
+        "Retry with exponential backoff (3 attempts)",
+        "Circuit breaker opens after 5 consecutive failures",
+        "Circuit breaker half-open test after 5 minutes",
+        "Failure counts tracked per connection",
+        "Alert when circuit opens"
+      ],
+      "files": [
+        "upstream/integrations/resilience.py",
+        "upstream/integrations/epic.py",
+        "upstream/integrations/cerner.py"
+      ],
+      "passes": false
+    }
+  ]
+}
