@@ -37,6 +37,7 @@ from upstream.automation.models import (
     CustomerAutomationProfile,
     ShadowModeResult,
 )
+from upstream.integrations.models import EHRConnection, EHRSyncLog
 
 
 class TenantTestMixin:
@@ -479,5 +480,95 @@ class TenantTestMixin:
             human_decision_user=human_decision_user,
             actions_match=actions_match,
             outcome=outcome,
+            **defaults,
+        )
+
+    # =================================================================
+    # EHR Integration Fixtures (Milestone 04)
+    # =================================================================
+
+    def create_ehr_connection(
+        self,
+        customer: Customer,
+        name: str = "Test EHR Connection",
+        ehr_type: str = "epic",
+        client_id: str = "test-client-id",
+        client_secret: str = "test-client-secret",
+        oauth_endpoint: str = "https://fhir.epic.com/oauth2/token",
+        fhir_endpoint: str = "https://fhir.epic.com/api/FHIR/R4",
+        enabled: bool = True,
+        health_status: str = "healthy",
+        **kwargs,
+    ) -> EHRConnection:
+        """
+        Create a test EHRConnection for EHR integration testing.
+
+        Args:
+            customer: Customer who owns this connection
+            name: Friendly name for the connection
+            ehr_type: EHR vendor type (epic, cerner, athena)
+            client_id: OAuth 2.0 client ID
+            client_secret: OAuth 2.0 client secret (encrypted at rest)
+            oauth_endpoint: OAuth 2.0 token endpoint URL
+            fhir_endpoint: FHIR API base URL
+            enabled: Whether connection is active
+            health_status: Current connection health (healthy, degraded, unhealthy, unknown)
+
+        Returns:
+            Created EHRConnection instance
+        """
+        return EHRConnection.objects.create(
+            customer=customer,
+            name=name,
+            ehr_type=ehr_type,
+            client_id=client_id,
+            client_secret=client_secret,
+            oauth_endpoint=oauth_endpoint,
+            fhir_endpoint=fhir_endpoint,
+            enabled=enabled,
+            health_status=health_status,
+            **kwargs,
+        )
+
+    def create_ehr_sync_log(
+        self,
+        connection: EHRConnection,
+        status: str = "success",
+        records_fetched: int = 100,
+        records_created: int = 95,
+        records_updated: int = 3,
+        records_skipped: int = 2,
+        error_message: Optional[str] = None,
+        **kwargs,
+    ) -> EHRSyncLog:
+        """
+        Create a test EHRSyncLog for sync audit tracking.
+
+        Args:
+            connection: EHRConnection this log is for
+            status: Sync status (success, error, partial)
+            records_fetched: Number of records fetched from EHR
+            records_created: Number of ClaimRecords created
+            records_updated: Number of ClaimRecords updated
+            records_skipped: Number of records skipped (duplicates)
+            error_message: Error details if sync failed
+
+        Returns:
+            Created EHRSyncLog instance
+        """
+        defaults = {
+            "completed_at": timezone.now() if status == "success" else None,
+            "sync_metadata": {"page_count": 2, "last_cursor": "abc123"},
+        }
+        defaults.update(kwargs)
+
+        return EHRSyncLog.objects.create(
+            connection=connection,
+            status=status,
+            records_fetched=records_fetched,
+            records_created=records_created,
+            records_updated=records_updated,
+            records_skipped=records_skipped,
+            error_message=error_message,
             **defaults,
         )

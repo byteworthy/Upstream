@@ -1502,6 +1502,8 @@ from upstream.alerts.models import (  # noqa: F401, E402
     OperatorJudgment,
 )
 from upstream.integrations.models import (  # noqa: F401, E402
+    EHRConnection,
+    EHRSyncLog,
     IntegrationProvider,
     IntegrationConnection,
     IntegrationLog,

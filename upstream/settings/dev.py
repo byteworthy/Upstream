@@ -68,6 +68,18 @@ LOGGING = get_logging_config(
 )
 
 # =============================================================================
+# FIELD ENCRYPTION KEY (Development)
+# =============================================================================
+
+# Set field encryption key for development (must be valid Fernet key)
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+if not FIELD_ENCRYPTION_KEY:
+    # Valid Fernet key for development (NOT for production use)
+    FIELD_ENCRYPTION_KEY = (
+        "x-MJZzq3Q6Vi3-4tTZP9GHRGGJcPVzo54lBGQXxXRc0="  # pragma: allowlist secret
+    )
+
+# =============================================================================
 # CODE QUALITY AUDITOR CONFIGURATION
 # =============================================================================
 
