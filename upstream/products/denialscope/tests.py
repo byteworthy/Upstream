@@ -184,3 +184,24 @@ class DenialScopeTests(TestCase):
             self.assertIn(latest_signal.severity, ['critical', 'medium', 'high'],
                 f"Expected severity critical/medium/high, got {latest_signal.severity}")
             self.assertGreater(latest_signal.confidence, 0.5)
+
+    def test_dollar_spike_50k_threshold_triggers_signal(self):
+        """Test $50K threshold triggers signal."""
+        from upstream.constants import DENIAL_DOLLARS_SPIKE_THRESHOLD
+        for day in range(21):
+            days_ago = 28 - day
+            for i in range(5):
+                self._create_claim('Humana', 'DENIED', days_ago, denial_reason='CO-50', allowed_amount=1000)
+                self._create_claim('Humana', 'PAID', days_ago, allowed_amount=1000)
+        for day in range(7):
+            days_ago = 7 - day
+            for i in range(10):
+                self._create_claim('Humana', 'DENIED', days_ago, denial_reason='CO-50', allowed_amount=1000)
+            for i in range(5):
+                self._create_claim('Humana', 'PAID', days_ago, allowed_amount=1000)
+        service = DenialScopeComputationService(self.customer)
+        with customer_context(self.customer):
+            result = service.compute(min_volume=5)
+            signals = DenialSignal.objects.filter(customer=self.customer, signal_type='denial_dollars_spike')
+            self.assertTrue(signals.exists(), f"Expected denial_dollars_spike signal. Result: {result}")
+            self.assertEqual(DENIAL_DOLLARS_SPIKE_THRESHOLD, 50000)
