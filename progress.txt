@@ -34,3 +34,33 @@ Story: #17 - Create test fixtures for automation models
 
 ### Status
 ✅ Story #17 completed and ready for commit
+
+## Iteration 4 - 2026-02-01T04:00:00Z
+Story: #18 - Add admin interface for automation models
+
+### Implementation
+- Added admin classes for all three automation models to upstream/admin.py
+- ClaimScoreAdmin:
+  - list_display: id, claim, customer, overall_confidence, denial_risk_score, automation_tier, recommended_action, requires_human_review, created_at
+  - list_filter: automation_tier, recommended_action, requires_human_review, customer, model_version
+  - Fieldsets for organized form layout (Claim Info, Confidence Metrics, Risk Scores, etc.)
+- CustomerAutomationProfileAdmin:
+  - list_display: id, customer, automation_stage, shadow_mode_enabled, shadow_accuracy_rate, auto_submit_claims, created_at
+  - 10 fieldsets for clear organization of tier thresholds
+  - Searchable by customer name and notification email
+- ShadowModeResultAdmin:
+  - list_display: id, customer, claim_score, ai_recommended_action, ai_confidence, human_action_taken, actions_match, outcome, created_at
+  - list_filter: actions_match, outcome (as per acceptance criteria)
+  - date_hierarchy on created_at for temporal navigation
+
+### Key Decisions
+- Used fieldsets to organize complex models for better UX
+- Added readonly_fields for computed/timestamp fields
+- Enabled searching by related model fields (customer__name, etc.)
+
+### Quality Gates
+- python manage.py check: PASSED
+- python manage.py makemigrations --check --dry-run: PASSED
+
+### Status
+✅ Story #18 completed

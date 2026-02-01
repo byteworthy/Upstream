@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import Customer, Settings, Upload, ClaimRecord, ReportRun, DriftEvent, UserProfile, PayerMapping, CPTGroupMapping
 from upstream.core.models import ProductConfig
+from upstream.automation.models import ClaimScore, CustomerAutomationProfile, ShadowModeResult
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -79,3 +80,135 @@ class ProductConfigAdmin(admin.ModelAdmin):
         }),
     )
     readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ClaimScore)
+class ClaimScoreAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'claim', 'customer', 'overall_confidence', 'denial_risk_score',
+        'automation_tier', 'recommended_action', 'requires_human_review', 'created_at'
+    )
+    list_filter = (
+        'automation_tier', 'recommended_action', 'requires_human_review',
+        'customer', 'model_version'
+    )
+    search_fields = ('customer__name', 'claim__payer', 'claim__cpt', 'red_line_reason')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Claim Information', {
+            'fields': ('claim', 'customer')
+        }),
+        ('Confidence Metrics', {
+            'fields': (
+                'overall_confidence', 'coding_confidence', 'eligibility_confidence',
+                'medical_necessity_confidence', 'documentation_completeness'
+            )
+        }),
+        ('Risk Scores', {
+            'fields': ('denial_risk_score', 'fraud_risk_score', 'compliance_risk_score')
+        }),
+        ('Automation Decision', {
+            'fields': (
+                'automation_tier', 'recommended_action',
+                'requires_human_review', 'red_line_reason'
+            )
+        }),
+        ('Model Metadata', {
+            'fields': ('model_version', 'feature_importance', 'prediction_reasoning'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(CustomerAutomationProfile)
+class CustomerAutomationProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'customer', 'automation_stage', 'shadow_mode_enabled',
+        'shadow_accuracy_rate', 'auto_submit_claims', 'created_at'
+    )
+    list_filter = (
+        'automation_stage', 'shadow_mode_enabled', 'auto_submit_claims',
+        'auto_check_status', 'auto_verify_eligibility'
+    )
+    search_fields = ('customer__name', 'notification_email', 'compliance_officer__username')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Customer', {
+            'fields': ('customer', 'compliance_officer')
+        }),
+        ('Trust Calibration', {
+            'fields': ('automation_stage', 'stage_start_date')
+        }),
+        ('Tier 1: Auto-Execute Thresholds', {
+            'fields': ('auto_execute_confidence', 'auto_execute_max_amount')
+        }),
+        ('Tier 2: Queue Review Thresholds', {
+            'fields': ('queue_review_min_confidence', 'queue_review_max_amount')
+        }),
+        ('Tier 3: Escalate Thresholds', {
+            'fields': ('escalate_min_amount',)
+        }),
+        ('Action Toggles', {
+            'fields': (
+                'auto_submit_claims', 'auto_check_status', 'auto_verify_eligibility',
+                'auto_submit_prior_auth', 'auto_modify_codes', 'auto_submit_appeals'
+            )
+        }),
+        ('Shadow Mode', {
+            'fields': (
+                'shadow_mode_enabled', 'shadow_mode_start_date',
+                'shadow_accuracy_rate', 'shadow_mode_min_accuracy'
+            )
+        }),
+        ('Notifications', {
+            'fields': (
+                'notify_on_auto_execute', 'notify_on_escalation',
+                'notification_email', 'undo_window_hours'
+            )
+        }),
+        ('Compliance', {
+            'fields': ('audit_all_actions',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ShadowModeResult)
+class ShadowModeResultAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'customer', 'claim_score', 'ai_recommended_action', 'ai_confidence',
+        'human_action_taken', 'actions_match', 'outcome', 'created_at'
+    )
+    list_filter = ('actions_match', 'outcome', 'customer', 'ai_recommended_action')
+    search_fields = (
+        'customer__name', 'ai_recommended_action', 'human_action_taken',
+        'discrepancy_reason', 'human_decision_user__username'
+    )
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at',)
+    fieldsets = (
+        ('Reference', {
+            'fields': ('customer', 'claim_score')
+        }),
+        ('AI Prediction', {
+            'fields': ('ai_recommended_action', 'ai_confidence')
+        }),
+        ('Human Decision', {
+            'fields': ('human_action_taken', 'human_decision_user', 'human_decision_timestamp')
+        }),
+        ('Comparison', {
+            'fields': ('actions_match', 'outcome', 'discrepancy_reason')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
