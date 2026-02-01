@@ -42,7 +42,7 @@
         "upstream/integrations/models.py",
         "upstream/integrations/migrations/0001_initial.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 2,
@@ -58,7 +58,7 @@
       "files": [
         "upstream/integrations/epic.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 3,
@@ -75,7 +75,7 @@
         "upstream/integrations/epic.py",
         "upstream/integrations/token_manager.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 4,
@@ -91,7 +91,7 @@
       "files": [
         "upstream/integrations/fhir_parser.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 5,
@@ -108,7 +108,7 @@
         "upstream/tasks.py",
         "upstream/integrations/epic.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 6,
@@ -123,7 +123,7 @@
       "files": [
         "upstream/integrations/models.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 7,
@@ -139,7 +139,7 @@
       "files": [
         "upstream/api/views.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 8,
@@ -155,7 +155,7 @@
       "files": [
         "upstream/integrations/cerner.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 9,
@@ -171,7 +171,7 @@
       "files": [
         "upstream/integrations/athena.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 10,
@@ -188,7 +188,7 @@
         "upstream/integrations/health.py",
         "upstream/tasks.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 11,
@@ -204,7 +204,7 @@
       "files": [
         "upstream/admin.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 12,
@@ -220,7 +220,7 @@
       "files": [
         "upstream/integrations/tests.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 13,
@@ -238,7 +238,7 @@
         "upstream/integrations/epic.py",
         "upstream/integrations/cerner.py"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
