@@ -232,7 +232,7 @@
       "files": [
         "upstream/products/ptot/tests.py"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": 14,

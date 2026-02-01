@@ -6,8 +6,10 @@ and monitors KX modifier threshold compliance.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+import pytz
 
 from django.db.models import Sum
 from django.utils import timezone
@@ -208,10 +210,9 @@ class PTOTService:
 
         # Calculate YTD charges for PT/OT/SLP services
         # Filter claims for this patient and year
-        start_of_year = timezone.datetime(year, 1, 1, tzinfo=timezone.utc)
-        end_of_year = timezone.datetime(
-            year, 12, 31, 23, 59, 59, tzinfo=timezone.utc
-        )
+        utc = pytz.UTC
+        start_of_year = datetime(year, 1, 1, tzinfo=utc)
+        end_of_year = datetime(year, 12, 31, 23, 59, 59, tzinfo=utc)
 
         # Get all time-based CPTs
         time_based_cpts = list(get_time_based_cpts().keys())
