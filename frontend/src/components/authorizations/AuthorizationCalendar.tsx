@@ -27,9 +27,13 @@ const MONTHS = [
   'December',
 ];
 
+// Get initial timestamp outside of component to avoid React strict mode issues
+const getInitialTimestamp = () => Date.now();
+
 export function AuthorizationCalendar({ authorizations, onExportCSV }: AuthorizationCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [now] = useState(getInitialTimestamp);
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -165,10 +169,7 @@ export function AuthorizationCalendar({ authorizations, onExportCSV }: Authoriza
           {/* Days of Week Header */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS_OF_WEEK.map((day) => (
-              <div
-                key={day}
-                className="text-center text-sm font-medium text-muted-foreground py-2"
-              >
+              <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
                 {day}
               </div>
             ))}
@@ -198,7 +199,9 @@ export function AuthorizationCalendar({ authorizations, onExportCSV }: Authoriza
                 >
                   <span className={cn('font-medium', !dayColor && 'text-foreground')}>{day}</span>
                   {authCount > 0 && (
-                    <span className={cn('text-xs', dayColor ? 'opacity-90' : 'text-muted-foreground')}>
+                    <span
+                      className={cn('text-xs', dayColor ? 'opacity-90' : 'text-muted-foreground')}
+                    >
                       {authCount}
                     </span>
                   )}
@@ -252,7 +255,7 @@ export function AuthorizationCalendar({ authorizations, onExportCSV }: Authoriza
           {selectedDateAuths.length > 0 && (
             <CardContent className="space-y-3">
               {selectedDateAuths.map((auth) => (
-                <ExpirationCard key={auth.id} authorization={auth} />
+                <ExpirationCard key={auth.id} authorization={auth} currentTime={now} />
               ))}
             </CardContent>
           )}

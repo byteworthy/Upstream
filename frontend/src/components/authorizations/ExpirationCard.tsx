@@ -1,18 +1,19 @@
-import { Link } from 'react-router-dom';
 import { Calendar, User, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import type { Authorization } from '@/types/api';
 import { cn } from '@/lib/utils';
 
 interface ExpirationCardProps {
   authorization: Authorization;
+  currentTime: number;
 }
 
-export function ExpirationCard({ authorization }: ExpirationCardProps) {
-  const daysUntilExpiry = Math.ceil(
-    (new Date(authorization.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-  );
+function calculateDaysUntilExpiry(endDate: string, now: number): number {
+  return Math.ceil((new Date(endDate).getTime() - now) / (1000 * 60 * 60 * 24));
+}
+
+export function ExpirationCard({ authorization, currentTime }: ExpirationCardProps) {
+  const daysUntilExpiry = calculateDaysUntilExpiry(authorization.end_date, currentTime);
 
   const getExpiryColor = () => {
     if (daysUntilExpiry <= 0) return 'bg-danger-500/10 border-danger-500/20';

@@ -6,12 +6,9 @@ import { ClaimScoreDetail } from '@/pages/ClaimScoreDetail';
 import { WorkQueue } from '@/pages/WorkQueue';
 import { Alerts } from '@/pages/Alerts';
 import { AlertDetail } from '@/pages/AlertDetail';
+import { Authorizations } from '@/pages/Authorizations';
 
 // Placeholder pages - will be implemented in subsequent stories
-
-function AuthorizationsPage() {
-  return <div className="text-foreground">Authorizations - Coming soon</div>;
-}
 
 function ExecutionLogPage() {
   return <div className="text-foreground">Execution Log - Coming soon</div>;
@@ -43,7 +40,7 @@ function App() {
         <Route path="/work-queue" element={<WorkQueue />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/alerts/:id" element={<AlertDetail />} />
-        <Route path="/authorizations" element={<AuthorizationsPage />} />
+        <Route path="/authorizations" element={<Authorizations />} />
         <Route path="/execution-log" element={<ExecutionLogPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
