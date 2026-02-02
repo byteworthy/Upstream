@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Webhook & RBAC Testing** - Integration test coverage
 - [x] **Phase 5: Performance Testing & Rollback Fix** - Production reliability validation
 - [x] **Phase 6: Database Indexes** - Query performance optimization
+- [ ] **Phase 7: Frontend Unit Tests for Critical Components** - Specialty module test coverage
 
 ## Phase Details
 
@@ -122,10 +123,27 @@ Plans:
 
 **Completed:** 2026-02-01
 
+### Phase 7: Frontend Unit Tests for Critical Components
+**Goal**: Achieve 80%+ test coverage on the specialty module system through comprehensive unit tests for CustomerContext, SpecialtyRoute, Settings, Dashboard, and Sidebar components
+**Depends on**: Phase 6
+**Requirements**: Frontend test coverage for specialty module system
+**Success Criteria** (what must be TRUE):
+  1. CustomerContext tests validate enableSpecialty, disableSpecialty, hasSpecialty functions
+  2. SpecialtyRoute tests confirm route guard redirects correctly for unauthorized specialty access
+  3. Settings SpecialtyModulesCard tests validate toggle enable/disable functionality
+  4. Dashboard SpecialtyWidgets tests verify conditional rendering based on enabled specialties
+  5. Sidebar tests confirm dynamic navigation updates based on specialty configuration
+**Plans**: 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — SpecialtyRoute and Sidebar component tests (routing guards, dynamic navigation)
+- [ ] 07-02-PLAN.md — Settings SpecialtyModulesCard tests (toggle enable/disable functionality)
+- [ ] 07-03-PLAN.md — Dashboard SpecialtyWidgets tests and full suite verification
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -135,3 +153,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Webhook & RBAC Testing | 2/2 | Complete | 2026-01-26 |
 | 5. Performance Testing & Rollback Fix | 2/2 | Complete | 2026-01-26 |
 | 6. Database Indexes | 1/1 | Complete | 2026-02-01 |
+| 7. Frontend Unit Tests for Critical Components | 0/3 | Planned | - |
