@@ -24,18 +24,18 @@ from decimal import Decimal
 from typing import Literal, TypedDict, Union, cast
 
 from django.db import models, transaction
-from django.db.models import Count, Max, Min, Sum, F, QuerySet
+from django.db.models import Count, F, Max, Min, QuerySet, Sum
 from django.utils import timezone
 
-from upstream.models import ClaimRecord, Customer
 from upstream.ingestion.services import publish_event
 from upstream.metrics import payment_delay_signal_created
+from upstream.models import ClaimRecord, Customer
 from upstream.products.delayguard import (
-    DELAYGUARD_CURRENT_WINDOW_DAYS,
     DELAYGUARD_BASELINE_WINDOW_DAYS,
-    DELAYGUARD_SEVERITY_THRESHOLDS,
-    DELAYGUARD_MIN_SAMPLE_SIZE,
+    DELAYGUARD_CURRENT_WINDOW_DAYS,
     DELAYGUARD_MIN_DATE_COMPLETENESS,
+    DELAYGUARD_MIN_SAMPLE_SIZE,
+    DELAYGUARD_SEVERITY_THRESHOLDS,
 )
 from upstream.products.delayguard.models import (
     PaymentDelayAggregate,

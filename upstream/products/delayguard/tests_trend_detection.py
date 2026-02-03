@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 
-from upstream.models import Customer, ClaimRecord, Upload
+from upstream.models import ClaimRecord, Customer, Upload
 from upstream.products.delayguard.models import PaymentTimingTrend
 from upstream.products.delayguard.services import (
     PaymentTimingTrendService,
