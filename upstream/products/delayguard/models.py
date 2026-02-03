@@ -7,8 +7,9 @@ Payment delay drift detection based on days-to-payment metrics.
 
 from decimal import Decimal
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
+
 from upstream.core.models import BaseModel
 
 
@@ -298,3 +299,148 @@ class PaymentDelayEvidenceArtifact(BaseModel):
 
     def __str__(self):
         return f"Evidence for Signal {self.signal.pk}"
+
+
+class PaymentTimingTrend(BaseModel):
+    """
+    Weekly payment timing trend analysis by payer.
+
+    Detects worsening trends in payment timing over consecutive weeks.
+    Example: 45→47→50→52 days = WORSENING trend over 4 weeks.
+
+    Trend Direction:
+    - WORSENING: Each consecutive week is slower (increasing days)
+    - IMPROVING: Each consecutive week is faster (decreasing days)
+    - STABLE: No consistent direction (<2 day variance)
+    """
+
+    TREND_DIRECTION_CHOICES = [
+        ("WORSENING", "Worsening"),
+        ("IMPROVING", "Improving"),
+        ("STABLE", "Stable"),
+    ]
+
+    SEVERITY_CHOICES = [
+        ("low", "Low"),
+        ("medium", "Medium"),
+        ("high", "High"),
+        ("critical", "Critical"),
+    ]
+
+    customer = models.ForeignKey(
+        "upstream.Customer",
+        on_delete=models.CASCADE,
+        related_name="payment_timing_trends",
+    )
+    payer = models.CharField(max_length=255, db_index=True)
+
+    # Analysis window
+    analysis_start_date = models.DateField(
+        help_text="Start of the 4-week analysis window"
+    )
+    analysis_end_date = models.DateField(help_text="End of the analysis window")
+
+    # Weekly metrics (JSON array of 4 weeks)
+    weekly_metrics = models.JSONField(
+        default=list,
+        help_text=(
+            "Weekly payment timing data: "
+            "[{week_start, week_end, avg_days, claim_count, total_billed}, ...]"
+        ),
+    )
+
+    # Trend analysis
+    trend_direction = models.CharField(
+        max_length=20,
+        choices=TREND_DIRECTION_CHOICES,
+        db_index=True,
+        help_text="Overall trend direction across weeks",
+    )
+    consecutive_worsening_weeks = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Number of consecutive weeks with increasing payment days",
+    )
+
+    # Baseline vs current comparison
+    baseline_avg_days = models.FloatField(
+        help_text="Average days-to-payment in first week"
+    )
+    current_avg_days = models.FloatField(
+        help_text="Average days-to-payment in most recent week"
+    )
+    total_delta_days = models.FloatField(
+        help_text="Total change in days from first to last week"
+    )
+    avg_weekly_change = models.FloatField(help_text="Average days change per week")
+
+    # Cash flow impact
+    estimated_revenue_delay = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Estimated revenue delayed due to slower payments ($)",
+    )
+    total_billed_in_window = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Total billed amount in the analysis window",
+    )
+
+    # Sample sizes
+    total_claim_count = models.IntegerField(
+        help_text="Total claims analyzed across all weeks"
+    )
+
+    # Signal metadata
+    severity = models.CharField(
+        max_length=20,
+        choices=SEVERITY_CHOICES,
+        default="medium",
+        db_index=True,
+    )
+    confidence = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Confidence score based on sample size and trend consistency",
+    )
+
+    # Human-readable summary
+    summary_text = models.TextField(help_text="Human-readable trend summary")
+
+    # Fingerprint for deduplication
+    fingerprint = models.CharField(
+        max_length=255,
+        db_index=True,
+        unique=True,
+        help_text="Deterministic fingerprint for deduplication",
+    )
+
+    class Meta:
+        verbose_name = "Payment Timing Trend"
+        verbose_name_plural = "Payment Timing Trends"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["customer", "-created_at"]),
+            models.Index(fields=["customer", "payer", "-created_at"]),
+            models.Index(fields=["customer", "trend_direction", "-created_at"]),
+            models.Index(fields=["customer", "severity", "-created_at"]),
+            models.Index(fields=["fingerprint"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(confidence__gte=0.0) & models.Q(confidence__lte=1.0),
+                name="paymenttimingtrend_confidence_range",
+            ),
+            models.CheckConstraint(
+                check=models.Q(consecutive_worsening_weeks__gte=0),
+                name="paymenttimingtrend_weeks_nonnegative",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.customer.name} - {self.payer} - {self.trend_direction} "
+            f"({self.total_delta_days:+.1f} days over {len(self.weekly_metrics)} weeks)"
+        )

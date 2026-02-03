@@ -1,6 +1,7 @@
-from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+
 from upstream.core.tenant import CustomerScopedManager
 
 
@@ -1479,73 +1480,72 @@ class Authorization(models.Model):
         return f"{self.customer.name} - {self.auth_number} - {self.status}"
 
 
+from upstream.alerts.models import (  # noqa: F401, E402
+    Alert,
+    AlertEvent,
+    AlertRule,
+    NotificationChannel,
+    OperatorJudgment,
+)
+
 # Import models from submodules to ensure Django migrations detect them
 # HIGH-4: Replace wildcard imports with explicit imports
 from upstream.core.models import (  # noqa: F401, E402
     BaseModel,
-    SystemConfiguration,
     DomainAuditEvent,
     ProductConfig,
+    SystemConfiguration,
 )
 from upstream.core.validation_models import (  # noqa: F401, E402
-    ValidationRule,
-    ValidationResult,
-    DataQualityMetric,
     ClaimValidationHistory,
     DataAnomalyDetection,
-)
-from upstream.alerts.models import (  # noqa: F401, E402
-    AlertRule,
-    NotificationChannel,
-    AlertEvent,
-    Alert,
-    OperatorJudgment,
+    DataQualityMetric,
+    ValidationResult,
+    ValidationRule,
 )
 from upstream.integrations.models import (  # noqa: F401, E402
     EHRConnection,
     EHRSyncLog,
-    IntegrationProvider,
     IntegrationConnection,
     IntegrationLog,
-    WebhookEndpoint,
+    IntegrationProvider,
     WebhookDelivery,
+    WebhookEndpoint,
 )
-from upstream.reporting.models import (  # noqa: F401, E402
-    ReportTemplate,
-    ScheduledReport,
-    ReportArtifact,
+from upstream.models_agents import (  # noqa: F401, E402
+    AgentRun,
+    CodeQualityMetric,
+    DatabaseQueryAnalysis,
+    Finding,
+    MigrationAnalysis,
+    TestCoverageReport,
+)
+from upstream.products.aba.models import (  # noqa: F401, E402
+    ABAAuthorizationTracker,
+)
+from upstream.products.delayguard.models import (  # noqa: F401, E402
+    PaymentDelayAggregate,
+    PaymentDelayClaimSet,
+    PaymentDelayEvidenceArtifact,
+    PaymentDelaySignal,
+    PaymentTimingTrend,
 )
 from upstream.products.denialscope.models import (  # noqa: F401, E402
     DenialAggregate,
     DenialSignal,
 )
-from upstream.products.delayguard.models import (  # noqa: F401, E402
-    PaymentDelayAggregate,
-    PaymentDelaySignal,
-    PaymentDelayClaimSet,
-    PaymentDelayEvidenceArtifact,
-)
 from upstream.products.dialysis.models import (  # noqa: F401, E402
     DialysisMABaseline,
 )
-from upstream.products.aba.models import (  # noqa: F401, E402
-    ABAAuthorizationTracker,
+from upstream.products.homehealth.models import (  # noqa: F401, E402
+    HomeHealthEpisode,
+    HomeHealthPDGMGroup,
 )
 from upstream.products.imaging.models import (  # noqa: F401, E402
     ImagingPARequirement,
 )
-from upstream.products.homehealth.models import (  # noqa: F401, E402
-    HomeHealthPDGMGroup,
-    HomeHealthEpisode,
-)
-from upstream.models_agents import (  # noqa: F401, E402
-    AgentRun,
-    Finding,
-    CodeQualityMetric,
-    DatabaseQueryAnalysis,
-    TestCoverageReport,
-    MigrationAnalysis,
-)
-from upstream.products.dialysis.models import (  # noqa: F401, E402
-    DialysisMABaseline,
+from upstream.reporting.models import (  # noqa: F401, E402
+    ReportArtifact,
+    ReportTemplate,
+    ScheduledReport,
 )

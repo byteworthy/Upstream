@@ -24,22 +24,23 @@ from decimal import Decimal
 from typing import Literal, TypedDict, Union, cast
 
 from django.db import models, transaction
-from django.db.models import Count, Max, Min, Sum, F, QuerySet
+from django.db.models import Count, F, Max, Min, QuerySet, Sum
 from django.utils import timezone
 
-from upstream.models import ClaimRecord, Customer
 from upstream.ingestion.services import publish_event
 from upstream.metrics import payment_delay_signal_created
+from upstream.models import ClaimRecord, Customer
 from upstream.products.delayguard import (
-    DELAYGUARD_CURRENT_WINDOW_DAYS,
     DELAYGUARD_BASELINE_WINDOW_DAYS,
-    DELAYGUARD_SEVERITY_THRESHOLDS,
-    DELAYGUARD_MIN_SAMPLE_SIZE,
+    DELAYGUARD_CURRENT_WINDOW_DAYS,
     DELAYGUARD_MIN_DATE_COMPLETENESS,
+    DELAYGUARD_MIN_SAMPLE_SIZE,
+    DELAYGUARD_SEVERITY_THRESHOLDS,
 )
 from upstream.products.delayguard.models import (
     PaymentDelayAggregate,
     PaymentDelaySignal,
+    PaymentTimingTrend,
 )
 
 logger = logging.getLogger(__name__)
@@ -912,3 +913,519 @@ class DelayGuardComputationService:
         )
 
         return signal
+
+
+# =============================================================================
+# Payment Timing Trend Detection
+# =============================================================================
+
+
+class WeeklyMetrics(TypedDict):
+    """Weekly payment timing metrics."""
+
+    week_start: str
+    week_end: str
+    avg_days: float
+    claim_count: int
+    total_billed: str  # Decimal as string for JSON
+
+
+class TrendResult(TypedDict):
+    """Result of payment timing trend detection."""
+
+    payer: str
+    trend_direction: str
+    consecutive_worsening_weeks: int
+    baseline_avg_days: float
+    current_avg_days: float
+    total_delta_days: float
+    avg_weekly_change: float
+    weekly_metrics: list[WeeklyMetrics]
+    total_claim_count: int
+    total_billed: Decimal
+    estimated_revenue_delay: Decimal
+    severity: str
+    confidence: float
+    summary_text: str
+
+
+class PaymentTimingTrendService:
+    """
+    Service to detect worsening payment timing trends.
+
+    Analyzes the last 4 weeks of payment data to detect:
+    1. Worsening trends (each week slower than the last)
+    2. Absolute slowdowns (7+ days increase from baseline)
+    3. Cash flow impact from delayed payments
+
+    Example: If a payer's payment timing goes 45→47→50→52 days over 4 weeks,
+    this is detected as a WORSENING trend with +7 days total increase.
+    """
+
+    # Trend detection thresholds
+    TREND_WEEKS = 4  # Number of weeks to analyze
+    MIN_WEEKLY_CLAIMS = 5  # Minimum claims per week
+    ABSOLUTE_SLOWDOWN_THRESHOLD = 7  # Days increase to trigger absolute alert
+    CONSECUTIVE_WEEKS_THRESHOLD = 3  # Consecutive weeks for trend alert
+
+    # Severity thresholds
+    SEVERITY_THRESHOLDS = [
+        (14, 4, "critical"),  # 14+ days delta, 4 consecutive weeks
+        (10, 3, "high"),  # 10+ days delta, 3+ consecutive weeks
+        (7, 3, "medium"),  # 7+ days delta, 3+ consecutive weeks
+        (0, 0, "low"),  # Everything else
+    ]
+
+    def __init__(self, customer: Customer) -> None:
+        """Initialize the trend detection service."""
+        if customer is None:
+            raise TypeError("customer cannot be None")
+        self.customer = customer
+
+    def detect_payment_timing_trends(
+        self,
+        payer: str | None = None,
+        end_date: date | None = None,
+    ) -> list[TrendResult]:
+        """
+        Detect payment timing trends for a specific payer or all payers.
+
+        Analyzes the last 4 weeks of payment data to identify:
+        - Worsening trends (consecutive weeks getting slower)
+        - Absolute slowdowns (7+ days increase)
+        - Cash flow impact projections
+
+        Args:
+            payer: Optional payer to analyze. If None, analyzes all payers.
+            end_date: End date for analysis. Defaults to today.
+
+        Returns:
+            List of TrendResult dicts for payers with detected trends.
+        """
+        if end_date is None:
+            end_date = timezone.now().date()
+
+        # Define 4-week analysis window
+        start_date = end_date - timedelta(days=self.TREND_WEEKS * 7)
+
+        # Get payers to analyze
+        payers_to_analyze = self._get_payers_to_analyze(payer, start_date, end_date)
+
+        results: list[TrendResult] = []
+
+        for payer_name in payers_to_analyze:
+            trend_result = self._analyze_payer_trend(payer_name, start_date, end_date)
+            if trend_result is not None:
+                results.append(trend_result)
+
+        return results
+
+    def _get_payers_to_analyze(
+        self, payer: str | None, start_date: date, end_date: date
+    ) -> list[str]:
+        """Get list of payers to analyze."""
+        if payer:
+            return [payer]
+
+        # Get all payers with claims in the window
+        # Use all_objects to bypass tenant context (we filter by customer explicitly)
+        payers = (
+            ClaimRecord.all_objects.filter(
+                customer=self.customer,
+                submitted_date__gte=start_date,
+                submitted_date__lt=end_date,
+            )
+            .values_list("payer", flat=True)
+            .distinct()
+        )
+        return list(payers)
+
+    def _analyze_payer_trend(
+        self, payer: str, start_date: date, end_date: date
+    ) -> TrendResult | None:
+        """
+        Analyze payment timing trend for a single payer.
+
+        Returns TrendResult if a meaningful trend is detected, None otherwise.
+        """
+        # Compute weekly metrics
+        weekly_metrics = self._compute_weekly_metrics(payer, start_date, end_date)
+
+        if len(weekly_metrics) < self.TREND_WEEKS:
+            # Not enough weeks of data
+            return None
+
+        # Check if each week has minimum sample size
+        if any(week["claim_count"] < self.MIN_WEEKLY_CLAIMS for week in weekly_metrics):
+            return None
+
+        # Analyze trend direction
+        trend_direction, consecutive_worsening = self._determine_trend_direction(
+            weekly_metrics
+        )
+
+        # Calculate deltas
+        baseline_avg = weekly_metrics[0]["avg_days"]
+        current_avg = weekly_metrics[-1]["avg_days"]
+        total_delta = current_avg - baseline_avg
+
+        # Skip if no meaningful change
+        if (
+            abs(total_delta) < 2
+            and consecutive_worsening < self.CONSECUTIVE_WEEKS_THRESHOLD
+        ):
+            return None
+
+        # Only create results for worsening or significant trends
+        if trend_direction == "IMPROVING":
+            return None  # Don't alert on improving trends
+
+        if (
+            trend_direction == "STABLE"
+            and total_delta < self.ABSOLUTE_SLOWDOWN_THRESHOLD
+        ):
+            return None  # Stable and not a significant slowdown
+
+        # Calculate cash flow impact
+        total_billed = sum(Decimal(week["total_billed"]) for week in weekly_metrics)
+        total_claim_count = sum(week["claim_count"] for week in weekly_metrics)
+
+        # Estimated revenue delay = avg daily billed * delta days
+        avg_daily_billed = (
+            total_billed / (self.TREND_WEEKS * 7) if total_billed else Decimal("0")
+        )
+        estimated_revenue_delay = avg_daily_billed * Decimal(str(abs(total_delta)))
+
+        # Calculate average weekly change
+        weekly_changes = [
+            weekly_metrics[i + 1]["avg_days"] - weekly_metrics[i]["avg_days"]
+            for i in range(len(weekly_metrics) - 1)
+        ]
+        avg_weekly_change = (
+            sum(weekly_changes) / len(weekly_changes) if weekly_changes else 0
+        )
+
+        # Calculate confidence
+        confidence = self._calculate_trend_confidence(
+            total_claim_count, consecutive_worsening, weekly_metrics
+        )
+
+        # Determine severity
+        severity = self._determine_severity(total_delta, consecutive_worsening)
+
+        # Build summary
+        summary_text = self._build_summary(
+            payer,
+            trend_direction,
+            baseline_avg,
+            current_avg,
+            total_delta,
+            consecutive_worsening,
+            estimated_revenue_delay,
+        )
+
+        return TrendResult(
+            payer=payer,
+            trend_direction=trend_direction,
+            consecutive_worsening_weeks=consecutive_worsening,
+            baseline_avg_days=baseline_avg,
+            current_avg_days=current_avg,
+            total_delta_days=total_delta,
+            avg_weekly_change=avg_weekly_change,
+            weekly_metrics=weekly_metrics,
+            total_claim_count=total_claim_count,
+            total_billed=total_billed,
+            estimated_revenue_delay=estimated_revenue_delay,
+            severity=severity,
+            confidence=confidence,
+            summary_text=summary_text,
+        )
+
+    def _compute_weekly_metrics(
+        self, payer: str, start_date: date, end_date: date
+    ) -> list[WeeklyMetrics]:
+        """Compute weekly payment timing metrics for a payer."""
+        weekly_metrics: list[WeeklyMetrics] = []
+
+        for week_num in range(self.TREND_WEEKS):
+            week_start = start_date + timedelta(days=week_num * 7)
+            week_end = week_start + timedelta(days=7)
+
+            # Query claims for this week
+            # Use all_objects to bypass tenant context (we filter by customer explicitly)
+            claims_qs = ClaimRecord.all_objects.filter(
+                customer=self.customer,
+                payer=payer,
+                submitted_date__gte=week_start,
+                submitted_date__lt=week_end,
+            ).exclude(
+                models.Q(submitted_date__isnull=True)
+                | models.Q(decided_date__isnull=True)
+            )
+
+            # Aggregate metrics
+            aggregates = claims_qs.aggregate(
+                claim_count=Count("id"),
+                total_billed=Sum("allowed_amount"),
+                total_days=Sum(F("decided_date") - F("submitted_date")),
+            )
+
+            claim_count = aggregates["claim_count"] or 0
+            total_billed = aggregates["total_billed"] or Decimal("0.00")
+            total_days_val = aggregates["total_days"]
+
+            # Convert total_days to int
+            if total_days_val is not None:
+                if isinstance(total_days_val, timedelta):
+                    total_days_int = total_days_val.days
+                else:
+                    total_days_int = int(total_days_val)
+            else:
+                total_days_int = 0
+
+            avg_days = total_days_int / claim_count if claim_count > 0 else 0.0
+
+            weekly_metrics.append(
+                WeeklyMetrics(
+                    week_start=week_start.isoformat(),
+                    week_end=week_end.isoformat(),
+                    avg_days=avg_days,
+                    claim_count=claim_count,
+                    total_billed=str(total_billed),
+                )
+            )
+
+        return weekly_metrics
+
+    def _determine_trend_direction(
+        self, weekly_metrics: list[WeeklyMetrics]
+    ) -> tuple[str, int]:
+        """
+        Determine trend direction from weekly metrics.
+
+        Returns:
+            Tuple of (trend_direction, consecutive_worsening_weeks)
+        """
+        if len(weekly_metrics) < 2:
+            return "STABLE", 0
+
+        # Count consecutive worsening weeks (each week slower than previous)
+        consecutive_worsening = 0
+        consecutive_improving = 0
+
+        for i in range(1, len(weekly_metrics)):
+            delta = weekly_metrics[i]["avg_days"] - weekly_metrics[i - 1]["avg_days"]
+
+            if delta > 0:  # Slower (worsening)
+                consecutive_worsening += 1
+                consecutive_improving = 0
+            elif delta < 0:  # Faster (improving)
+                consecutive_improving += 1
+                consecutive_worsening = 0
+            # If delta == 0, maintain current streaks
+
+        # Determine overall direction
+        first_week_avg = weekly_metrics[0]["avg_days"]
+        last_week_avg = weekly_metrics[-1]["avg_days"]
+        total_delta = last_week_avg - first_week_avg
+
+        if consecutive_worsening >= self.CONSECUTIVE_WEEKS_THRESHOLD - 1:
+            return "WORSENING", consecutive_worsening
+        elif consecutive_improving >= self.CONSECUTIVE_WEEKS_THRESHOLD - 1:
+            return "IMPROVING", 0
+        elif total_delta >= self.ABSOLUTE_SLOWDOWN_THRESHOLD:
+            return "WORSENING", consecutive_worsening
+        else:
+            return "STABLE", consecutive_worsening
+
+    def _calculate_trend_confidence(
+        self,
+        total_claim_count: int,
+        consecutive_worsening: int,
+        weekly_metrics: list[WeeklyMetrics],
+    ) -> float:
+        """Calculate confidence score for the trend detection."""
+        # Base confidence from sample size
+        sample_factor = min(1.0, total_claim_count / 100)
+
+        # Bonus for consistent trend
+        consistency_factor = min(1.0, consecutive_worsening / self.TREND_WEEKS)
+
+        # Penalty for high variance between weeks
+        avg_days_values = [w["avg_days"] for w in weekly_metrics]
+        if len(avg_days_values) > 1 and max(avg_days_values) > 0:
+            variance = sum(
+                (x - sum(avg_days_values) / len(avg_days_values)) ** 2
+                for x in avg_days_values
+            ) / len(avg_days_values)
+            std_dev = variance**0.5
+            variance_penalty = max(0, 1 - std_dev / 20)  # Penalize high variance
+        else:
+            variance_penalty = 1.0
+
+        confidence = (
+            sample_factor * 0.5 + consistency_factor * 0.3 + variance_penalty * 0.2
+        )
+        return min(1.0, max(0.0, confidence))
+
+    def _determine_severity(
+        self, total_delta: float, consecutive_worsening: int
+    ) -> str:
+        """Determine severity level based on delta and trend consistency."""
+        for threshold_delta, threshold_weeks, severity in self.SEVERITY_THRESHOLDS:
+            if (
+                total_delta >= threshold_delta
+                and consecutive_worsening >= threshold_weeks
+            ):
+                return severity
+        return "low"
+
+    def _build_summary(
+        self,
+        payer: str,
+        trend_direction: str,
+        baseline_avg: float,
+        current_avg: float,
+        total_delta: float,
+        consecutive_worsening: int,
+        estimated_revenue_delay: Decimal,
+    ) -> str:
+        """Build human-readable summary text."""
+        if trend_direction == "WORSENING":
+            return (
+                f"{payer} payment timing worsening: "
+                f"{baseline_avg:.1f}→{current_avg:.1f} days "
+                f"(+{total_delta:.1f} days over {consecutive_worsening + 1} weeks). "
+                f"Estimated revenue delay: ${estimated_revenue_delay:,.2f}"
+            )
+        else:
+            return (
+                f"{payer} payment timing increased: "
+                f"{baseline_avg:.1f}→{current_avg:.1f} days "
+                f"(+{total_delta:.1f} days). "
+                f"Estimated revenue delay: ${estimated_revenue_delay:,.2f}"
+            )
+
+    def save_trend_and_create_alert(
+        self, trend_result: TrendResult, end_date: date | None = None
+    ) -> "PaymentTimingTrend":
+        """
+        Save a trend result to the database and create an alert.
+
+        Args:
+            trend_result: The trend detection result to save.
+            end_date: End date for fingerprint generation.
+
+        Returns:
+            The created PaymentTimingTrend instance.
+        """
+        if end_date is None:
+            end_date = timezone.now().date()
+
+        start_date = end_date - timedelta(days=self.TREND_WEEKS * 7)
+
+        # Generate fingerprint
+        fingerprint = self._generate_fingerprint(
+            trend_result["payer"], start_date, end_date
+        )
+
+        # Check for existing trend with same fingerprint
+        existing = PaymentTimingTrend.objects.filter(fingerprint=fingerprint).first()
+        if existing:
+            logger.info(
+                f"Trend already exists for {trend_result['payer']} with fingerprint {fingerprint}"
+            )
+            return existing
+
+        # Create the trend record
+        trend = PaymentTimingTrend.objects.create(
+            customer=self.customer,
+            payer=trend_result["payer"],
+            analysis_start_date=start_date,
+            analysis_end_date=end_date,
+            weekly_metrics=trend_result["weekly_metrics"],
+            trend_direction=trend_result["trend_direction"],
+            consecutive_worsening_weeks=trend_result["consecutive_worsening_weeks"],
+            baseline_avg_days=trend_result["baseline_avg_days"],
+            current_avg_days=trend_result["current_avg_days"],
+            total_delta_days=trend_result["total_delta_days"],
+            avg_weekly_change=trend_result["avg_weekly_change"],
+            estimated_revenue_delay=trend_result["estimated_revenue_delay"],
+            total_billed_in_window=trend_result["total_billed"],
+            total_claim_count=trend_result["total_claim_count"],
+            severity=trend_result["severity"],
+            confidence=trend_result["confidence"],
+            summary_text=trend_result["summary_text"],
+            fingerprint=fingerprint,
+        )
+
+        # Publish event for alert routing (triggers alert flow via event system)
+        publish_event(
+            customer=self.customer,
+            event_type="payment_timing_trend_detected",
+            payload={
+                "title": "DelayGuard: Payment Timing Trend",
+                "summary": trend_result["summary_text"],
+                "payer": trend_result["payer"],
+                "trend_direction": trend_result["trend_direction"],
+                "severity": trend_result["severity"],
+                "total_delta_days": trend_result["total_delta_days"],
+                "consecutive_worsening_weeks": trend_result[
+                    "consecutive_worsening_weeks"
+                ],
+                "estimated_revenue_delay": str(trend_result["estimated_revenue_delay"]),
+                "trend_id": trend.pk,
+            },
+        )
+
+        logger.info(
+            f"Payment timing trend saved: {trend_result['payer']} "
+            f"{trend_result['trend_direction']} +{trend_result['total_delta_days']:.1f} days"
+        )
+
+        return trend
+
+    def _generate_fingerprint(
+        self, payer: str, start_date: date, end_date: date
+    ) -> str:
+        """Generate deterministic fingerprint for deduplication."""
+        customer_id = cast(int, self.customer.pk)
+        key = f"{customer_id}:{payer}:{start_date}:{end_date}:payment_timing_trend"
+        return hashlib.sha256(key.encode()).hexdigest()[:32]
+
+
+def detect_payment_timing_trends(
+    customer: Customer,
+    payer: str | None = None,
+    end_date: date | None = None,
+    save_results: bool = True,
+) -> list[TrendResult]:
+    """
+    Detect payment timing trends for a customer.
+
+    Convenience function that creates a PaymentTimingTrendService
+    and runs trend detection.
+
+    Args:
+        customer: Customer to analyze.
+        payer: Optional specific payer to analyze.
+        end_date: End date for analysis. Defaults to today.
+        save_results: Whether to save results to database. Default True.
+
+    Returns:
+        List of TrendResult dicts for payers with detected trends.
+
+    Example:
+        >>> from upstream.products.delayguard.services import detect_payment_timing_trends
+        >>> results = detect_payment_timing_trends(customer, payer='BlueCross')
+        >>> for result in results:
+        ...     print(f"{result['payer']}: {result['trend_direction']}")
+    """
+    service = PaymentTimingTrendService(customer)
+    results = service.detect_payment_timing_trends(payer=payer, end_date=end_date)
+
+    if save_results:
+        for result in results:
+            service.save_trend_and_create_alert(result, end_date=end_date)
+
+    return results
