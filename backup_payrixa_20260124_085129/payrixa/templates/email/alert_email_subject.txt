@@ -1,1 +1,0 @@
-[{{ product_name }} Alert] {{ customer_name }} - {{ severity|title }} Severity
